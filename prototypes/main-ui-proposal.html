@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HotBox</title>
+  <style>
+    /* ========================================
+       CSS Custom Properties / Design Tokens
+       ======================================== */
+    :root {
+      /* Background layers (dark to light) */
+      --bg-deepest: #1a1a1e;
+      --bg-deep: #1e1e23;
+      --bg-base: #232329;
+      --bg-raised: #2a2a32;
+      --bg-surface: #32323c;
+      --bg-hover: #3a3a46;
+      --bg-active: #424250;
+
+      /* Text */
+      --text-primary: #e4e4e8;
+      --text-secondary: #a0a0aa;
+      --text-muted: #6e6e7a;
+      --text-link: #7aa2f7;
+
+      /* Accent */
+      --accent: #7aa2f7;
+      --accent-hover: #89b4fa;
+      --accent-muted: rgba(122, 162, 247, 0.15);
+
+      /* Status */
+      --status-online: #50c878;
+      --status-idle: #e2b93d;
+      --status-dnd: #f7768e;
+      --status-offline: #565664;
+
+      /* Voice */
+      --voice-active: #50c878;
+      --voice-muted: #6e6e7a;
+
+      /* Borders */
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --border-light: rgba(255, 255, 255, 0.1);
+
+      /* Misc */
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-full: 9999px;
+      --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
+      --transition-fast: 120ms ease;
+      --transition-base: 200ms ease;
+    }
+
+    /* ========================================
+       Reset & Base
+       ======================================== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-deepest);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: inherit;
+      border: none;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    input, textarea {
+      font-family: inherit;
+      font-size: inherit;
+      border: none;
+      outline: none;
+      background: none;
+      color: inherit;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-hover);
+      border-radius: var(--radius-full);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--bg-active);
+    }
+
+    /* ========================================
+       App Layout
+       ======================================== */
+    .app {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ========================================
+       Sidebar
+       ======================================== */
+    .sidebar {
+      width: 240px;
+      min-width: 240px;
+      background: var(--bg-deep);
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border-subtle);
+    }
+
+    /* Server header */
+    .server-header {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      cursor: default;
+      user-select: none;
+    }
+
+    .server-header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+    }
+
+    /* Channel list */
+    .channel-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .channel-section {
+      margin-bottom: 4px;
+    }
+
+    .channel-section-header {
+      display: flex;
+      align-items: center;
+      padding: 6px 16px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      user-select: none;
+    }
+
+    .channel-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      margin: 1px 8px;
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+      user-select: none;
+      position: relative;
+    }
+
+    .channel-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .channel-item.active {
+      background: var(--bg-active);
+      color: var(--text-primary);
+    }
+
+    .channel-item .channel-icon {
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+
+    .channel-item.active .channel-icon,
+    .channel-item:hover .channel-icon {
+      opacity: 1;
+    }
+
+    .channel-item .channel-name {
+      font-size: 14px;
+      font-weight: 450;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .channel-item .unread-badge {
+      margin-left: auto;
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      min-width: 18px;
+      height: 18px;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 5px;
+    }
+
+    /* Voice channel users */
+    .voice-users {
+      padding-left: 44px;
+      padding-right: 16px;
+    }
+
+    .voice-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 0;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .voice-user-avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .voice-user-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* DM items */
+    .dm-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 16px;
+      margin: 1px 8px;
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+      user-select: none;
+    }
+
+    .dm-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .dm-item.active {
+      background: var(--bg-active);
+      color: var(--text-primary);
+    }
+
+    .dm-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .dm-avatar .status-dot {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 10px;
+      height: 10px;
+      border-radius: var(--radius-full);
+      border: 2px solid var(--bg-deep);
+    }
+
+    .dm-name {
+      font-size: 14px;
+      font-weight: 450;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* User panel */
+    .user-panel {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      background: var(--bg-deepest);
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-full);
+      background: var(--accent-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .user-avatar .status-dot {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 12px;
+      height: 12px;
+      border-radius: var(--radius-full);
+      border: 2.5px solid var(--bg-deepest);
+    }
+
+    .status-dot.online { background: var(--status-online); }
+    .status-dot.idle { background: var(--status-idle); }
+    .status-dot.dnd { background: var(--status-dnd); }
+    .status-dot.offline { background: var(--status-offline); }
+
+    .user-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .user-info .username {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-info .user-status {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.2;
+    }
+
+    .user-panel-actions {
+      display: flex;
+      gap: 2px;
+    }
+
+    .user-panel-actions button {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .user-panel-actions button:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* ========================================
+       Main Content Area
+       ======================================== */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: var(--bg-base);
+    }
+
+    /* Channel header */
+    .channel-header {
+      height: 52px;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      gap: 12px;
+    }
+
+    .channel-header .header-icon {
+      font-size: 18px;
+      color: var(--text-muted);
+    }
+
+    .channel-header .header-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .channel-header .header-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border-light);
+    }
+
+    .channel-header .header-topic {
+      font-size: 13px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .channel-header .header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 4px;
+    }
+
+    .channel-header .header-actions button {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .channel-header .header-actions button:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .channel-header .header-actions button.active {
+      color: var(--accent);
+    }
+
+    /* Messages area */
+    .messages-wrapper {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    .messages-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .messages-container {
+      margin-top: auto;
+      padding: 0 16px;
+    }
+
+    /* Message groups */
+    .message-group {
+      display: flex;
+      gap: 12px;
+      padding: 4px 0;
+      margin: 0;
+    }
+
+    .message-group + .message-group {
+      margin-top: 12px;
+    }
+
+    .message-group:hover {
+      background: rgba(0, 0, 0, 0.06);
+      border-radius: var(--radius-sm);
+    }
+
+    .msg-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .msg-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .msg-header {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+
+    .msg-author {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .msg-timestamp {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .msg-body {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      word-wrap: break-word;
+    }
+
+    .msg-body + .msg-body {
+      margin-top: 4px;
+    }
+
+    /* Date separator */
+    .date-separator {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 16px 0 8px;
+      user-select: none;
+    }
+
+    .date-separator::before,
+    .date-separator::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border-subtle);
+    }
+
+    .date-separator span {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    /* Welcome message */
+    .channel-welcome {
+      padding: 16px 0 8px;
+      margin-bottom: 8px;
+    }
+
+    .channel-welcome h2 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--text-primary);
+    }
+
+    .channel-welcome p {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    /* Message input */
+    .message-input-wrapper {
+      padding: 0 16px 20px;
+    }
+
+    .message-input {
+      display: flex;
+      align-items: center;
+      background: var(--bg-raised);
+      border-radius: var(--radius-md);
+      padding: 2px 4px 2px 16px;
+      border: 1px solid transparent;
+      transition: border-color var(--transition-base);
+    }
+
+    .message-input:focus-within {
+      border-color: var(--accent);
+    }
+
+    .message-input input {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .message-input input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .message-input button {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: color var(--transition-fast);
+    }
+
+    .message-input button:hover {
+      color: var(--text-primary);
+    }
+
+    /* ========================================
+       Members Panel
+       ======================================== */
+    .members-panel {
+      width: 240px;
+      min-width: 240px;
+      background: var(--bg-deep);
+      border-left: 1px solid var(--border-subtle);
+      overflow-y: auto;
+      padding: 16px 8px;
+      transition: width var(--transition-base), min-width var(--transition-base), padding var(--transition-base), opacity var(--transition-base);
+    }
+
+    .members-panel.hidden {
+      width: 0;
+      min-width: 0;
+      padding: 16px 0;
+      opacity: 0;
+      overflow: hidden;
+    }
+
+    .members-section-header {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      padding: 8px 8px 4px;
+      user-select: none;
+    }
+
+    .member-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 8px;
+      border-radius: var(--radius-md);
+      cursor: default;
+      transition: background var(--transition-fast);
+    }
+
+    .member-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .member-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .member-avatar .status-dot {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 10px;
+      height: 10px;
+      border-radius: var(--radius-full);
+      border: 2px solid var(--bg-deep);
+    }
+
+    .member-name {
+      font-size: 13px;
+      font-weight: 450;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .member-item:hover .member-name {
+      color: var(--text-primary);
+    }
+
+    .member-role-tag {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: var(--radius-sm);
+      background: var(--accent-muted);
+      color: var(--accent);
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    /* Offline members */
+    .member-item.offline .member-avatar,
+    .member-item.offline .member-name {
+      opacity: 0.4;
+    }
+
+    /* ========================================
+       SVG Icons (inline)
+       ======================================== */
+    .icon {
+      width: 18px;
+      height: 18px;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .icon-sm {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ========================================
+       Voice channel active state
+       ======================================== */
+    .voice-connected {
+      background: rgba(80, 200, 120, 0.08);
+      border: 1px solid rgba(80, 200, 120, 0.15);
+      border-radius: var(--radius-md);
+      margin: 4px 8px;
+      padding: 8px 12px;
+    }
+
+    .voice-connected-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .voice-connected-header .voice-status {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--voice-active);
+    }
+
+    .voice-connected-header .voice-channel-name {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .voice-connected-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .voice-connected-actions button {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .voice-connected-actions button:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .voice-connected-actions button.disconnect {
+      background: rgba(247, 118, 142, 0.15);
+      color: var(--status-dnd);
+    }
+
+    .voice-connected-actions button.disconnect:hover {
+      background: rgba(247, 118, 142, 0.3);
+    }
+
+    /* ========================================
+       Empty / placeholder states
+       ======================================== */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      gap: 8px;
+      text-align: center;
+      padding: 32px;
+    }
+
+    .empty-state .empty-icon {
+      font-size: 48px;
+      opacity: 0.3;
+      margin-bottom: 8px;
+    }
+
+    .empty-state h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .empty-state p {
+      font-size: 13px;
+      max-width: 280px;
+    }
+
+    /* ========================================
+       Tooltip
+       ======================================== */
+    [data-tooltip] {
+      position: relative;
+    }
+
+    [data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 8px;
+      background: #111;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      border-radius: var(--radius-sm);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+      z-index: 100;
+    }
+
+    [data-tooltip]:hover::after {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- ============ Sidebar ============ -->
+  <aside class="sidebar">
+    <div class="server-header">
+      <h1>The HotBox</h1>
+    </div>
+
+    <nav class="channel-list" id="channelList">
+      <!-- Text Channels -->
+      <div class="channel-section">
+        <div class="channel-section-header">Text Channels</div>
+        <div class="channel-item active" data-channel="general" data-type="text" role="button" tabindex="0">
+          <span class="channel-icon">#</span>
+          <span class="channel-name">general</span>
+        </div>
+        <div class="channel-item" data-channel="shitposting" data-type="text" role="button" tabindex="0">
+          <span class="channel-icon">#</span>
+          <span class="channel-name">shitposting</span>
+        </div>
+        <div class="channel-item" data-channel="gaming" data-type="text" role="button" tabindex="0">
+          <span class="channel-icon">#</span>
+          <span class="channel-name">gaming</span>
+          <span class="unread-badge">3</span>
+        </div>
+        <div class="channel-item" data-channel="music" data-type="text" role="button" tabindex="0">
+          <span class="channel-icon">#</span>
+          <span class="channel-name">music</span>
+        </div>
+      </div>
+
+      <!-- Voice Channels -->
+      <div class="channel-section">
+        <div class="channel-section-header">Voice Channels</div>
+        <div class="channel-item" data-channel="lounge" data-type="voice" role="button" tabindex="0">
+          <span class="channel-icon">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          </span>
+          <span class="channel-name">Lounge</span>
+        </div>
+        <div class="voice-users" id="voiceLounge">
+          <div class="voice-user">
+            <div class="voice-user-avatar">JD</div>
+            <span class="voice-user-name">JohnDoe</span>
+          </div>
+          <div class="voice-user">
+            <div class="voice-user-avatar">SK</div>
+            <span class="voice-user-name">SaltyKid99</span>
+          </div>
+        </div>
+
+        <div class="channel-item" data-channel="gaming-vc" data-type="voice" role="button" tabindex="0">
+          <span class="channel-icon">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          </span>
+          <span class="channel-name">Gaming</span>
+        </div>
+      </div>
+
+      <!-- Direct Messages -->
+      <div class="channel-section">
+        <div class="channel-section-header">Direct Messages</div>
+        <div class="dm-item" data-channel="dm-johndoe" data-type="dm" role="button" tabindex="0">
+          <div class="dm-avatar">JD<span class="status-dot online"></span></div>
+          <span class="dm-name">JohnDoe</span>
+        </div>
+        <div class="dm-item" data-channel="dm-saltykid99" data-type="dm" role="button" tabindex="0">
+          <div class="dm-avatar">SK<span class="status-dot online"></span></div>
+          <span class="dm-name">SaltyKid99</span>
+        </div>
+        <div class="dm-item" data-channel="dm-meghan" data-type="dm" role="button" tabindex="0">
+          <div class="dm-avatar">MR<span class="status-dot idle"></span></div>
+          <span class="dm-name">Meghan</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Voice connected panel (hidden by default) -->
+    <div class="voice-connected" id="voicePanel" style="display: none;">
+      <div class="voice-connected-header">
+        <span class="voice-status">Voice Connected</span>
+        <span class="voice-channel-name" id="voiceChannelLabel">/ Lounge</span>
+      </div>
+      <div class="voice-connected-actions">
+        <button data-tooltip="Mute" id="btnMute">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+        </button>
+        <button data-tooltip="Deafen" id="btnDeafen">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+        </button>
+        <button data-tooltip="Disconnect" class="disconnect" id="btnDisconnect">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- User panel -->
+    <div class="user-panel">
+      <div class="user-avatar">
+        CP
+        <span class="status-dot online"></span>
+      </div>
+      <div class="user-info">
+        <div class="username">cpike</div>
+        <div class="user-status">Online</div>
+      </div>
+      <div class="user-panel-actions">
+        <button data-tooltip="Settings">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ Main Content ============ -->
+  <main class="main-content">
+    <div class="channel-header" id="channelHeader">
+      <span class="header-icon">#</span>
+      <span class="header-name" id="headerName">general</span>
+      <span class="header-divider"></span>
+      <span class="header-topic" id="headerTopic">The place for general conversation</span>
+      <div class="header-actions">
+        <button data-tooltip="Search">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </button>
+        <button data-tooltip="Members" id="btnToggleMembers" class="active">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="messages-wrapper">
+      <div class="messages-area" id="messagesArea">
+        <div class="messages-container" id="messagesContainer">
+          <!-- Messages injected by JS -->
+        </div>
+      </div>
+
+      <!-- Members Panel -->
+      <aside class="members-panel" id="membersPanel">
+        <div class="members-section-header" id="membersSectionOnline">Online - 5</div>
+        <!-- Members injected by JS -->
+        <div id="membersOnline"></div>
+        <div class="members-section-header" id="membersSectionOffline" style="margin-top: 16px;">Offline - 1</div>
+        <div id="membersOffline"></div>
+      </aside>
+    </div>
+
+    <div class="message-input-wrapper" id="messageInputWrapper">
+      <div class="message-input">
+        <input type="text" id="messageInput" placeholder="Message #general" autocomplete="off" />
+        <button data-tooltip="Send" id="btnSend">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ==========================================
+  // Mock Data
+  // ==========================================
+
+  const CURRENT_USER = 'cpike';
+
+  const USERS = {
+    cpike:      { initials: 'CP', status: 'online', role: 'admin' },
+    JohnDoe:    { initials: 'JD', status: 'online', role: null },
+    SaltyKid99: { initials: 'SK', status: 'online', role: null },
+    Meghan:     { initials: 'MR', status: 'idle', role: 'mod' },
+    xXDarkLordXx: { initials: 'DL', status: 'online', role: null },
+    ghostpepper:  { initials: 'GP', status: 'online', role: null },
+    lurker42:     { initials: 'L4', status: 'offline', role: null },
+  };
+
+  const CHANNELS = {
+    general: {
+      type: 'text',
+      topic: 'The place for general conversation',
+      messages: [
+        { author: 'JohnDoe', time: todayAt(14, 22), text: 'yo anyone down to play later tonight?' },
+        { author: 'SaltyKid99', time: todayAt(14, 23), text: 'depends what game' },
+        { author: 'JohnDoe', time: todayAt(14, 23), text: 'valorant or something idk' },
+        { author: 'cpike', time: todayAt(14, 25), text: 'I could be down after like 9' },
+        { author: 'Meghan', time: todayAt(14, 30), text: 'count me in' },
+        { author: 'xXDarkLordXx', time: todayAt(14, 32), text: 'let\'s go, i\'ve been grinding all week' },
+        { author: 'SaltyKid99', time: todayAt(14, 33), text: 'darklordddddd lmao that name' },
+        { author: 'xXDarkLordXx', time: todayAt(14, 34), text: 'it\'s a classic, don\'t disrespect it' },
+        { author: 'ghostpepper', time: todayAt(15, 1), text: 'just got home, what did i miss' },
+        { author: 'cpike', time: todayAt(15, 2), text: 'val tonight around 9, you in?' },
+        { author: 'ghostpepper', time: todayAt(15, 3), text: 'hell yeah' },
+        { author: 'JohnDoe', time: todayAt(15, 10), text: 'sick, full squad then' },
+      ]
+    },
+    shitposting: {
+      type: 'text',
+      topic: 'Absolutely zero quality control',
+      messages: [
+        { author: 'SaltyKid99', time: todayAt(12, 5), text: 'what if farts had colors' },
+        { author: 'xXDarkLordXx', time: todayAt(12, 6), text: 'they do if you try hard enough' },
+        { author: 'ghostpepper', time: todayAt(12, 8), text: 'why is this channel even a thing' },
+        { author: 'SaltyKid99', time: todayAt(12, 9), text: 'because art has no boundaries' },
+        { author: 'JohnDoe', time: todayAt(13, 45), text: 'i just sneezed and farted at the same time' },
+        { author: 'Meghan', time: todayAt(13, 46), text: 'a sneeze-fart, the rarest combo' },
+      ]
+    },
+    gaming: {
+      type: 'text',
+      topic: 'Game discussion and LFG',
+      messages: [
+        { author: 'xXDarkLordXx', time: todayAt(10, 30), text: 'new elden ring DLC is wild' },
+        { author: 'JohnDoe', time: todayAt(10, 32), text: 'no spoilers, i haven\'t started it yet' },
+        { author: 'cpike', time: todayAt(11, 15), text: 'anyone played the new indie thing on steam? the one with the cats' },
+        { author: 'ghostpepper', time: todayAt(11, 20), text: 'stray? that\'s been out for a while' },
+        { author: 'cpike', time: todayAt(11, 21), text: 'no no, the new one. i forget the name.' },
+        { author: 'SaltyKid99', time: todayAt(14, 0), text: 'ok who\'s actually good at val here, be honest' },
+      ]
+    },
+    music: {
+      type: 'text',
+      topic: 'Share tunes and recommendations',
+      messages: [
+        { author: 'Meghan', time: todayAt(9, 15), text: 'morning playlist recommendation: anything by Khruangbin' },
+        { author: 'ghostpepper', time: todayAt(9, 30), text: 'W taste' },
+        { author: 'cpike', time: todayAt(10, 0), text: 'been listening to a lot of Tame Impala lately' },
+      ]
+    },
+    'dm-johndoe': {
+      type: 'dm',
+      dmUser: 'JohnDoe',
+      topic: null,
+      messages: [
+        { author: 'JohnDoe', time: todayAt(13, 0), text: 'hey you got the server link for that minecraft thing?' },
+        { author: 'cpike', time: todayAt(13, 5), text: 'yeah one sec let me find it' },
+        { author: 'cpike', time: todayAt(13, 6), text: 'mc.hotbox.gg' },
+        { author: 'JohnDoe', time: todayAt(13, 7), text: 'lmaooo the domain' },
+        { author: 'cpike', time: todayAt(13, 7), text: 'brand consistency' },
+      ]
+    },
+    'dm-saltykid99': {
+      type: 'dm',
+      dmUser: 'SaltyKid99',
+      topic: null,
+      messages: [
+        { author: 'SaltyKid99', time: todayAt(11, 0), text: 'yo is the voice chat working for you?' },
+        { author: 'cpike', time: todayAt(11, 5), text: 'yeah it was fine earlier, try reconnecting' },
+      ]
+    },
+    'dm-meghan': {
+      type: 'dm',
+      dmUser: 'Meghan',
+      topic: null,
+      messages: [
+        { author: 'Meghan', time: todayAt(8, 30), text: 'when are you deploying the update?' },
+        { author: 'cpike', time: todayAt(8, 45), text: 'probably this weekend, still fixing a couple things' },
+      ]
+    }
+  };
+
+  const VOICE_CHANNELS = {
+    lounge: { name: 'Lounge', users: ['JohnDoe', 'SaltyKid99'] },
+    'gaming-vc': { name: 'Gaming', users: [] },
+  };
+
+  // ==========================================
+  // State
+  // ==========================================
+
+  let activeChannel = 'general';
+  let membersVisible = true;
+  let connectedVoice = null; // channel key or null
+
+  // ==========================================
+  // Helpers
+  // ==========================================
+
+  function todayAt(h, m) {
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    return d.getTime();
+  }
+
+  function formatTime(ts) {
+    return new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function formatDate(ts) {
+    return new Date(ts).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+
+  function el(id) {
+    return document.getElementById(id);
+  }
+
+  function getAvatarColor(name) {
+    // Deterministic hue from name
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 40%, 45%)`;
+  }
+
+  // ==========================================
+  // Rendering
+  // ==========================================
+
+  function renderMessages() {
+    const container = el('messagesContainer');
+    const channel = CHANNELS[activeChannel];
+    if (!channel) return;
+
+    let html = '';
+
+    // Welcome section for text channels
+    if (channel.type === 'text') {
+      html += `
+        <div class="channel-welcome">
+          <h2>Welcome to #${activeChannel}</h2>
+          <p>This is the start of the #${activeChannel} channel.${channel.topic ? ' ' + channel.topic + '.' : ''}</p>
+        </div>
+      `;
+    } else if (channel.type === 'dm') {
+      html += `
+        <div class="channel-welcome">
+          <h2>${channel.dmUser}</h2>
+          <p>This is the beginning of your direct message history with ${channel.dmUser}.</p>
+        </div>
+      `;
+    }
+
+    // Group messages by author in sequence, but break on time gaps > 5 min
+    const messages = channel.messages;
+    let i = 0;
+    while (i < messages.length) {
+      const msg = messages[i];
+      const user = USERS[msg.author] || { initials: '??', status: 'offline' };
+      const color = getAvatarColor(msg.author);
+
+      // Collect consecutive messages from same author within 5 minutes
+      const groupMessages = [msg];
+      while (
+        i + 1 < messages.length &&
+        messages[i + 1].author === msg.author &&
+        messages[i + 1].time - messages[i].time < 5 * 60 * 1000
+      ) {
+        i++;
+        groupMessages.push(messages[i]);
+      }
+
+      html += `
+        <div class="message-group">
+          <div class="msg-avatar" style="background: ${color}; color: #fff;">${user.initials}</div>
+          <div class="msg-content">
+            <div class="msg-header">
+              <span class="msg-author" style="color: ${color};">${msg.author}</span>
+              <span class="msg-timestamp">${formatTime(msg.time)}</span>
+            </div>
+            ${groupMessages.map(m => `<div class="msg-body">${escapeHtml(m.text)}</div>`).join('')}
+          </div>
+        </div>
+      `;
+
+      i++;
+    }
+
+    container.innerHTML = html;
+
+    // Scroll to bottom
+    const area = el('messagesArea');
+    area.scrollTop = area.scrollHeight;
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function renderMembers() {
+    const onlineContainer = el('membersOnline');
+    const offlineContainer = el('membersOffline');
+
+    let onlineHtml = '';
+    let offlineHtml = '';
+    let onlineCount = 0;
+    let offlineCount = 0;
+
+    for (const [name, user] of Object.entries(USERS)) {
+      const color = getAvatarColor(name);
+      const roleTag = user.role
+        ? `<span class="member-role-tag">${user.role}</span>`
+        : '';
+
+      const item = `
+        <div class="member-item${user.status === 'offline' ? ' offline' : ''}">
+          <div class="member-avatar" style="background: ${color}; color: #fff;">
+            ${user.initials}
+            <span class="status-dot ${user.status}"></span>
+          </div>
+          <span class="member-name">${name}</span>
+          ${roleTag}
+        </div>
+      `;
+
+      if (user.status === 'offline') {
+        offlineHtml += item;
+        offlineCount++;
+      } else {
+        onlineHtml += item;
+        onlineCount++;
+      }
+    }
+
+    onlineContainer.innerHTML = onlineHtml;
+    offlineContainer.innerHTML = offlineHtml;
+    el('membersSectionOnline').textContent = `Online - ${onlineCount}`;
+    el('membersSectionOffline').textContent = `Offline - ${offlineCount}`;
+  }
+
+  function updateHeader() {
+    const channel = CHANNELS[activeChannel];
+    const headerName = el('headerName');
+    const headerTopic = el('headerTopic');
+    const headerIcon = document.querySelector('.channel-header .header-icon');
+    const input = el('messageInput');
+
+    if (channel.type === 'text') {
+      headerIcon.textContent = '#';
+      headerName.textContent = activeChannel;
+      headerTopic.textContent = channel.topic || '';
+      input.placeholder = `Message #${activeChannel}`;
+    } else if (channel.type === 'dm') {
+      headerIcon.textContent = '@';
+      headerName.textContent = channel.dmUser;
+      headerTopic.textContent = '';
+      input.placeholder = `Message ${channel.dmUser}`;
+    }
+  }
+
+  function updateActiveChannel() {
+    // Update sidebar active states
+    document.querySelectorAll('.channel-item, .dm-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.channel === activeChannel);
+    });
+
+    // Remove unread badge from active channel
+    const activeItem = document.querySelector(`[data-channel="${activeChannel}"] .unread-badge`);
+    if (activeItem) activeItem.remove();
+
+    updateHeader();
+    renderMessages();
+  }
+
+  function updateVoicePanel() {
+    const panel = el('voicePanel');
+    if (connectedVoice) {
+      panel.style.display = '';
+      const vc = VOICE_CHANNELS[connectedVoice];
+      el('voiceChannelLabel').textContent = `/ ${vc.name}`;
+    } else {
+      panel.style.display = 'none';
+    }
+  }
+
+  function renderVoiceUsers(channelKey) {
+    const vc = VOICE_CHANNELS[channelKey];
+    const containerId = channelKey === 'lounge' ? 'voiceLounge' : null;
+    // For simplicity, voice user lists are rendered in HTML for lounge
+    // For dynamic updates we'd re-render, but this prototype keeps it simple
+  }
+
+  // ==========================================
+  // Event Handlers
+  // ==========================================
+
+  // Channel / DM click
+  el('channelList').addEventListener('click', function (e) {
+    const item = e.target.closest('[data-channel]');
+    if (!item) return;
+
+    const channelKey = item.dataset.channel;
+    const type = item.dataset.type;
+
+    if (type === 'voice') {
+      // Toggle voice connection
+      if (connectedVoice === channelKey) {
+        disconnectVoice();
+      } else {
+        connectVoice(channelKey);
+      }
+      return;
+    }
+
+    // Text or DM channel
+    if (channelKey === activeChannel) return;
+    activeChannel = channelKey;
+    updateActiveChannel();
+  });
+
+  // Keyboard support for channel items
+  el('channelList').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.target.click();
+    }
+  });
+
+  // Send message
+  function sendMessage() {
+    const input = el('messageInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const channel = CHANNELS[activeChannel];
+    if (!channel) return;
+
+    channel.messages.push({
+      author: CURRENT_USER,
+      time: Date.now(),
+      text: text,
+    });
+
+    input.value = '';
+    renderMessages();
+  }
+
+  el('btnSend').addEventListener('click', sendMessage);
+  el('messageInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // Toggle members panel
+  el('btnToggleMembers').addEventListener('click', function () {
+    membersVisible = !membersVisible;
+    el('membersPanel').classList.toggle('hidden', !membersVisible);
+    this.classList.toggle('active', membersVisible);
+  });
+
+  // Voice controls
+  function connectVoice(channelKey) {
+    // Remove user from previous voice channel
+    if (connectedVoice) {
+      const prevVc = VOICE_CHANNELS[connectedVoice];
+      const idx = prevVc.users.indexOf(CURRENT_USER);
+      if (idx !== -1) prevVc.users.splice(idx, 1);
+    }
+
+    connectedVoice = channelKey;
+    const vc = VOICE_CHANNELS[channelKey];
+    if (!vc.users.includes(CURRENT_USER)) {
+      vc.users.push(CURRENT_USER);
+    }
+
+    updateVoicePanel();
+    rebuildVoiceUserLists();
+  }
+
+  function disconnectVoice() {
+    if (connectedVoice) {
+      const vc = VOICE_CHANNELS[connectedVoice];
+      const idx = vc.users.indexOf(CURRENT_USER);
+      if (idx !== -1) vc.users.splice(idx, 1);
+    }
+    connectedVoice = null;
+    updateVoicePanel();
+    rebuildVoiceUserLists();
+  }
+
+  el('btnDisconnect').addEventListener('click', disconnectVoice);
+
+  function rebuildVoiceUserLists() {
+    // Rebuild all voice user lists in sidebar
+    for (const [key, vc] of Object.entries(VOICE_CHANNELS)) {
+      const channelItem = document.querySelector(`[data-channel="${key}"][data-type="voice"]`);
+      if (!channelItem) continue;
+
+      // Remove existing voice-users div after this channel item
+      let next = channelItem.nextElementSibling;
+      if (next && next.classList.contains('voice-users')) {
+        next.remove();
+      }
+
+      if (vc.users.length > 0) {
+        const div = document.createElement('div');
+        div.className = 'voice-users';
+        div.innerHTML = vc.users.map(name => {
+          const user = USERS[name] || { initials: '??', status: 'online' };
+          const color = getAvatarColor(name);
+          return `
+            <div class="voice-user">
+              <div class="voice-user-avatar" style="background: ${color}; color: #fff;">${user.initials}</div>
+              <span class="voice-user-name">${name}</span>
+            </div>
+          `;
+        }).join('');
+        channelItem.parentNode.insertBefore(div, channelItem.nextSibling);
+      }
+    }
+  }
+
+  // ==========================================
+  // Initial Render
+  // ==========================================
+
+  renderMembers();
+  updateActiveChannel();
+  rebuildVoiceUserLists();
+
+  // Focus the input
+  el('messageInput').focus();
+
+})();
+</script>
+
+</body>
+</html>
