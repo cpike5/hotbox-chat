@@ -106,6 +106,7 @@ HotBox.sln
 |   |   |   +-- IUserRepository.cs
 |   |   |   +-- IInviteRepository.cs
 |   |   |   +-- IUnitOfWork.cs
+|   |   |   +-- ISearchService.cs
 |   |   +-- HotBox.Core.csproj
 |   |
 |   +-- HotBox.Infrastructure/          # Data access layer
@@ -123,6 +124,11 @@ HotBox.sln
 |   |   |   +-- DirectMessageRepository.cs
 |   |   |   +-- UserRepository.cs
 |   |   |   +-- InviteRepository.cs
+|   |   +-- Search/
+|   |   |   +-- PostgresSearchService.cs
+|   |   |   +-- MySqlSearchService.cs
+|   |   |   +-- SqliteSearchService.cs
+|   |   |   +-- FallbackSearchService.cs      # SQL LIKE fallback
 |   |   +-- Identity/
 |   |   |   +-- AppUser.cs              # ASP.NET Identity user (extends IdentityUser)
 |   |   +-- Extensions/
@@ -135,6 +141,7 @@ HotBox.sln
 |   |   |   +-- ChannelsController.cs
 |   |   |   +-- MessagesController.cs
 |   |   |   +-- DirectMessagesController.cs
+|   |   |   +-- SearchController.cs
 |   |   |   +-- UsersController.cs
 |   |   |   +-- AdminController.cs
 |   |   +-- Hubs/
@@ -147,6 +154,8 @@ HotBox.sln
 |   |   |   +-- MessageService.cs
 |   |   |   +-- IDirectMessageService.cs
 |   |   |   +-- DirectMessageService.cs
+|   |   |   +-- ISearchService.cs
+|   |   |   +-- SearchService.cs
 |   |   |   +-- IPresenceService.cs
 |   |   |   +-- PresenceService.cs
 |   |   |   +-- INotificationService.cs
@@ -156,6 +165,7 @@ HotBox.sln
 |   |   |   +-- AuthOptions.cs
 |   |   |   +-- OAuthProviderOptions.cs
 |   |   |   +-- DatabaseOptions.cs
+|   |   |   +-- SearchOptions.cs
 |   |   +-- Extensions/
 |   |   |   +-- ApplicationServiceExtensions.cs
 |   |   |   +-- AuthenticationExtensions.cs
@@ -233,6 +243,14 @@ All API endpoints are prefixed with `/api/v1/`.
 | GET | `/api/v1/dm/conversations` | List DM conversations |
 | GET | `/api/v1/dm/{userId}/messages` | Get DM history (paginated) |
 | POST | `/api/v1/dm/{userId}/messages` | Send DM (also via SignalR) |
+
+#### Search
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/v1/search/messages` | Search channel messages (query params: `q`, `channelId?`, `authorId?`, `before?`, `after?`, `page`, `pageSize`) |
+| GET | `/api/v1/search/dm` | Search direct messages (query params: `q`, `participantId?`, `before?`, `after?`, `page`, `pageSize`) |
+| POST | `/api/v1/admin/search/reindex` | Backfill search index from database (admin only) |
 
 #### Users
 
@@ -360,6 +378,13 @@ HotBox.Client/
 |   |   +-- MessageGroup.razor          # Grouped messages by author
 |   |   +-- MessageInput.razor          # Text input + send
 |   |   +-- TypingIndicator.razor
+|   +-- Search/
+|   |   +-- SearchOverlay.razor         # Ctrl+K modal overlay
+|   |   +-- SearchOverlay.razor.css
+|   |   +-- SearchInput.razor           # Debounced search input
+|   |   +-- SearchResults.razor         # Scrollable result list
+|   |   +-- SearchResultItem.razor      # Individual result card
+|   |   +-- SearchHighlight.razor       # Query term highlighting
 |   +-- Members/
 |   |   +-- MembersPanel.razor          # Right-side members panel
 |   |   +-- MemberItem.razor
@@ -398,6 +423,7 @@ HotBox.Client/
 |   +-- VoiceState.cs                  # Voice connection state
 |   +-- PresenceState.cs               # User online/offline/idle status
 |   +-- AuthState.cs                   # Current user, JWT tokens
+|   +-- SearchState.cs                 # Search query, results, loading state
 +-- Models/
 |   +-- ChannelDto.cs
 |   +-- MessageDto.cs
@@ -406,6 +432,8 @@ HotBox.Client/
 |   +-- VoiceUserDto.cs
 |   +-- NotificationDto.cs
 |   +-- AuthResponseDto.cs
+|   +-- SearchResultDto.cs
+|   +-- SearchResponse.cs
 +-- Program.cs
 +-- _Imports.razor
 +-- HotBox.Client.csproj
@@ -944,7 +972,103 @@ The client requests browser notification permission on first login. A JSInterop 
 - Default page size: 50 messages
 - Infinite scroll loads older messages (paginated by `CreatedAtUtc` cursor)
 - New messages arrive in real-time via SignalR and are appended to the in-memory list
-- No full-text search for MVP
+- Full-text search is available via native database FTS (see Section 7.5)
+
+### 7.5 Message Search
+
+HotBox uses native database full-text search capabilities rather than an external search engine. This keeps the infrastructure lightweight (no Elasticsearch dependency for search) while providing ranked, quality results.
+
+#### Provider-Aware Search Strategy
+
+| Provider | FTS Mechanism | Ranking | Stemming | Setup |
+|----------|--------------|---------|----------|-------|
+| **PostgreSQL** | `tsvector` / `tsquery` | `ts_rank` / `ts_rank_cd` | Yes (language-aware via dictionaries) | GIN index on `tsvector` column |
+| **MySQL/MariaDB** | `FULLTEXT` index | `MATCH...AGAINST` relevance score | Basic (built-in) | `FULLTEXT` index on `Content` column |
+| **SQLite** | FTS5 virtual tables | BM25 ranking | Basic (porter tokenizer) | FTS5 virtual table + triggers to sync with main table |
+
+The `ISearchService` interface (defined in Core) abstracts the provider differences. Infrastructure provides provider-specific implementations that are selected at startup based on `DatabaseOptions.Provider`.
+
+#### Search Service Interface
+
+```csharp
+// HotBox.Core/Interfaces/ISearchService.cs
+public interface ISearchService
+{
+    Task<SearchResult> SearchMessagesAsync(
+        Guid callingUserId,
+        string query,
+        Guid? channelId = null,
+        Guid? authorId = null,
+        DateTime? before = null,
+        DateTime? after = null,
+        int page = 1,
+        int pageSize = 25,
+        CancellationToken cancellationToken = default);
+
+    Task<SearchResult> SearchDirectMessagesAsync(
+        Guid callingUserId,
+        string query,
+        Guid? participantId = null,
+        DateTime? before = null,
+        DateTime? after = null,
+        int page = 1,
+        int pageSize = 25,
+        CancellationToken cancellationToken = default);
+
+    Task EnsureSearchIndexAsync(CancellationToken cancellationToken = default);
+}
+```
+
+#### Search Result Shape
+
+```csharp
+public class SearchResult
+{
+    public IReadOnlyList<SearchHit> Items { get; init; } = [];
+    public long TotalCount { get; init; }
+    public int Page { get; init; }
+    public int PageSize { get; init; }
+    public bool IsDegraded { get; init; } // True if using LIKE fallback
+}
+
+public class SearchHit
+{
+    public Guid MessageId { get; init; }
+    public string Content { get; init; } = string.Empty;
+    public string ContentHighlight { get; init; } = string.Empty; // Snippet with <mark> tags
+    public Guid ChannelId { get; init; }    // For channel messages
+    public string ChannelName { get; init; } = string.Empty;
+    public Guid AuthorId { get; init; }
+    public string AuthorDisplayName { get; init; } = string.Empty;
+    public DateTime CreatedAtUtc { get; init; }
+    public double Score { get; init; }
+}
+```
+
+#### Implementation Details
+
+**PostgreSQL** -- Uses a stored `SearchVector` column (type `tsvector`) on `Messages` and `DirectMessages` tables, maintained via a database trigger or computed column. A GIN index provides fast lookups. Queries use `plainto_tsquery` for user input and `ts_headline` for highlighted snippets.
+
+**MySQL/MariaDB** -- Uses `FULLTEXT` indexes on the `Content` column. Queries use `MATCH(Content) AGAINST(:query IN BOOLEAN MODE)` with relevance scoring.
+
+**SQLite** -- Uses FTS5 virtual tables (`messages_fts`, `direct_messages_fts`) that mirror the main tables. Kept in sync via database triggers on INSERT. Queries use the FTS5 `MATCH` syntax with `bm25()` for ranking and `snippet()` for highlighted results.
+
+**Fallback** -- If FTS setup fails or is unavailable, falls back to `EF.Functions.Like(m.Content, $"%{query}%")` with no ranking. The `IsDegraded` flag on the response signals this to the client.
+
+#### Search Scope and Permissions
+
+- **Channel messages**: All authenticated users can search all channels (no per-channel permissions in MVP). `channelId` parameter optionally scopes to a single channel.
+- **Direct messages**: Queries are always filtered to conversations involving the calling user (`senderId == callingUserId OR recipientId == callingUserId`). This is enforced at the service level.
+- **Offset pagination**: Search results are relevance-ranked, not time-ordered, so cursor-based pagination does not apply. Standard page/pageSize is used.
+
+#### Index Initialization
+
+On application startup, `EnsureSearchIndexAsync` is called to create FTS infrastructure if it does not exist:
+- PostgreSQL: Creates `SearchVector` column, GIN index, and update trigger
+- MySQL/MariaDB: Creates `FULLTEXT` index
+- SQLite: Creates FTS5 virtual table and sync triggers
+
+For existing instances with messages, the admin endpoint `POST /api/v1/admin/search/reindex` rebuilds the search index by batch-processing all existing messages.
 
 ---
 
@@ -990,6 +1114,13 @@ The client requests browser notification permission on first login. A JSInterop 
         "ClientSecret": ""
       }
     }
+  },
+
+  "Search": {
+    "Enabled": true,
+    "DefaultPageSize": 25,
+    "MaxPageSize": 100,
+    "MinQueryLength": 2
   },
 
   "Voice": {
@@ -1044,6 +1175,7 @@ Each configuration section maps to a strongly-typed Options class:
 | `AuthOptions` | `Auth` | `services.Configure<AuthOptions>(config.GetSection("Auth"))` |
 | `OAuthProviderOptions` | `Auth:OAuth:{Provider}` | Bound per provider |
 | `JwtOptions` | `Auth:Jwt` | `services.Configure<JwtOptions>(config.GetSection("Auth:Jwt"))` |
+| `SearchOptions` | `Search` | `services.Configure<SearchOptions>(config.GetSection("Search"))` |
 | `VoiceOptions` | `Voice` | `services.Configure<VoiceOptions>(config.GetSection("Voice"))` |
 | `ObservabilityOptions` | `Observability` | `services.Configure<ObservabilityOptions>(config.GetSection("Observability"))` |
 
@@ -1316,7 +1448,7 @@ Microsoft.Extensions.Http
 |----------|-----------|
 | WebRTC P2P vs SFU? | **P2P full mesh** for MVP. Audio-only with <10 users per channel is well within P2P limits. SFU can be added later as a sidecar if needed. |
 | Notification delivery? | **SignalR push + Browser Notification API** via JSInterop. No push notification service needed. |
-| Message history/search? | **Persist all messages**, paginate with cursor-based pagination. **No search for MVP.** |
+| Message history/search? | **Persist all messages**, paginate with cursor-based pagination. **Full-text search via native database FTS** (PostgreSQL `tsvector`/`tsquery`, MySQL `FULLTEXT`, SQLite FTS5). No external search engine needed. |
 | User presence? | **Yes, MVP.** Tracked server-side via SignalR connection lifecycle + idle timer. |
 | UI layout? | **Discord-inspired three-panel layout** per the HTML prototype at `temp/prototype.html`. |
 

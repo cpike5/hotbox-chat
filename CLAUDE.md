@@ -52,6 +52,7 @@ temp/              # Drafts — move to docs/ when finalized
 - Text channels (flat list, plain text, no markdown/reactions/threads)
 - Voice channels (drop-in/drop-out, always-on rooms)
 - Direct messages (1-on-1)
+- Message search (native database FTS — PostgreSQL `tsvector`, MySQL `FULLTEXT`, SQLite FTS5)
 - Auth with configurable registration modes (open, invite-only, closed)
 - Basic roles (admin, moderator, member)
 - Desktop/browser notifications

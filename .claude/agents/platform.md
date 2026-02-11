@@ -44,7 +44,7 @@ tests/HotBox.Infrastructure.Tests/
 ## Documentation You Maintain
 
 - `docs/technical-spec.md` — Sections 1 (Architecture), 8 (Configuration), 9 (Observability), 10 (Docker), 11 (NuGet Packages)
-- `docs/implementation-plan.md` — Phase 1 (Scaffolding), Phase 9 (Polish/Docker)
+- `docs/implementation-plan.md` — Phase 1 (Scaffolding), Phase 4.5 (Search config/DI), Phase 9 (Polish/Docker)
 - `CLAUDE.md` — Tech stack, architecture, and project structure sections
 
 ## Technical Constraints

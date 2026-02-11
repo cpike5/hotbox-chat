@@ -43,6 +43,16 @@ A self-hosted real-time communication platform with text channels, voice channel
 - Basic role system (admin, moderator, member at minimum)
 - Configurable through application settings
 
+### Message Search
+- Full-text search across channel messages and direct messages
+- Uses native database full-text search (no external search engine)
+  - PostgreSQL: `tsvector`/`tsquery` with ranked results and language-aware stemming
+  - MySQL/MariaDB: `FULLTEXT` index with `MATCH...AGAINST`
+  - SQLite: FTS5 virtual tables with BM25 ranking
+- Global search (Ctrl+K / Cmd+K) with optional per-channel filtering
+- Search results include highlighted matching text, author, channel, and timestamp
+- Clicking a result navigates to the message in context
+
 ### Notifications
 - Desktop/browser notifications for mentions and messages
 
@@ -124,11 +134,11 @@ A self-hosted real-time communication platform with text channels, voice channel
 
 ## Open Questions
 
-- WebRTC implementation details — peer-to-peer vs. SFU (Selective Forwarding Unit) for voice
-- Exact UI layout and design direction — needs prototyping
-- Notification delivery mechanism (browser push API? SignalR-based?)
-- Message history / search — how much to persist, any search capability for MVP?
-- User presence (online/offline/idle status) — MVP or later?
+- ~~WebRTC implementation details~~ — **Resolved**: P2P full mesh for MVP
+- ~~Exact UI layout and design direction~~ — **Resolved**: Discord-inspired three-panel layout (prototype at `prototypes/main-ui-proposal.html`)
+- ~~Notification delivery mechanism~~ — **Resolved**: SignalR push + Browser Notification API
+- ~~Message history / search~~ — **Resolved**: Persist all messages, provider-aware native database FTS for search
+- ~~User presence~~ — **Resolved**: MVP feature, tracked via SignalR connection lifecycle
 
 ## Decisions Made
 

@@ -13,9 +13,9 @@ This document defines the five ownership domains for HotBox development. Each do
 |--------|-------|---------------|
 | Platform | `platform` | Infrastructure, config, observability, Docker, database, CI/CD |
 | Auth & Security | `auth-security` | Identity, JWT, OAuth, roles, permissions, registration |
-| Messaging | `messaging` | Text channels, DMs, message persistence, ChatHub |
+| Messaging | `messaging` | Text channels, DMs, message persistence, ChatHub, message search |
 | Real-time & Media | `realtime-media` | Voice channels, WebRTC, VoiceSignalingHub, audio |
-| Client Experience | `client-experience` | Blazor WASM shell, layout, design system, theming, notifications UI, presence UI |
+| Client Experience | `client-experience` | Blazor WASM shell, layout, design system, theming, notifications UI, presence UI, search UI |
 
 ---
 
@@ -114,12 +114,14 @@ tests/HotBox.Application.Tests/           # Auth-related tests
 - Message persistence and retrieval (paginated)
 - Direct messages (service + controller)
 - ChatHub SignalR hub (real-time message delivery, typing indicators)
+- Message search (provider-aware FTS: PostgreSQL `tsvector`, MySQL `FULLTEXT`, SQLite FTS5)
+- Search controller and search service
 - Message-related repository implementations
 - Channel and message business logic
 
 **Maintains docs**:
 - `docs/technical-spec.md` — Sections 2.3 (API: Channels, Messages, DMs), 2.4 (ChatHub), 4 (Database: Message/Channel/DM entities), 7 (Real-Time: message history, pagination)
-- `docs/implementation-plan.md` — Phase 3 (Text Channels), Phase 4 (DMs)
+- `docs/implementation-plan.md` — Phase 3 (Text Channels), Phase 4 (DMs), Phase 4.5 (Message Search)
 
 **Code paths**:
 ```
@@ -127,9 +129,14 @@ src/HotBox.Infrastructure/Repositories/ChannelRepository.cs
 src/HotBox.Infrastructure/Repositories/MessageRepository.cs
 src/HotBox.Infrastructure/Repositories/DirectMessageRepository.cs
 src/HotBox.Infrastructure/Repositories/InviteRepository.cs
+src/HotBox.Infrastructure/Search/PostgresSearchService.cs
+src/HotBox.Infrastructure/Search/MySqlSearchService.cs
+src/HotBox.Infrastructure/Search/SqliteSearchService.cs
+src/HotBox.Infrastructure/Search/FallbackSearchService.cs
 src/HotBox.Application/Controllers/ChannelsController.cs
 src/HotBox.Application/Controllers/MessagesController.cs
 src/HotBox.Application/Controllers/DirectMessagesController.cs
+src/HotBox.Application/Controllers/SearchController.cs
 src/HotBox.Application/Hubs/ChatHub.cs
 src/HotBox.Application/Services/IChannelService.cs
 src/HotBox.Application/Services/ChannelService.cs
@@ -137,13 +144,14 @@ src/HotBox.Application/Services/IMessageService.cs
 src/HotBox.Application/Services/MessageService.cs
 src/HotBox.Application/Services/IDirectMessageService.cs
 src/HotBox.Application/Services/DirectMessageService.cs
+src/HotBox.Application/Services/ISearchService.cs
+src/HotBox.Application/Services/SearchService.cs
 ```
 
 **Future ownership**:
 - File/media sharing (attachments on messages)
 - Message formatting (markdown, emoji reactions)
 - Threaded replies
-- Message search
 
 **Coordinates with**:
 - Platform (entity definitions in Core, repository interfaces)
@@ -211,9 +219,10 @@ src/HotBox.Client/State/VoiceState.cs
 - Shared components (`Avatar`, `StatusDot`, `UnreadBadge`, `LoadingSpinner`, `ErrorBoundary`)
 - Auth UI (login/register pages, OAuth buttons, route guards)
 - Admin panel UI
+- Search UI (Ctrl+K overlay, search input, results, highlighting, jump-to-message)
 - Notification display (browser notification JSInterop)
 - Presence UI (status dots, member list updates)
-- Client-side state management framework (`AppState`, `PresenceState`)
+- Client-side state management framework (`AppState`, `PresenceState`, `SearchState`)
 - `ApiClient` HTTP wrapper
 - Theming (dark mode, future light mode)
 - Accessibility
@@ -234,6 +243,7 @@ src/HotBox.Client/Components/Sidebar/DirectMessageList.razor
 src/HotBox.Client/Components/Sidebar/DirectMessageItem.razor
 src/HotBox.Client/Components/Sidebar/UserPanel.razor
 src/HotBox.Client/Components/Chat/        # All chat view components
+src/HotBox.Client/Components/Search/      # Search overlay, input, results, highlighting
 src/HotBox.Client/Components/Members/     # Members panel
 src/HotBox.Client/Components/Auth/        # Login, register, OAuth buttons
 src/HotBox.Client/Components/Admin/       # Admin panel
@@ -248,6 +258,9 @@ src/HotBox.Client/State/AppState.cs
 src/HotBox.Client/State/ChannelState.cs
 src/HotBox.Client/State/AuthState.cs
 src/HotBox.Client/State/PresenceState.cs
+src/HotBox.Client/State/SearchState.cs
+src/HotBox.Client/Models/SearchResultDto.cs
+src/HotBox.Client/Models/SearchResponse.cs
 src/HotBox.Client/wwwroot/css/            # All stylesheets
 src/HotBox.Client/wwwroot/js/notification-interop.js
 src/HotBox.Client/Program.cs

@@ -287,6 +287,80 @@ dotnet add src/HotBox.Application reference src/HotBox.Infrastructure
 
 ---
 
+### Phase 4.5: Message Search
+**Estimated effort**: 4-6 days
+**Dependencies**: Phase 3 complete (can run in parallel with Phases 4-7)
+
+#### What gets built:
+1. **Search service interface** -- `ISearchService` in Core with provider-agnostic search contract
+2. **Provider-specific FTS implementations** -- PostgreSQL (`tsvector`/`tsquery`), MySQL/MariaDB (`FULLTEXT`/`MATCH...AGAINST`), SQLite (FTS5), and `LIKE` fallback
+3. **FTS index setup** -- Startup task to create FTS infrastructure (virtual tables, GIN indexes, triggers) per provider
+4. **Search controller** -- REST endpoints for channel message search and DM search
+5. **Search configuration** -- `SearchOptions` class and `appsettings.json` section
+6. **Blazor search UI** -- Global search overlay (Ctrl+K), search input with debounce, result list with highlighting
+7. **Jump to message** -- Clicking a search result navigates to the message in its channel
+8. **Admin reindex endpoint** -- Backfill FTS index from existing messages
+
+#### Files created:
+
+**Core layer:**
+- `src/HotBox.Core/Interfaces/ISearchService.cs`
+
+**Infrastructure layer:**
+- `src/HotBox.Infrastructure/Search/PostgresSearchService.cs`
+- `src/HotBox.Infrastructure/Search/MySqlSearchService.cs`
+- `src/HotBox.Infrastructure/Search/SqliteSearchService.cs`
+- `src/HotBox.Infrastructure/Search/FallbackSearchService.cs`
+
+**Application layer:**
+- `src/HotBox.Application/Controllers/SearchController.cs`
+- `src/HotBox.Application/Services/ISearchService.cs`
+- `src/HotBox.Application/Services/SearchService.cs`
+- `src/HotBox.Application/Configuration/SearchOptions.cs`
+
+**Client:**
+- `src/HotBox.Client/Components/Search/SearchOverlay.razor`
+- `src/HotBox.Client/Components/Search/SearchOverlay.razor.css`
+- `src/HotBox.Client/Components/Search/SearchInput.razor`
+- `src/HotBox.Client/Components/Search/SearchResults.razor`
+- `src/HotBox.Client/Components/Search/SearchResultItem.razor`
+- `src/HotBox.Client/Components/Search/SearchHighlight.razor`
+- `src/HotBox.Client/State/SearchState.cs`
+- `src/HotBox.Client/Models/SearchResultDto.cs`
+- `src/HotBox.Client/Models/SearchResponse.cs`
+
+#### Files modified:
+- `src/HotBox.Application/appsettings.json` -- Add `Search` config section
+- `src/HotBox.Infrastructure/Extensions/InfrastructureServiceExtensions.cs` -- Register provider-specific search service
+- `src/HotBox.Application/Extensions/ApplicationServiceExtensions.cs` -- Register SearchOptions
+- `src/HotBox.Client/Layout/MainLayout.razor` -- Add SearchOverlay, Ctrl+K handler
+- `src/HotBox.Client/Services/IApiClient.cs` -- Add `SearchMessagesAsync`, `SearchDirectMessagesAsync`
+- `src/HotBox.Client/Services/ApiClient.cs` -- Implement search API calls
+- `src/HotBox.Client/State/ChannelState.cs` -- Add `JumpToMessageId` for navigate-to-message
+- `src/HotBox.Client/Components/Chat/MessageList.razor` -- Support scroll-to-message + highlight animation
+- `src/HotBox.Client/wwwroot/css/app.css` -- Add `--search-highlight-bg`, `--search-highlight-text` tokens
+
+#### Acceptance criteria:
+- Users can press Ctrl+K (or click search icon) to open the global search overlay
+- Typing a query (2+ characters) returns ranked results after 300ms debounce
+- Search results show message content with highlighted matches, author, channel, and timestamp
+- Clicking a search result navigates to that message in its channel with a brief highlight animation
+- Channel message search works across all channels (or scoped to one via optional filter)
+- DM search only returns messages involving the calling user
+- PostgreSQL uses `tsvector`/`tsquery` with GIN index for ranked, stemmed search
+- MySQL/MariaDB uses `FULLTEXT` index with `MATCH...AGAINST`
+- SQLite uses FTS5 virtual tables with BM25 ranking
+- If FTS is unavailable, search degrades to SQL `LIKE` with `IsDegraded` flag in the response
+- Admin can trigger reindex via `POST /api/v1/admin/search/reindex`
+- Empty state, loading state, and error state are handled in the UI
+
+#### Risk areas:
+- **SQLite FTS5 setup**: Requires raw SQL migrations for virtual tables and triggers since EF Core does not support FTS5 natively. Mitigation: use `migrationBuilder.Sql()` for raw DDL.
+- **Provider-specific SQL**: Each provider's FTS syntax differs significantly. Mitigation: `ISearchService` abstraction isolates the differences; each implementation is tested independently.
+- **Stale denormalized data**: If a user changes their display name or a channel is renamed, search results may show the old name until re-indexed. Acceptable for MVP at ~100 users.
+
+---
+
 ### Phase 5: User Presence and Notifications
 **Estimated effort**: 2-3 days
 **Dependencies**: Phase 3 complete (can run in parallel with Phase 4)
@@ -457,13 +531,13 @@ Phase 2 (Auth Backend)
     v
 Phase 3 (Text Channels + Blazor Client Shell) ----+
     |                                               |
-    +-------+-------+                              |
-    |       |       |                              |
-    v       v       v                              v
-Phase 4  Phase 5  Phase 6                    Phase 7
-(DMs)  (Presence) (Voice)                  (Auth UI)
-    |       |       |                          |
-    +-------+-------+--------------------------+
+    +-------+-------+-------+                      |
+    |       |       |       |                      |
+    v       v       v       v                      v
+Phase 4  Phase 4.5 Phase 5  Phase 6          Phase 7
+(DMs)   (Search) (Presence) (Voice)         (Auth UI)
+    |       |       |       |                  |
+    +-------+-------+-------+------------------+
     |
     v
 Phase 8 (Admin Panel)
@@ -473,12 +547,12 @@ Phase 9 (Polish + Docker)
 ```
 
 **Phases that can run in parallel:**
-- Phase 4 (DMs), Phase 5 (Presence), Phase 6 (Voice), and Phase 7 (Auth UI) are all independent after Phase 3
+- Phase 4 (DMs), Phase 4.5 (Search), Phase 5 (Presence), Phase 6 (Voice), and Phase 7 (Auth UI) are all independent after Phase 3
 - Phase 7 depends on Phase 2 (auth backend) AND Phase 3 (client shell), but both are complete by this point
 
 **Critical path**: Phase 1 -> Phase 2 -> Phase 3 -> Phase 6 (voice is the longest and riskiest)
 
-**Total estimated effort**: 25-35 days for a single developer working on all phases sequentially. With parallelism on Phases 4-7, the critical path is approximately 20-25 days.
+**Total estimated effort**: 29-41 days for a single developer working on all phases sequentially. With parallelism on Phases 4-7, the critical path is approximately 20-25 days.
 
 ---
 
@@ -500,6 +574,7 @@ Phase 9 (Polish + Docker)
 | JWT token management in Blazor WASM | Token refresh race conditions | Implement token refresh lock with SemaphoreSlim. Handle concurrent 401 responses. |
 | SignalR reconnection edge cases | Messages lost during reconnection | Client requests missed messages via REST API after reconnection. Track last-received message timestamp. |
 | Browser notification permission denied | Users miss messages | Show in-app notification badge/toast as fallback. Don't depend solely on browser notifications. |
+| Multi-provider FTS SQL differences | Search behavior varies across SQLite/PostgreSQL/MySQL | Each provider has its own `ISearchService` implementation, tested independently. `LIKE` fallback for edge cases. |
 
 ### Low Risk
 

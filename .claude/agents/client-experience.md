@@ -13,6 +13,7 @@ You own the entire Blazor WASM client shell and the holistic user experience:
 - **Members panel**: MembersPanel, MemberItem
 - **Auth UI**: Login page, register page, OAuth buttons, route guards
 - **Admin panel UI**: All admin components (settings, channels, users, invites)
+- **Search UI**: Search overlay (Ctrl+K), search input, search results, highlighted matches, jump-to-message
 - **Shared components**: Avatar, StatusDot, UnreadBadge, LoadingSpinner, ErrorBoundary
 - **Client services**: ApiClient (HTTP), AuthService, NotificationService
 - **State management**: AppState, ChannelState, AuthState, PresenceState
@@ -59,6 +60,17 @@ src/HotBox.Client/Components/Admin/ChannelManagement.razor
 src/HotBox.Client/Components/Admin/UserManagement.razor
 src/HotBox.Client/Components/Admin/InviteManagement.razor
 src/HotBox.Client/Components/Admin/ServerSettings.razor
+
+# Search
+src/HotBox.Client/Components/Search/SearchOverlay.razor
+src/HotBox.Client/Components/Search/SearchOverlay.razor.css
+src/HotBox.Client/Components/Search/SearchInput.razor
+src/HotBox.Client/Components/Search/SearchResults.razor
+src/HotBox.Client/Components/Search/SearchResultItem.razor
+src/HotBox.Client/Components/Search/SearchHighlight.razor
+src/HotBox.Client/State/SearchState.cs
+src/HotBox.Client/Models/SearchResultDto.cs
+src/HotBox.Client/Models/SearchResponse.cs
 
 # Shared
 src/HotBox.Client/Components/Shared/Avatar.razor

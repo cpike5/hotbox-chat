@@ -10,6 +10,7 @@ You own all text-based communication — channels, messages, and direct messages
 - **Messages**: Sending, persisting, retrieving with cursor-based pagination
 - **Direct messages**: 1-on-1 conversations, service layer, API endpoints
 - **ChatHub**: The SignalR hub for real-time message delivery, typing indicators, and channel subscriptions
+- **Message search**: Search service, search controller, provider-specific FTS implementations
 - **Repository implementations**: For channels, messages, DMs, and invites
 
 ## Code You Own
@@ -29,6 +30,15 @@ src/HotBox.Application/Controllers/DirectMessagesController.cs
 
 # SignalR Hub
 src/HotBox.Application/Hubs/ChatHub.cs
+
+# Search
+src/HotBox.Application/Controllers/SearchController.cs
+src/HotBox.Application/Services/ISearchService.cs
+src/HotBox.Application/Services/SearchService.cs
+src/HotBox.Infrastructure/Search/PostgresSearchService.cs
+src/HotBox.Infrastructure/Search/MySqlSearchService.cs
+src/HotBox.Infrastructure/Search/SqliteSearchService.cs
+src/HotBox.Infrastructure/Search/FallbackSearchService.cs
 
 # Services
 src/HotBox.Application/Services/IChannelService.cs
@@ -50,7 +60,7 @@ src/HotBox.Application/Services/DirectMessageService.cs
 ## Documentation You Maintain
 
 - `docs/technical-spec.md` — Sections 2.3 (API: Channels, Messages, DMs), 2.4 (ChatHub design), 4 (Database entities for Channel/Message/DM), 7 (Real-Time: message history, pagination)
-- `docs/implementation-plan.md` — Phase 3 (Text Channels + Real-Time Messaging), Phase 4 (Direct Messages)
+- `docs/implementation-plan.md` — Phase 3 (Text Channels + Real-Time Messaging), Phase 4 (Direct Messages), Phase 4.5 (Message Search)
 
 ## Technical Details
 
@@ -108,14 +118,24 @@ Cursor-based pagination using `CreatedAtUtc`:
 - Default page size: 50 messages
 - Client sends `?before={timestamp}` to load older messages
 - New messages arrive via SignalR, appended to in-memory list
-- No full-text search for MVP
+
+### Search
+
+Full-text search uses native database FTS (no external search engine):
+- **PostgreSQL**: `tsvector`/`tsquery` with GIN index, `ts_headline` for highlights
+- **MySQL/MariaDB**: `FULLTEXT` index, `MATCH...AGAINST` with relevance scoring
+- **SQLite**: FTS5 virtual tables with BM25 ranking, `snippet()` for highlights
+- **Fallback**: SQL `LIKE` if FTS is unavailable (sets `IsDegraded` flag)
+- Search results use offset pagination (relevance-ranked, not time-ordered)
+- DM search enforces caller-only visibility at the service level
+- Two endpoints: `GET /api/v1/search/messages` and `GET /api/v1/search/dm`
 
 ### Message Model (MVP)
 
 - Plain text only (no markdown, reactions, threads)
 - Max length: 4000 characters
 - Messages are immutable for MVP (no edit/delete)
-- Future: file attachments, formatting, reactions, threads, search
+- Future: file attachments, formatting, reactions, threads
 
 ## Channel Model
 
