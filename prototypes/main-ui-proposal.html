@@ -4,53 +4,67 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HotBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     /* ========================================
        CSS Custom Properties / Design Tokens
        ======================================== */
     :root {
-      /* Background layers (dark to light) */
-      --bg-deepest: #1a1a1e;
-      --bg-deep: #1e1e23;
-      --bg-base: #232329;
-      --bg-raised: #2a2a32;
-      --bg-surface: #32323c;
-      --bg-hover: #3a3a46;
-      --bg-active: #424250;
+      /* Background layers -- deep cool slate */
+      --bg-deepest: #0c0c0f;
+      --bg-deep: #111116;
+      --bg-base: #16161d;
+      --bg-raised: #1c1c25;
+      --bg-surface: #23232e;
+      --bg-hover: #2a2a37;
+      --bg-active: #32323f;
 
       /* Text */
-      --text-primary: #e4e4e8;
-      --text-secondary: #a0a0aa;
-      --text-muted: #6e6e7a;
-      --text-link: #7aa2f7;
+      --text-primary: #e2e2ea;
+      --text-secondary: #9898a8;
+      --text-muted: #5c5c72;
+      --text-faint: #3e3e52;
 
-      /* Accent */
-      --accent: #7aa2f7;
-      --accent-hover: #89b4fa;
-      --accent-muted: rgba(122, 162, 247, 0.15);
+      /* Accent -- cool teal/mint */
+      --accent: #5de4c7;
+      --accent-hover: #7aecd5;
+      --accent-muted: rgba(93, 228, 199, 0.10);
+      --accent-strong: #a0f0de;
+      --accent-glow: rgba(93, 228, 199, 0.06);
 
       /* Status */
-      --status-online: #50c878;
-      --status-idle: #e2b93d;
-      --status-dnd: #f7768e;
-      --status-offline: #565664;
+      --status-online: #6bc76b;
+      --status-idle: #c7a63e;
+      --status-dnd: #c76060;
+      --status-offline: #4a4a5a;
 
       /* Voice */
-      --voice-active: #50c878;
-      --voice-muted: #6e6e7a;
+      --voice-active: #6bc76b;
+      --voice-muted: #5c5c72;
 
       /* Borders */
-      --border-subtle: rgba(255, 255, 255, 0.06);
-      --border-light: rgba(255, 255, 255, 0.1);
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --border-light: rgba(255, 255, 255, 0.07);
+      --border-focus: rgba(93, 228, 199, 0.3);
 
       /* Misc */
+      --radius-xs: 3px;
       --radius-sm: 4px;
       --radius-md: 8px;
       --radius-lg: 12px;
-      --radius-full: 9999px;
-      --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
-      --transition-fast: 120ms ease;
-      --transition-base: 200ms ease;
+      --radius-pill: 9999px;
+      --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.5);
+      --shadow-lg: 0 8px 48px rgba(0, 0, 0, 0.6);
+      --shadow-overlay: 0 12px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-subtle);
+      --transition-fast: 100ms ease;
+      --transition-base: 180ms ease;
+      --transition-smooth: 280ms cubic-bezier(0.4, 0, 0.2, 1);
+
+      /* Typography */
+      --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
     }
 
     /* ========================================
@@ -68,7 +82,7 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif;
+      font-family: var(--font-body);
       background: var(--bg-deepest);
       color: var(--text-primary);
       font-size: 14px;
@@ -95,7 +109,7 @@
       color: inherit;
     }
 
-    /* Scrollbar styling */
+    /* Scrollbar */
     ::-webkit-scrollbar {
       width: 6px;
     }
@@ -103,584 +117,482 @@
       background: transparent;
     }
     ::-webkit-scrollbar-thumb {
-      background: var(--bg-hover);
-      border-radius: var(--radius-full);
+      background: var(--bg-active);
+      border-radius: var(--radius-pill);
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: var(--bg-active);
+      background: var(--bg-hover);
     }
 
     /* ========================================
-       App Layout
+       App Layout -- Vertical stack
+       topbar -> content -> (voice bar)
        ======================================== */
     .app {
       display: flex;
+      flex-direction: column;
       height: 100vh;
       width: 100vw;
     }
 
     /* ========================================
-       Sidebar
+       Top Bar
        ======================================== */
-    .sidebar {
-      width: 240px;
-      min-width: 240px;
-      background: var(--bg-deep);
-      display: flex;
-      flex-direction: column;
-      border-right: 1px solid var(--border-subtle);
-    }
-
-    /* Server header */
-    .server-header {
-      height: 52px;
-      display: flex;
-      align-items: center;
-      padding: 0 16px;
-      border-bottom: 1px solid var(--border-subtle);
-      cursor: default;
-      user-select: none;
-    }
-
-    .server-header h1 {
-      font-size: 15px;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      color: var(--text-primary);
-    }
-
-    /* Channel list */
-    .channel-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px 0;
-    }
-
-    .channel-section {
-      margin-bottom: 4px;
-    }
-
-    .channel-section-header {
-      display: flex;
-      align-items: center;
-      padding: 6px 16px 4px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text-muted);
-      user-select: none;
-    }
-
-    .channel-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 16px;
-      margin: 1px 8px;
-      border-radius: var(--radius-md);
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: background var(--transition-fast), color var(--transition-fast);
-      user-select: none;
-      position: relative;
-    }
-
-    .channel-item:hover {
-      background: var(--bg-hover);
-      color: var(--text-primary);
-    }
-
-    .channel-item.active {
-      background: var(--bg-active);
-      color: var(--text-primary);
-    }
-
-    .channel-item .channel-icon {
-      font-size: 16px;
-      width: 20px;
-      text-align: center;
-      flex-shrink: 0;
-      opacity: 0.7;
-    }
-
-    .channel-item.active .channel-icon,
-    .channel-item:hover .channel-icon {
-      opacity: 1;
-    }
-
-    .channel-item .channel-name {
-      font-size: 14px;
-      font-weight: 450;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .channel-item .unread-badge {
-      margin-left: auto;
-      background: var(--accent);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 600;
-      min-width: 18px;
-      height: 18px;
-      border-radius: var(--radius-full);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 5px;
-    }
-
-    /* Voice channel users */
-    .voice-users {
-      padding-left: 44px;
-      padding-right: 16px;
-    }
-
-    .voice-user {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 3px 0;
-      font-size: 13px;
-      color: var(--text-secondary);
-    }
-
-    .voice-user-avatar {
-      width: 20px;
-      height: 20px;
-      border-radius: var(--radius-full);
-      background: var(--bg-surface);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--text-muted);
-      flex-shrink: 0;
-    }
-
-    .voice-user-name {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* DM items */
-    .dm-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 6px 16px;
-      margin: 1px 8px;
-      border-radius: var(--radius-md);
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: background var(--transition-fast), color var(--transition-fast);
-      user-select: none;
-    }
-
-    .dm-item:hover {
-      background: var(--bg-hover);
-      color: var(--text-primary);
-    }
-
-    .dm-item.active {
-      background: var(--bg-active);
-      color: var(--text-primary);
-    }
-
-    .dm-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: var(--radius-full);
-      background: var(--bg-surface);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-      flex-shrink: 0;
-      position: relative;
-    }
-
-    .dm-avatar .status-dot {
-      position: absolute;
-      bottom: -1px;
-      right: -1px;
-      width: 10px;
-      height: 10px;
-      border-radius: var(--radius-full);
-      border: 2px solid var(--bg-deep);
-    }
-
-    .dm-name {
-      font-size: 14px;
-      font-weight: 450;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* User panel */
-    .user-panel {
-      height: 52px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 0 12px;
-      background: var(--bg-deepest);
-      border-top: 1px solid var(--border-subtle);
-    }
-
-    .user-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: var(--radius-full);
-      background: var(--accent-muted);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--accent);
-      flex-shrink: 0;
-      position: relative;
-    }
-
-    .user-avatar .status-dot {
-      position: absolute;
-      bottom: -1px;
-      right: -1px;
-      width: 12px;
-      height: 12px;
-      border-radius: var(--radius-full);
-      border: 2.5px solid var(--bg-deepest);
-    }
-
-    .status-dot.online { background: var(--status-online); }
-    .status-dot.idle { background: var(--status-idle); }
-    .status-dot.dnd { background: var(--status-dnd); }
-    .status-dot.offline { background: var(--status-offline); }
-
-    .user-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .user-info .username {
-      font-size: 13px;
-      font-weight: 600;
-      line-height: 1.2;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .user-info .user-status {
-      font-size: 11px;
-      color: var(--text-muted);
-      line-height: 1.2;
-    }
-
-    .user-panel-actions {
-      display: flex;
-      gap: 2px;
-    }
-
-    .user-panel-actions button {
-      width: 30px;
-      height: 30px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-secondary);
-      transition: background var(--transition-fast), color var(--transition-fast);
-    }
-
-    .user-panel-actions button:hover {
-      background: var(--bg-hover);
-      color: var(--text-primary);
-    }
-
-    /* ========================================
-       Main Content Area
-       ======================================== */
-    .main-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      background: var(--bg-base);
-    }
-
-    /* Channel header */
-    .channel-header {
+    .topbar {
       height: 52px;
       min-height: 52px;
       display: flex;
       align-items: center;
-      padding: 0 16px;
+      background: var(--bg-deep);
       border-bottom: 1px solid var(--border-subtle);
-      gap: 12px;
+      padding: 0 16px;
+      gap: 0;
+      z-index: 20;
+      user-select: none;
     }
 
-    .channel-header .header-icon {
-      font-size: 18px;
+    /* Brand */
+    .topbar-brand {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-right: 20px;
+      flex-shrink: 0;
+      padding: 6px 0;
+    }
+
+    /* Section switcher: Channels | DMs */
+    .section-switcher {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      background: var(--bg-base);
+      border-radius: var(--radius-md);
+      padding: 3px;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+
+    .section-btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 6px;
       color: var(--text-muted);
+      transition: all var(--transition-base);
+      white-space: nowrap;
     }
 
-    .channel-header .header-name {
-      font-size: 15px;
-      font-weight: 600;
+    .section-btn:hover {
+      color: var(--text-secondary);
+    }
+
+    .section-btn.active {
+      background: var(--bg-raised);
       color: var(--text-primary);
     }
 
-    .channel-header .header-divider {
+    /* Divider */
+    .topbar-divider {
       width: 1px;
       height: 24px;
       background: var(--border-light);
+      margin: 0 12px;
+      flex-shrink: 0;
     }
 
-    .channel-header .header-topic {
-      font-size: 13px;
-      color: var(--text-muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .channel-header .header-actions {
-      margin-left: auto;
+    /* Channel tabs */
+    .channel-tabs {
       display: flex;
-      gap: 4px;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      padding: 2px 0;
     }
 
-    .channel-header .header-actions button {
-      width: 32px;
-      height: 32px;
-      border-radius: var(--radius-sm);
+    .channel-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .channel-tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 450;
+      white-space: nowrap;
+      transition: all var(--transition-fast);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .channel-tab:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .channel-tab.active {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+    }
+
+    .channel-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 16px;
+      height: 2px;
+      background: var(--accent);
+      border-radius: var(--radius-pill);
+    }
+
+    .channel-tab .tab-hash {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0.4;
+    }
+
+    .channel-tab.active .tab-hash {
+      opacity: 0.7;
+      color: var(--accent);
+    }
+
+    .channel-tab .tab-badge {
+      background: var(--accent);
+      color: var(--bg-deepest);
+      font-size: 10px;
+      font-weight: 700;
+      min-width: 16px;
+      height: 16px;
+      border-radius: var(--radius-pill);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--text-secondary);
-      transition: background var(--transition-fast), color var(--transition-fast);
+      padding: 0 4px;
+      line-height: 1;
     }
 
-    .channel-header .header-actions button:hover {
+    /* DM tabs */
+    .dm-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 450;
+      white-space: nowrap;
+      transition: all var(--transition-fast);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .dm-tab:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .dm-tab.active {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+    }
+
+    .dm-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 16px;
+      height: 2px;
+      background: var(--accent);
+      border-radius: var(--radius-pill);
+    }
+
+    .dm-tab-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .dm-tab-avatar .status-pip {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 8px;
+      height: 8px;
+      border-radius: var(--radius-pill);
+      border: 2px solid var(--bg-deep);
+    }
+
+    /* Right side of topbar */
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: auto;
+      flex-shrink: 0;
+      padding-left: 12px;
+    }
+
+    /* Voice dropdown trigger */
+    .voice-dropdown-trigger {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      transition: all var(--transition-fast);
+      position: relative;
+    }
+
+    .voice-dropdown-trigger:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .voice-dropdown-trigger.has-users {
+      color: var(--voice-active);
+    }
+
+    .voice-dropdown-trigger svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .voice-dropdown-trigger .voice-count {
+      background: var(--bg-surface);
+      padding: 1px 5px;
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .voice-dropdown-trigger.has-users .voice-count {
+      background: rgba(107, 199, 107, 0.12);
+      color: var(--voice-active);
+    }
+
+    /* Voice dropdown overlay */
+    .voice-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      width: 260px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-overlay);
+      padding: 8px;
+      z-index: 50;
+      display: none;
+    }
+
+    .voice-dropdown.open {
+      display: block;
+    }
+
+    .voice-dropdown-header {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      padding: 6px 8px 4px;
+    }
+
+    .voice-channel-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .voice-channel-item:hover {
       background: var(--bg-hover);
       color: var(--text-primary);
     }
 
-    .channel-header .header-actions button.active {
+    .voice-channel-item.connected {
+      background: rgba(107, 199, 107, 0.08);
+      color: var(--voice-active);
+    }
+
+    .voice-channel-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      opacity: 0.6;
+    }
+
+    .voice-channel-item.connected .voice-channel-icon {
+      opacity: 1;
+    }
+
+    .voice-channel-name {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .voice-channel-count {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .voice-channel-users-list {
+      padding: 2px 0 4px 36px;
+    }
+
+    .voice-channel-user {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 0;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .voice-channel-user-avatar {
+      width: 16px;
+      height: 16px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    /* Members trigger and overlay */
+    .members-trigger {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 10px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      transition: all var(--transition-fast);
+      position: relative;
+    }
+
+    .members-trigger:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .members-trigger.active {
+      background: var(--accent-muted);
       color: var(--accent);
     }
 
-    /* Messages area */
-    .messages-wrapper {
-      flex: 1;
+    .members-trigger svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Online avatar dots in topbar */
+    .online-avatars {
       display: flex;
-      min-height: 0;
+      align-items: center;
+      margin-right: 4px;
     }
 
-    .messages-area {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px 0;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .messages-container {
-      margin-top: auto;
-      padding: 0 16px;
-    }
-
-    /* Message groups */
-    .message-group {
-      display: flex;
-      gap: 12px;
-      padding: 4px 0;
-      margin: 0;
-    }
-
-    .message-group + .message-group {
-      margin-top: 12px;
-    }
-
-    .message-group:hover {
-      background: rgba(0, 0, 0, 0.06);
-      border-radius: var(--radius-sm);
-    }
-
-    .msg-avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: var(--radius-full);
-      background: var(--bg-surface);
+    .online-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-pill);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-muted);
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-
-    .msg-content {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .msg-header {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      margin-bottom: 2px;
-    }
-
-    .msg-author {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .msg-timestamp {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .msg-body {
-      font-size: 14px;
-      color: var(--text-secondary);
-      line-height: 1.45;
-      word-wrap: break-word;
-    }
-
-    .msg-body + .msg-body {
-      margin-top: 4px;
-    }
-
-    /* Date separator */
-    .date-separator {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 16px 0 8px;
-      user-select: none;
-    }
-
-    .date-separator::before,
-    .date-separator::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border-subtle);
-    }
-
-    .date-separator span {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-    }
-
-    /* Welcome message */
-    .channel-welcome {
-      padding: 16px 0 8px;
-      margin-bottom: 8px;
-    }
-
-    .channel-welcome h2 {
-      font-size: 28px;
+      font-size: 8px;
       font-weight: 700;
-      margin-bottom: 6px;
-      color: var(--text-primary);
+      color: #fff;
+      margin-left: -6px;
+      border: 2px solid var(--bg-deep);
+      cursor: default;
+      position: relative;
+      transition: transform var(--transition-fast);
     }
 
-    .channel-welcome p {
-      font-size: 14px;
-      color: var(--text-muted);
+    .online-dot:first-child {
+      margin-left: 0;
     }
 
-    /* Message input */
-    .message-input-wrapper {
-      padding: 0 16px 20px;
+    .online-dot:hover {
+      transform: translateY(-2px);
+      z-index: 2;
     }
 
-    .message-input {
-      display: flex;
-      align-items: center;
-      background: var(--bg-raised);
-      border-radius: var(--radius-md);
-      padding: 2px 4px 2px 16px;
-      border: 1px solid transparent;
-      transition: border-color var(--transition-base);
-    }
-
-    .message-input:focus-within {
-      border-color: var(--accent);
-    }
-
-    .message-input input {
-      flex: 1;
-      padding: 10px 0;
-      font-size: 14px;
-      color: var(--text-primary);
-    }
-
-    .message-input input::placeholder {
-      color: var(--text-muted);
-    }
-
-    .message-input button {
-      width: 36px;
-      height: 36px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-      transition: color var(--transition-fast);
-    }
-
-    .message-input button:hover {
-      color: var(--text-primary);
-    }
-
-    /* ========================================
-       Members Panel
-       ======================================== */
-    .members-panel {
-      width: 240px;
-      min-width: 240px;
+    /* Members overlay */
+    .members-overlay {
+      position: fixed;
+      top: 52px;
+      right: 0;
+      width: 260px;
+      bottom: 0;
       background: var(--bg-deep);
       border-left: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-lg);
+      z-index: 30;
       overflow-y: auto;
-      padding: 16px 8px;
-      transition: width var(--transition-base), min-width var(--transition-base), padding var(--transition-base), opacity var(--transition-base);
+      padding: 16px 12px;
+      transform: translateX(100%);
+      transition: transform var(--transition-smooth);
     }
 
-    .members-panel.hidden {
-      width: 0;
-      min-width: 0;
-      padding: 16px 0;
-      opacity: 0;
-      overflow: hidden;
+    .members-overlay.open {
+      transform: translateX(0);
     }
 
-    .members-section-header {
-      font-size: 11px;
-      font-weight: 600;
+    .members-section-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.08em;
       color: var(--text-muted);
-      padding: 8px 8px 4px;
+      padding: 8px 8px 6px;
       user-select: none;
     }
 
@@ -699,16 +611,15 @@
     }
 
     .member-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: var(--radius-full);
-      background: var(--bg-surface);
+      width: 26px;
+      height: 26px;
+      border-radius: var(--radius-pill);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
+      font-size: 9px;
+      font-weight: 700;
+      color: #fff;
       flex-shrink: 0;
       position: relative;
     }
@@ -717,14 +628,14 @@
       position: absolute;
       bottom: -1px;
       right: -1px;
-      width: 10px;
-      height: 10px;
-      border-radius: var(--radius-full);
+      width: 9px;
+      height: 9px;
+      border-radius: var(--radius-pill);
       border: 2px solid var(--bg-deep);
     }
 
     .member-name {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 450;
       color: var(--text-secondary);
       white-space: nowrap;
@@ -737,9 +648,12 @@
     }
 
     .member-role-tag {
-      font-size: 10px;
-      font-weight: 600;
-      padding: 1px 5px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 2px 6px;
       border-radius: var(--radius-sm);
       background: var(--accent-muted);
       color: var(--accent);
@@ -747,89 +661,467 @@
       white-space: nowrap;
     }
 
-    /* Offline members */
     .member-item.offline .member-avatar,
     .member-item.offline .member-name {
-      opacity: 0.4;
+      opacity: 0.35;
     }
 
-    /* ========================================
-       SVG Icons (inline)
-       ======================================== */
-    .icon {
-      width: 18px;
-      height: 18px;
-      display: inline-block;
-      vertical-align: middle;
+    /* Settings button in topbar */
+    .topbar-icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: all var(--transition-fast);
     }
 
-    .icon-sm {
+    .topbar-icon-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .topbar-icon-btn svg {
       width: 16px;
       height: 16px;
     }
 
-    /* ========================================
-       Voice channel active state
-       ======================================== */
-    .voice-connected {
-      background: rgba(80, 200, 120, 0.08);
-      border: 1px solid rgba(80, 200, 120, 0.15);
-      border-radius: var(--radius-md);
-      margin: 4px 8px;
-      padding: 8px 12px;
-    }
-
-    .voice-connected-header {
+    /* User avatar in topbar */
+    .topbar-user {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--radius-pill);
+      background: var(--accent-muted);
       display: flex;
       align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      transition: all var(--transition-base);
+      position: relative;
+      margin-left: 4px;
+      flex-shrink: 0;
+    }
+
+    .topbar-user:hover {
+      background: var(--accent);
+      color: var(--bg-deepest);
+    }
+
+    .topbar-user .status-dot {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 10px;
+      height: 10px;
+      border-radius: var(--radius-pill);
+      border: 2px solid var(--bg-deep);
+    }
+
+    /* Status dots */
+    .status-dot.online, .status-pip.online { background: var(--status-online); }
+    .status-dot.idle, .status-pip.idle { background: var(--status-idle); }
+    .status-dot.dnd, .status-pip.dnd { background: var(--status-dnd); }
+    .status-dot.offline, .status-pip.offline { background: var(--status-offline); }
+
+    /* ========================================
+       Channel Info Bar (below topbar)
+       ======================================== */
+    .channel-info-bar {
+      height: 36px;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      padding: 0 32px;
+      background: var(--bg-base);
+      border-bottom: 1px solid var(--border-subtle);
+      gap: 10px;
+    }
+
+    .channel-info-icon {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-faint);
+    }
+
+    .channel-info-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: -0.01em;
+    }
+
+    .channel-info-divider {
+      width: 1px;
+      height: 14px;
+      background: var(--border-light);
+    }
+
+    .channel-info-topic {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ========================================
+       Main Content Area (full bleed)
+       ======================================== */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: var(--bg-base);
+      position: relative;
+    }
+
+    /* Messages area -- full width, centered content */
+    .messages-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .messages-container {
+      margin-top: auto;
+      padding: 0 32px;
+      max-width: 780px;
+      width: 100%;
+      align-self: center;
+    }
+
+    /* Message groups */
+    .message-group {
+      display: flex;
+      gap: 14px;
+      padding: 4px 8px;
+      margin: 0;
+      border-radius: var(--radius-md);
+      transition: background var(--transition-fast);
+    }
+
+    .message-group + .message-group {
+      margin-top: 2px;
+    }
+
+    .message-group.new-author {
+      margin-top: 16px;
+    }
+
+    .message-group:hover {
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .msg-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .msg-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .msg-header {
+      display: flex;
+      align-items: baseline;
       gap: 8px;
+      margin-bottom: 2px;
+    }
+
+    .msg-author {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .msg-timestamp {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      letter-spacing: 0.02em;
+    }
+
+    .msg-body {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      word-wrap: break-word;
+    }
+
+    .msg-body + .msg-body {
+      margin-top: 3px;
+    }
+
+    /* Date separator */
+    .date-separator {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 20px 0 12px;
+      user-select: none;
+    }
+
+    .date-separator::before,
+    .date-separator::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border-subtle);
+    }
+
+    .date-separator span {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Welcome message */
+    .channel-welcome {
+      padding: 24px 0 12px;
       margin-bottom: 8px;
     }
 
-    .voice-connected-header .voice-status {
-      font-size: 12px;
-      font-weight: 600;
+    .channel-welcome h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .channel-welcome p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Message input */
+    .message-input-wrapper {
+      padding: 0 32px 20px;
+      max-width: 844px;
+      width: 100%;
+      align-self: center;
+    }
+
+    .message-input {
+      display: flex;
+      align-items: center;
+      background: var(--bg-raised);
+      border-radius: var(--radius-lg);
+      padding: 4px 6px 4px 18px;
+      border: 1px solid var(--border-subtle);
+      transition: border-color var(--transition-base), box-shadow var(--transition-base);
+    }
+
+    .message-input:focus-within {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .message-input input {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .message-input input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .message-input button {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: all var(--transition-fast);
+    }
+
+    .message-input button:hover {
+      color: var(--accent);
+      background: var(--accent-muted);
+    }
+
+    /* ========================================
+       Voice Bar (bottom, Spotify-style)
+       ======================================== */
+    .voice-bar {
+      height: 48px;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      background: var(--bg-deep);
+      border-top: 1px solid rgba(107, 199, 107, 0.1);
+      padding: 0 20px;
+      gap: 12px;
+      z-index: 20;
+    }
+
+    .voice-bar.hidden {
+      display: none;
+    }
+
+    .voice-bar-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .voice-bar-pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: var(--radius-pill);
+      background: var(--voice-active);
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(107, 199, 107, 0.4); }
+      50% { opacity: 0.6; box-shadow: 0 0 8px rgba(107, 199, 107, 0.2); }
+    }
+
+    .voice-bar-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
       color: var(--voice-active);
     }
 
-    .voice-connected-header .voice-channel-name {
-      font-size: 12px;
+    .voice-bar-channel {
+      font-size: 13px;
+      font-weight: 500;
       color: var(--text-secondary);
     }
 
-    .voice-connected-actions {
+    .voice-bar-users {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 8px;
+    }
+
+    .voice-bar-user-chip {
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+      color: #fff;
+      margin-left: -4px;
+      border: 2px solid var(--bg-deep);
+    }
+
+    .voice-bar-user-chip:first-child {
+      margin-left: 0;
+    }
+
+    .voice-bar-spacer {
+      flex: 1;
+    }
+
+    .voice-bar-controls {
       display: flex;
       gap: 4px;
     }
 
-    .voice-connected-actions button {
+    .voice-bar-btn {
       width: 32px;
       height: 32px;
-      border-radius: var(--radius-full);
-      background: var(--bg-surface);
+      border-radius: var(--radius-pill);
       display: flex;
       align-items: center;
       justify-content: center;
       color: var(--text-secondary);
-      transition: background var(--transition-fast), color var(--transition-fast);
+      transition: all var(--transition-fast);
     }
 
-    .voice-connected-actions button:hover {
+    .voice-bar-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .voice-bar-btn:hover {
       background: var(--bg-hover);
       color: var(--text-primary);
     }
 
-    .voice-connected-actions button.disconnect {
-      background: rgba(247, 118, 142, 0.15);
+    .voice-bar-btn.active {
+      background: rgba(199, 96, 96, 0.12);
       color: var(--status-dnd);
     }
 
-    .voice-connected-actions button.disconnect:hover {
-      background: rgba(247, 118, 142, 0.3);
+    .voice-bar-btn.disconnect {
+      background: rgba(199, 96, 96, 0.12);
+      color: var(--status-dnd);
+    }
+
+    .voice-bar-btn.disconnect:hover {
+      background: rgba(199, 96, 96, 0.25);
     }
 
     /* ========================================
-       Empty / placeholder states
+       Tooltips
+       ======================================== */
+    [data-tooltip] {
+      position: relative;
+    }
+
+    [data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      padding: 5px 10px;
+      background: var(--bg-deepest);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-light);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--transition-fast), transform var(--transition-fast);
+      z-index: 100;
+    }
+
+    [data-tooltip]:hover::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ========================================
+       Empty/placeholder states
        ======================================== */
     .empty-state {
       display: flex;
@@ -845,7 +1137,7 @@
 
     .empty-state .empty-icon {
       font-size: 48px;
-      opacity: 0.3;
+      opacity: 0.2;
       margin-bottom: 8px;
     }
 
@@ -861,195 +1153,146 @@
     }
 
     /* ========================================
-       Tooltip
+       Click-outside close helper
        ======================================== */
-    [data-tooltip] {
-      position: relative;
+    .click-away-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
     }
 
-    [data-tooltip]::after {
-      content: attr(data-tooltip);
-      position: absolute;
-      bottom: calc(100% + 6px);
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 4px 8px;
-      background: #111;
-      color: var(--text-primary);
-      font-size: 12px;
-      font-weight: 500;
-      white-space: nowrap;
-      border-radius: var(--radius-sm);
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity var(--transition-fast);
-      z-index: 100;
-    }
-
-    [data-tooltip]:hover::after {
-      opacity: 1;
+    .click-away-overlay.active {
+      display: block;
     }
   </style>
 </head>
 <body>
 
 <div class="app" id="app">
-  <!-- ============ Sidebar ============ -->
-  <aside class="sidebar">
-    <div class="server-header">
-      <h1>The HotBox</h1>
+
+  <!-- ============ Top Bar ============ -->
+  <header class="topbar" id="topbar">
+    <div class="topbar-brand">HotBox</div>
+
+    <!-- Section switcher -->
+    <div class="section-switcher" id="sectionSwitcher">
+      <button class="section-btn active" data-section="channels">Channels</button>
+      <button class="section-btn" data-section="dms">DMs</button>
     </div>
 
-    <nav class="channel-list" id="channelList">
-      <!-- Text Channels -->
-      <div class="channel-section">
-        <div class="channel-section-header">Text Channels</div>
-        <div class="channel-item active" data-channel="general" data-type="text" role="button" tabindex="0">
-          <span class="channel-icon">#</span>
-          <span class="channel-name">general</span>
-        </div>
-        <div class="channel-item" data-channel="shitposting" data-type="text" role="button" tabindex="0">
-          <span class="channel-icon">#</span>
-          <span class="channel-name">shitposting</span>
-        </div>
-        <div class="channel-item" data-channel="gaming" data-type="text" role="button" tabindex="0">
-          <span class="channel-icon">#</span>
-          <span class="channel-name">gaming</span>
-          <span class="unread-badge">3</span>
-        </div>
-        <div class="channel-item" data-channel="music" data-type="text" role="button" tabindex="0">
-          <span class="channel-icon">#</span>
-          <span class="channel-name">music</span>
-        </div>
-      </div>
+    <div class="topbar-divider"></div>
 
-      <!-- Voice Channels -->
-      <div class="channel-section">
-        <div class="channel-section-header">Voice Channels</div>
-        <div class="channel-item" data-channel="lounge" data-type="voice" role="button" tabindex="0">
-          <span class="channel-icon">
-            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-          </span>
-          <span class="channel-name">Lounge</span>
-        </div>
-        <div class="voice-users" id="voiceLounge">
-          <div class="voice-user">
-            <div class="voice-user-avatar">JD</div>
-            <span class="voice-user-name">JohnDoe</span>
-          </div>
-          <div class="voice-user">
-            <div class="voice-user-avatar">SK</div>
-            <span class="voice-user-name">SaltyKid99</span>
-          </div>
-        </div>
-
-        <div class="channel-item" data-channel="gaming-vc" data-type="voice" role="button" tabindex="0">
-          <span class="channel-icon">
-            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-          </span>
-          <span class="channel-name">Gaming</span>
-        </div>
-      </div>
-
-      <!-- Direct Messages -->
-      <div class="channel-section">
-        <div class="channel-section-header">Direct Messages</div>
-        <div class="dm-item" data-channel="dm-johndoe" data-type="dm" role="button" tabindex="0">
-          <div class="dm-avatar">JD<span class="status-dot online"></span></div>
-          <span class="dm-name">JohnDoe</span>
-        </div>
-        <div class="dm-item" data-channel="dm-saltykid99" data-type="dm" role="button" tabindex="0">
-          <div class="dm-avatar">SK<span class="status-dot online"></span></div>
-          <span class="dm-name">SaltyKid99</span>
-        </div>
-        <div class="dm-item" data-channel="dm-meghan" data-type="dm" role="button" tabindex="0">
-          <div class="dm-avatar">MR<span class="status-dot idle"></span></div>
-          <span class="dm-name">Meghan</span>
-        </div>
-      </div>
-    </nav>
-
-    <!-- Voice connected panel (hidden by default) -->
-    <div class="voice-connected" id="voicePanel" style="display: none;">
-      <div class="voice-connected-header">
-        <span class="voice-status">Voice Connected</span>
-        <span class="voice-channel-name" id="voiceChannelLabel">/ Lounge</span>
-      </div>
-      <div class="voice-connected-actions">
-        <button data-tooltip="Mute" id="btnMute">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-        </button>
-        <button data-tooltip="Deafen" id="btnDeafen">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
-        </button>
-        <button data-tooltip="Disconnect" class="disconnect" id="btnDisconnect">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
-        </button>
-      </div>
+    <!-- Channel / DM tabs (populated by JS) -->
+    <div class="channel-tabs" id="channelTabs">
+      <!-- Rendered by JS -->
     </div>
 
-    <!-- User panel -->
-    <div class="user-panel">
-      <div class="user-avatar">
+    <div class="topbar-divider"></div>
+
+    <!-- Right side controls -->
+    <div class="topbar-right">
+      <!-- Online avatar dots -->
+      <div class="online-avatars" id="onlineAvatars">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Members toggle -->
+      <button class="members-trigger" id="btnToggleMembers" data-tooltip="Members" aria-label="Toggle members panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      </button>
+
+      <!-- Voice channels dropdown -->
+      <div style="position: relative;">
+        <button class="voice-dropdown-trigger" id="btnVoiceDropdown" aria-label="Voice channels">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          <span>Voice</span>
+          <span class="voice-count" id="voiceTotalCount">2</span>
+        </button>
+        <div class="voice-dropdown" id="voiceDropdown">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Search -->
+      <button class="topbar-icon-btn" data-tooltip="Search" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      </button>
+
+      <!-- Settings -->
+      <button class="topbar-icon-btn" data-tooltip="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+
+      <!-- User avatar -->
+      <div class="topbar-user" data-tooltip="cpike" aria-label="User profile">
         CP
         <span class="status-dot online"></span>
       </div>
-      <div class="user-info">
-        <div class="username">cpike</div>
-        <div class="user-status">Online</div>
-      </div>
-      <div class="user-panel-actions">
-        <button data-tooltip="Settings">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-        </button>
-      </div>
     </div>
-  </aside>
+  </header>
+
+  <!-- ============ Channel Info Sub-bar ============ -->
+  <div class="channel-info-bar" id="channelInfoBar">
+    <span class="channel-info-icon" id="channelInfoIcon">#</span>
+    <span class="channel-info-name" id="channelInfoName">general</span>
+    <span class="channel-info-divider"></span>
+    <span class="channel-info-topic" id="channelInfoTopic">The place for general conversation</span>
+  </div>
 
   <!-- ============ Main Content ============ -->
-  <main class="main-content">
-    <div class="channel-header" id="channelHeader">
-      <span class="header-icon">#</span>
-      <span class="header-name" id="headerName">general</span>
-      <span class="header-divider"></span>
-      <span class="header-topic" id="headerTopic">The place for general conversation</span>
-      <div class="header-actions">
-        <button data-tooltip="Search">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        </button>
-        <button data-tooltip="Members" id="btnToggleMembers" class="active">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-        </button>
+  <main class="main-content" id="mainContent">
+    <div class="messages-area" id="messagesArea">
+      <div class="messages-container" id="messagesContainer">
+        <!-- Messages injected by JS -->
       </div>
-    </div>
-
-    <div class="messages-wrapper">
-      <div class="messages-area" id="messagesArea">
-        <div class="messages-container" id="messagesContainer">
-          <!-- Messages injected by JS -->
-        </div>
-      </div>
-
-      <!-- Members Panel -->
-      <aside class="members-panel" id="membersPanel">
-        <div class="members-section-header" id="membersSectionOnline">Online - 5</div>
-        <!-- Members injected by JS -->
-        <div id="membersOnline"></div>
-        <div class="members-section-header" id="membersSectionOffline" style="margin-top: 16px;">Offline - 1</div>
-        <div id="membersOffline"></div>
-      </aside>
     </div>
 
     <div class="message-input-wrapper" id="messageInputWrapper">
       <div class="message-input">
         <input type="text" id="messageInput" placeholder="Message #general" autocomplete="off" />
-        <button data-tooltip="Send" id="btnSend">
+        <button data-tooltip="Send" id="btnSend" aria-label="Send message">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
       </div>
     </div>
   </main>
+
+  <!-- ============ Members Overlay (slide-in from right) ============ -->
+  <aside class="members-overlay" id="membersOverlay">
+    <div class="members-section-label" id="membersSectionOnline">Online - 6</div>
+    <div id="membersOnline"></div>
+    <div class="members-section-label" id="membersSectionOffline" style="margin-top: 16px;">Offline - 1</div>
+    <div id="membersOffline"></div>
+  </aside>
+
+  <!-- ============ Voice Bar (bottom, hidden by default) ============ -->
+  <div class="voice-bar hidden" id="voiceBar">
+    <div class="voice-bar-status">
+      <div class="voice-bar-pulse"></div>
+      <span class="voice-bar-label">Connected</span>
+    </div>
+    <span class="voice-bar-channel" id="voiceBarChannel">Lounge</span>
+    <div class="voice-bar-users" id="voiceBarUsers">
+      <!-- Rendered by JS -->
+    </div>
+    <div class="voice-bar-spacer"></div>
+    <div class="voice-bar-controls">
+      <button class="voice-bar-btn" id="btnMute" data-tooltip="Mute" aria-label="Toggle mute">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+      </button>
+      <button class="voice-bar-btn" id="btnDeafen" data-tooltip="Deafen" aria-label="Toggle deafen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+      </button>
+      <button class="voice-bar-btn disconnect" id="btnDisconnect" data-tooltip="Disconnect" aria-label="Disconnect from voice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
+      </button>
+    </div>
+  </div>
 </div>
+
+<!-- Click-away overlay for closing dropdowns -->
+<div class="click-away-overlay" id="clickAwayOverlay"></div>
 
 <script>
 (function () {
@@ -1062,10 +1305,10 @@
   const CURRENT_USER = 'cpike';
 
   const USERS = {
-    cpike:      { initials: 'CP', status: 'online', role: 'admin' },
-    JohnDoe:    { initials: 'JD', status: 'online', role: null },
-    SaltyKid99: { initials: 'SK', status: 'online', role: null },
-    Meghan:     { initials: 'MR', status: 'idle', role: 'mod' },
+    cpike:        { initials: 'CP', status: 'online', role: 'admin' },
+    JohnDoe:      { initials: 'JD', status: 'online', role: null },
+    SaltyKid99:   { initials: 'SK', status: 'online', role: null },
+    Meghan:       { initials: 'MR', status: 'idle', role: 'mod' },
     xXDarkLordXx: { initials: 'DL', status: 'online', role: null },
     ghostpepper:  { initials: 'GP', status: 'online', role: null },
     lurker42:     { initials: 'L4', status: 'offline', role: null },
@@ -1160,13 +1403,22 @@
     'gaming-vc': { name: 'Gaming', users: [] },
   };
 
+  // Unread state (per-channel badge counts)
+  const UNREAD = {
+    gaming: 3,
+  };
+
   // ==========================================
   // State
   // ==========================================
 
   let activeChannel = 'general';
-  let membersVisible = true;
-  let connectedVoice = null; // channel key or null
+  let activeSection = 'channels'; // 'channels' or 'dms'
+  let membersVisible = false;
+  let connectedVoice = null;
+  let voiceDropdownOpen = false;
+  let isMuted = false;
+  let isDeafened = false;
 
   // ==========================================
   // Helpers
@@ -1182,62 +1434,203 @@
     return new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   }
 
-  function formatDate(ts) {
-    return new Date(ts).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
-  }
-
   function el(id) {
     return document.getElementById(id);
   }
 
   function getAvatarColor(name) {
-    // Deterministic hue from name
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
     const hue = Math.abs(hash) % 360;
-    return `hsl(${hue}, 40%, 45%)`;
+    return 'hsl(' + hue + ', 32%, 38%)';
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function getTotalVoiceUsers() {
+    let count = 0;
+    for (const key of Object.keys(VOICE_CHANNELS)) {
+      count += VOICE_CHANNELS[key].users.length;
+    }
+    return count;
   }
 
   // ==========================================
-  // Rendering
+  // Render: Channel Tabs in Topbar
+  // ==========================================
+
+  function renderTabs() {
+    const container = el('channelTabs');
+    let html = '';
+
+    if (activeSection === 'channels') {
+      const textChannels = ['general', 'shitposting', 'gaming', 'music'];
+      textChannels.forEach(function (key) {
+        const isActive = activeChannel === key;
+        const unread = UNREAD[key] && !isActive ? UNREAD[key] : 0;
+        html += '<button class="channel-tab' + (isActive ? ' active' : '') + '" data-channel="' + key + '" data-type="text">';
+        html += '<span class="tab-hash">#</span>';
+        html += '<span>' + key + '</span>';
+        if (unread > 0) {
+          html += '<span class="tab-badge">' + unread + '</span>';
+        }
+        html += '</button>';
+      });
+    } else if (activeSection === 'dms') {
+      var dmKeys = ['dm-johndoe', 'dm-saltykid99', 'dm-meghan'];
+      dmKeys.forEach(function (key) {
+        var ch = CHANNELS[key];
+        var user = USERS[ch.dmUser];
+        var color = getAvatarColor(ch.dmUser);
+        var isActive = activeChannel === key;
+        html += '<button class="dm-tab' + (isActive ? ' active' : '') + '" data-channel="' + key + '" data-type="dm">';
+        html += '<div class="dm-tab-avatar" style="background: ' + color + ';">' + user.initials;
+        html += '<span class="status-pip ' + user.status + '"></span>';
+        html += '</div>';
+        html += '<span>' + ch.dmUser + '</span>';
+        html += '</button>';
+      });
+    }
+
+    container.innerHTML = html;
+  }
+
+  // ==========================================
+  // Render: Online Avatars in Topbar
+  // ==========================================
+
+  function renderOnlineAvatars() {
+    var container = el('onlineAvatars');
+    var html = '';
+    var count = 0;
+    for (var name in USERS) {
+      if (USERS[name].status !== 'offline' && count < 6) {
+        var color = getAvatarColor(name);
+        html += '<div class="online-dot" style="background: ' + color + ';" title="' + name + '">' + USERS[name].initials + '</div>';
+        count++;
+      }
+    }
+    container.innerHTML = html;
+  }
+
+  // ==========================================
+  // Render: Voice Dropdown
+  // ==========================================
+
+  function renderVoiceDropdown() {
+    var container = el('voiceDropdown');
+    var html = '';
+
+    html += '<div class="voice-dropdown-header">Voice Channels</div>';
+
+    for (var key in VOICE_CHANNELS) {
+      var vc = VOICE_CHANNELS[key];
+      var isConnected = connectedVoice === key;
+      var userCount = vc.users.length;
+
+      html += '<div class="voice-channel-item' + (isConnected ? ' connected' : '') + '" data-voice="' + key + '">';
+      html += '<svg class="voice-channel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
+      html += '<span class="voice-channel-name">' + vc.name + '</span>';
+      if (userCount > 0) {
+        html += '<span class="voice-channel-count">' + userCount + '</span>';
+      }
+      html += '</div>';
+
+      if (userCount > 0) {
+        html += '<div class="voice-channel-users-list">';
+        vc.users.forEach(function (uname) {
+          var u = USERS[uname] || { initials: '??', status: 'online' };
+          var color = getAvatarColor(uname);
+          html += '<div class="voice-channel-user">';
+          html += '<div class="voice-channel-user-avatar" style="background: ' + color + ';">' + u.initials + '</div>';
+          html += '<span>' + uname + '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+    }
+
+    container.innerHTML = html;
+
+    // Update the total count badge
+    var total = getTotalVoiceUsers();
+    el('voiceTotalCount').textContent = total;
+
+    // Update trigger style
+    var trigger = el('btnVoiceDropdown');
+    if (total > 0 || connectedVoice) {
+      trigger.classList.add('has-users');
+    } else {
+      trigger.classList.remove('has-users');
+    }
+  }
+
+  // ==========================================
+  // Render: Channel Info Bar
+  // ==========================================
+
+  function updateChannelInfoBar() {
+    var channel = CHANNELS[activeChannel];
+    if (!channel) return;
+
+    var icon = el('channelInfoIcon');
+    var name = el('channelInfoName');
+    var topic = el('channelInfoTopic');
+    var input = el('messageInput');
+
+    if (channel.type === 'text') {
+      icon.textContent = '#';
+      name.textContent = activeChannel;
+      topic.textContent = channel.topic || '';
+      input.placeholder = 'Message #' + activeChannel;
+    } else if (channel.type === 'dm') {
+      icon.textContent = '@';
+      name.textContent = channel.dmUser;
+      topic.textContent = 'Direct message';
+      input.placeholder = 'Message ' + channel.dmUser;
+    }
+  }
+
+  // ==========================================
+  // Render: Messages
   // ==========================================
 
   function renderMessages() {
-    const container = el('messagesContainer');
-    const channel = CHANNELS[activeChannel];
+    var container = el('messagesContainer');
+    var channel = CHANNELS[activeChannel];
     if (!channel) return;
 
-    let html = '';
+    var html = '';
 
-    // Welcome section for text channels
+    // Welcome section
     if (channel.type === 'text') {
-      html += `
-        <div class="channel-welcome">
-          <h2>Welcome to #${activeChannel}</h2>
-          <p>This is the start of the #${activeChannel} channel.${channel.topic ? ' ' + channel.topic + '.' : ''}</p>
-        </div>
-      `;
+      html += '<div class="channel-welcome">';
+      html += '<h2># ' + activeChannel + '</h2>';
+      html += '<p>This is the start of the #' + activeChannel + ' channel.' + (channel.topic ? ' ' + channel.topic + '.' : '') + '</p>';
+      html += '</div>';
     } else if (channel.type === 'dm') {
-      html += `
-        <div class="channel-welcome">
-          <h2>${channel.dmUser}</h2>
-          <p>This is the beginning of your direct message history with ${channel.dmUser}.</p>
-        </div>
-      `;
+      html += '<div class="channel-welcome">';
+      html += '<h2>' + channel.dmUser + '</h2>';
+      html += '<p>This is the beginning of your direct message history with ' + channel.dmUser + '.</p>';
+      html += '</div>';
     }
 
-    // Group messages by author in sequence, but break on time gaps > 5 min
-    const messages = channel.messages;
-    let i = 0;
+    // Group messages
+    var messages = channel.messages;
+    var i = 0;
     while (i < messages.length) {
-      const msg = messages[i];
-      const user = USERS[msg.author] || { initials: '??', status: 'offline' };
-      const color = getAvatarColor(msg.author);
+      var msg = messages[i];
+      var user = USERS[msg.author] || { initials: '??', status: 'offline' };
+      var color = getAvatarColor(msg.author);
 
       // Collect consecutive messages from same author within 5 minutes
-      const groupMessages = [msg];
+      var groupMessages = [msg];
       while (
         i + 1 < messages.length &&
         messages[i + 1].author === msg.author &&
@@ -1247,18 +1640,18 @@
         groupMessages.push(messages[i]);
       }
 
-      html += `
-        <div class="message-group">
-          <div class="msg-avatar" style="background: ${color}; color: #fff;">${user.initials}</div>
-          <div class="msg-content">
-            <div class="msg-header">
-              <span class="msg-author" style="color: ${color};">${msg.author}</span>
-              <span class="msg-timestamp">${formatTime(msg.time)}</span>
-            </div>
-            ${groupMessages.map(m => `<div class="msg-body">${escapeHtml(m.text)}</div>`).join('')}
-          </div>
-        </div>
-      `;
+      html += '<div class="message-group new-author">';
+      html += '<div class="msg-avatar" style="background: ' + color + ';">' + user.initials + '</div>';
+      html += '<div class="msg-content">';
+      html += '<div class="msg-header">';
+      html += '<span class="msg-author" style="color: ' + color + ';">' + msg.author + '</span>';
+      html += '<span class="msg-timestamp">' + formatTime(msg.time) + '</span>';
+      html += '</div>';
+      groupMessages.forEach(function (m) {
+        html += '<div class="msg-body">' + escapeHtml(m.text) + '</div>';
+      });
+      html += '</div>';
+      html += '</div>';
 
       i++;
     }
@@ -1266,41 +1659,38 @@
     container.innerHTML = html;
 
     // Scroll to bottom
-    const area = el('messagesArea');
+    var area = el('messagesArea');
     area.scrollTop = area.scrollHeight;
   }
 
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
+  // ==========================================
+  // Render: Members Overlay
+  // ==========================================
 
   function renderMembers() {
-    const onlineContainer = el('membersOnline');
-    const offlineContainer = el('membersOffline');
+    var onlineContainer = el('membersOnline');
+    var offlineContainer = el('membersOffline');
 
-    let onlineHtml = '';
-    let offlineHtml = '';
-    let onlineCount = 0;
-    let offlineCount = 0;
+    var onlineHtml = '';
+    var offlineHtml = '';
+    var onlineCount = 0;
+    var offlineCount = 0;
 
-    for (const [name, user] of Object.entries(USERS)) {
-      const color = getAvatarColor(name);
-      const roleTag = user.role
-        ? `<span class="member-role-tag">${user.role}</span>`
+    for (var name in USERS) {
+      var user = USERS[name];
+      var color = getAvatarColor(name);
+      var roleTag = user.role
+        ? '<span class="member-role-tag">' + user.role + '</span>'
         : '';
 
-      const item = `
-        <div class="member-item${user.status === 'offline' ? ' offline' : ''}">
-          <div class="member-avatar" style="background: ${color}; color: #fff;">
-            ${user.initials}
-            <span class="status-dot ${user.status}"></span>
-          </div>
-          <span class="member-name">${name}</span>
-          ${roleTag}
-        </div>
-      `;
+      var item = '<div class="member-item' + (user.status === 'offline' ? ' offline' : '') + '">';
+      item += '<div class="member-avatar" style="background: ' + color + ';">';
+      item += user.initials;
+      item += '<span class="status-dot ' + user.status + '"></span>';
+      item += '</div>';
+      item += '<span class="member-name">' + name + '</span>';
+      item += roleTag;
+      item += '</div>';
 
       if (user.status === 'offline') {
         offlineHtml += item;
@@ -1313,105 +1703,157 @@
 
     onlineContainer.innerHTML = onlineHtml;
     offlineContainer.innerHTML = offlineHtml;
-    el('membersSectionOnline').textContent = `Online - ${onlineCount}`;
-    el('membersSectionOffline').textContent = `Offline - ${offlineCount}`;
+    el('membersSectionOnline').textContent = 'Online - ' + onlineCount;
+    el('membersSectionOffline').textContent = 'Offline - ' + offlineCount;
   }
 
-  function updateHeader() {
-    const channel = CHANNELS[activeChannel];
-    const headerName = el('headerName');
-    const headerTopic = el('headerTopic');
-    const headerIcon = document.querySelector('.channel-header .header-icon');
-    const input = el('messageInput');
+  // ==========================================
+  // Render: Voice Bar
+  // ==========================================
 
-    if (channel.type === 'text') {
-      headerIcon.textContent = '#';
-      headerName.textContent = activeChannel;
-      headerTopic.textContent = channel.topic || '';
-      input.placeholder = `Message #${activeChannel}`;
-    } else if (channel.type === 'dm') {
-      headerIcon.textContent = '@';
-      headerName.textContent = channel.dmUser;
-      headerTopic.textContent = '';
-      input.placeholder = `Message ${channel.dmUser}`;
+  function updateVoiceBar() {
+    var bar = el('voiceBar');
+    if (connectedVoice) {
+      bar.classList.remove('hidden');
+      var vc = VOICE_CHANNELS[connectedVoice];
+      el('voiceBarChannel').textContent = vc.name;
+
+      // Render user chips in voice bar
+      var usersHtml = '';
+      vc.users.forEach(function (uname) {
+        var u = USERS[uname] || { initials: '??', status: 'online' };
+        var color = getAvatarColor(uname);
+        usersHtml += '<div class="voice-bar-user-chip" style="background: ' + color + ';" title="' + uname + '">' + u.initials + '</div>';
+      });
+      el('voiceBarUsers').innerHTML = usersHtml;
+    } else {
+      bar.classList.add('hidden');
     }
   }
 
-  function updateActiveChannel() {
-    // Update sidebar active states
-    document.querySelectorAll('.channel-item, .dm-item').forEach(item => {
-      item.classList.toggle('active', item.dataset.channel === activeChannel);
+  // ==========================================
+  // Voice Channel Logic
+  // ==========================================
+
+  function connectVoice(channelKey) {
+    // Disconnect from previous
+    if (connectedVoice) {
+      var prevVc = VOICE_CHANNELS[connectedVoice];
+      var idx = prevVc.users.indexOf(CURRENT_USER);
+      if (idx !== -1) prevVc.users.splice(idx, 1);
+    }
+
+    connectedVoice = channelKey;
+    var vc = VOICE_CHANNELS[channelKey];
+    if (!vc.users.includes(CURRENT_USER)) {
+      vc.users.push(CURRENT_USER);
+    }
+
+    isMuted = false;
+    isDeafened = false;
+    updateMuteDeafenUI();
+    updateVoiceBar();
+    renderVoiceDropdown();
+  }
+
+  function disconnectVoice() {
+    if (connectedVoice) {
+      var vc = VOICE_CHANNELS[connectedVoice];
+      var idx = vc.users.indexOf(CURRENT_USER);
+      if (idx !== -1) vc.users.splice(idx, 1);
+    }
+    connectedVoice = null;
+    isMuted = false;
+    isDeafened = false;
+    updateMuteDeafenUI();
+    updateVoiceBar();
+    renderVoiceDropdown();
+  }
+
+  function updateMuteDeafenUI() {
+    el('btnMute').classList.toggle('active', isMuted);
+    el('btnDeafen').classList.toggle('active', isDeafened);
+  }
+
+  // ==========================================
+  // Dropdown / Overlay Management
+  // ==========================================
+
+  function openVoiceDropdown() {
+    voiceDropdownOpen = true;
+    el('voiceDropdown').classList.add('open');
+    el('clickAwayOverlay').classList.add('active');
+  }
+
+  function closeVoiceDropdown() {
+    voiceDropdownOpen = false;
+    el('voiceDropdown').classList.remove('open');
+    el('clickAwayOverlay').classList.remove('active');
+  }
+
+  function toggleVoiceDropdown() {
+    if (voiceDropdownOpen) {
+      closeVoiceDropdown();
+    } else {
+      openVoiceDropdown();
+    }
+  }
+
+  function toggleMembers() {
+    membersVisible = !membersVisible;
+    el('membersOverlay').classList.toggle('open', membersVisible);
+    el('btnToggleMembers').classList.toggle('active', membersVisible);
+  }
+
+  // ==========================================
+  // Section / Channel Switching
+  // ==========================================
+
+  function switchSection(section) {
+    if (section === activeSection) return;
+    activeSection = section;
+
+    // Update section switcher buttons
+    document.querySelectorAll('.section-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.section === section);
     });
 
-    // Remove unread badge from active channel
-    const activeItem = document.querySelector(`[data-channel="${activeChannel}"] .unread-badge`);
-    if (activeItem) activeItem.remove();
+    // Switch to default channel for the section
+    if (section === 'channels' && CHANNELS[activeChannel] && CHANNELS[activeChannel].type !== 'text') {
+      activeChannel = 'general';
+    } else if (section === 'dms' && CHANNELS[activeChannel] && CHANNELS[activeChannel].type !== 'dm') {
+      activeChannel = 'dm-johndoe';
+    }
 
-    updateHeader();
+    renderTabs();
+    updateChannelInfoBar();
     renderMessages();
   }
 
-  function updateVoicePanel() {
-    const panel = el('voicePanel');
-    if (connectedVoice) {
-      panel.style.display = '';
-      const vc = VOICE_CHANNELS[connectedVoice];
-      el('voiceChannelLabel').textContent = `/ ${vc.name}`;
-    } else {
-      panel.style.display = 'none';
-    }
-  }
-
-  function renderVoiceUsers(channelKey) {
-    const vc = VOICE_CHANNELS[channelKey];
-    const containerId = channelKey === 'lounge' ? 'voiceLounge' : null;
-    // For simplicity, voice user lists are rendered in HTML for lounge
-    // For dynamic updates we'd re-render, but this prototype keeps it simple
-  }
-
-  // ==========================================
-  // Event Handlers
-  // ==========================================
-
-  // Channel / DM click
-  el('channelList').addEventListener('click', function (e) {
-    const item = e.target.closest('[data-channel]');
-    if (!item) return;
-
-    const channelKey = item.dataset.channel;
-    const type = item.dataset.type;
-
-    if (type === 'voice') {
-      // Toggle voice connection
-      if (connectedVoice === channelKey) {
-        disconnectVoice();
-      } else {
-        connectVoice(channelKey);
-      }
-      return;
-    }
-
-    // Text or DM channel
+  function switchChannel(channelKey) {
     if (channelKey === activeChannel) return;
-    activeChannel = channelKey;
-    updateActiveChannel();
-  });
 
-  // Keyboard support for channel items
-  el('channelList').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      e.target.click();
+    // Clear unread for the channel being opened
+    if (UNREAD[channelKey]) {
+      delete UNREAD[channelKey];
     }
-  });
 
-  // Send message
+    activeChannel = channelKey;
+    renderTabs();
+    updateChannelInfoBar();
+    renderMessages();
+  }
+
+  // ==========================================
+  // Send Message
+  // ==========================================
+
   function sendMessage() {
-    const input = el('messageInput');
-    const text = input.value.trim();
+    var input = el('messageInput');
+    var text = input.value.trim();
     if (!text) return;
 
-    const channel = CHANNELS[activeChannel];
+    var channel = CHANNELS[activeChannel];
     if (!channel) return;
 
     channel.messages.push({
@@ -1424,6 +1866,55 @@
     renderMessages();
   }
 
+  // ==========================================
+  // Event Listeners
+  // ==========================================
+
+  // Section switcher
+  el('sectionSwitcher').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-section]');
+    if (!btn) return;
+    switchSection(btn.dataset.section);
+  });
+
+  // Channel tabs
+  el('channelTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('[data-channel]');
+    if (!tab) return;
+    switchChannel(tab.dataset.channel);
+  });
+
+  // Voice dropdown trigger
+  el('btnVoiceDropdown').addEventListener('click', function (e) {
+    e.stopPropagation();
+    toggleVoiceDropdown();
+  });
+
+  // Voice dropdown item clicks
+  el('voiceDropdown').addEventListener('click', function (e) {
+    var item = e.target.closest('[data-voice]');
+    if (!item) return;
+
+    var key = item.dataset.voice;
+    if (connectedVoice === key) {
+      disconnectVoice();
+    } else {
+      connectVoice(key);
+    }
+    closeVoiceDropdown();
+  });
+
+  // Click-away overlay
+  el('clickAwayOverlay').addEventListener('click', function () {
+    closeVoiceDropdown();
+  });
+
+  // Members toggle
+  el('btnToggleMembers').addEventListener('click', function () {
+    toggleMembers();
+  });
+
+  // Send message
   el('btnSend').addEventListener('click', sendMessage);
   el('messageInput').addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1432,82 +1923,40 @@
     }
   });
 
-  // Toggle members panel
-  el('btnToggleMembers').addEventListener('click', function () {
-    membersVisible = !membersVisible;
-    el('membersPanel').classList.toggle('hidden', !membersVisible);
-    this.classList.toggle('active', membersVisible);
+  // Voice bar controls
+  el('btnMute').addEventListener('click', function () {
+    isMuted = !isMuted;
+    updateMuteDeafenUI();
   });
 
-  // Voice controls
-  function connectVoice(channelKey) {
-    // Remove user from previous voice channel
-    if (connectedVoice) {
-      const prevVc = VOICE_CHANNELS[connectedVoice];
-      const idx = prevVc.users.indexOf(CURRENT_USER);
-      if (idx !== -1) prevVc.users.splice(idx, 1);
+  el('btnDeafen').addEventListener('click', function () {
+    isDeafened = !isDeafened;
+    updateMuteDeafenUI();
+  });
+
+  el('btnDisconnect').addEventListener('click', function () {
+    disconnectVoice();
+  });
+
+  // Close voice dropdown on Escape
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (voiceDropdownOpen) closeVoiceDropdown();
+      if (membersVisible) toggleMembers();
     }
-
-    connectedVoice = channelKey;
-    const vc = VOICE_CHANNELS[channelKey];
-    if (!vc.users.includes(CURRENT_USER)) {
-      vc.users.push(CURRENT_USER);
-    }
-
-    updateVoicePanel();
-    rebuildVoiceUserLists();
-  }
-
-  function disconnectVoice() {
-    if (connectedVoice) {
-      const vc = VOICE_CHANNELS[connectedVoice];
-      const idx = vc.users.indexOf(CURRENT_USER);
-      if (idx !== -1) vc.users.splice(idx, 1);
-    }
-    connectedVoice = null;
-    updateVoicePanel();
-    rebuildVoiceUserLists();
-  }
-
-  el('btnDisconnect').addEventListener('click', disconnectVoice);
-
-  function rebuildVoiceUserLists() {
-    // Rebuild all voice user lists in sidebar
-    for (const [key, vc] of Object.entries(VOICE_CHANNELS)) {
-      const channelItem = document.querySelector(`[data-channel="${key}"][data-type="voice"]`);
-      if (!channelItem) continue;
-
-      // Remove existing voice-users div after this channel item
-      let next = channelItem.nextElementSibling;
-      if (next && next.classList.contains('voice-users')) {
-        next.remove();
-      }
-
-      if (vc.users.length > 0) {
-        const div = document.createElement('div');
-        div.className = 'voice-users';
-        div.innerHTML = vc.users.map(name => {
-          const user = USERS[name] || { initials: '??', status: 'online' };
-          const color = getAvatarColor(name);
-          return `
-            <div class="voice-user">
-              <div class="voice-user-avatar" style="background: ${color}; color: #fff;">${user.initials}</div>
-              <span class="voice-user-name">${name}</span>
-            </div>
-          `;
-        }).join('');
-        channelItem.parentNode.insertBefore(div, channelItem.nextSibling);
-      }
-    }
-  }
+  });
 
   // ==========================================
   // Initial Render
   // ==========================================
 
+  renderTabs();
+  renderOnlineAvatars();
+  renderVoiceDropdown();
   renderMembers();
-  updateActiveChannel();
-  rebuildVoiceUserLists();
+  updateChannelInfoBar();
+  renderMessages();
+  updateVoiceBar();
 
   // Focus the input
   el('messageInput').focus();
