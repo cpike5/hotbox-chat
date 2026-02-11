@@ -1,0 +1,6 @@
+@HotBox.Application_HostAddress = http://localhost:5255
+
+GET {{HotBox.Application_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
