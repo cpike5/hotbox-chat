@@ -1,0 +1,87 @@
+@using HotBox.Client.State
+@inject ChannelState ChannelState
+@implements IDisposable
+
+@* Placeholder members until a user presence API is available *@
+
+<div class="members-section-label">Online - @OnlineMembers.Count</div>
+@foreach (var member in OnlineMembers)
+{
+    <div class="member-item">
+        <div class="member-avatar" style="background: @GetAvatarColor(member.Name);">
+            @GetInitials(member.Name)
+            <span class="status-dot @member.Status"></span>
+        </div>
+        <span class="member-name">@member.Name</span>
+        @if (member.Role is not null)
+        {
+            <span class="member-role-tag">@member.Role</span>
+        }
+    </div>
+}
+
+<div class="members-section-label" style="margin-top: 16px;">Offline - @OfflineMembers.Count</div>
+@foreach (var member in OfflineMembers)
+{
+    <div class="member-item offline">
+        <div class="member-avatar" style="background: @GetAvatarColor(member.Name);">
+            @GetInitials(member.Name)
+            <span class="status-dot offline"></span>
+        </div>
+        <span class="member-name">@member.Name</span>
+        @if (member.Role is not null)
+        {
+            <span class="member-role-tag">@member.Role</span>
+        }
+    </div>
+}
+
+@code {
+    private record MemberInfo(string Name, string Status, string? Role);
+
+    private List<MemberInfo> OnlineMembers { get; set; } = new()
+    {
+        new("cpike", "online", "admin"),
+        new("JohnDoe", "online", null),
+        new("SaltyKid99", "online", null),
+        new("Meghan", "idle", "mod"),
+        new("xXDarkLordXx", "online", null),
+        new("ghostpepper", "online", null),
+    };
+
+    private List<MemberInfo> OfflineMembers { get; set; } = new()
+    {
+        new("lurker42", "offline", null),
+    };
+
+    private static string GetAvatarColor(string name)
+    {
+        int hash = 0;
+        foreach (char c in name)
+        {
+            hash = c + ((hash << 5) - hash);
+        }
+        int hue = Math.Abs(hash) % 360;
+        return $"hsl({hue}, 32%, 38%)";
+    }
+
+    private static string GetInitials(string displayName)
+    {
+        var parts = displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return displayName.Length >= 2
+            ? displayName[..2].ToUpper()
+            : displayName.ToUpper();
+    }
+
+    protected override void OnInitialized()
+    {
+        ChannelState.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        ChannelState.OnChange -= StateHasChanged;
+    }
+}

@@ -1,0 +1,39 @@
+@using HotBox.Client.State
+@using HotBox.Client.Models
+@using HotBox.Core.Enums
+@inject ChannelState ChannelState
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@foreach (var channel in TextChannels)
+{
+    var isActive = ChannelState.ActiveChannel?.Id == channel.Id;
+    <button class="channel-tab @(isActive ? "active" : "")"
+            @onclick="() => SelectChannel(channel)">
+        <span class="tab-hash">#</span>
+        <span>@channel.Name</span>
+    </button>
+}
+
+@code {
+    private IEnumerable<ChannelResponse> TextChannels =>
+        ChannelState.Channels
+            .Where(c => c.Type == ChannelType.Text)
+            .OrderBy(c => c.SortOrder);
+
+    protected override void OnInitialized()
+    {
+        ChannelState.OnChange += StateHasChanged;
+    }
+
+    private void SelectChannel(ChannelResponse channel)
+    {
+        ChannelState.SetActiveChannel(channel);
+        Navigation.NavigateTo($"/channels/{channel.Id}");
+    }
+
+    public void Dispose()
+    {
+        ChannelState.OnChange -= StateHasChanged;
+    }
+}

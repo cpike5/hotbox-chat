@@ -1,0 +1,35 @@
+@using HotBox.Client.State
+@inject ChannelState ChannelState
+@implements IDisposable
+
+@if (ChannelState.TypingUsers.Count > 0)
+{
+    <div class="typing-indicator">
+        @FormatTypingText()
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        ChannelState.OnChange += StateHasChanged;
+    }
+
+    private string FormatTypingText()
+    {
+        var users = ChannelState.TypingUsers.ToList();
+
+        return users.Count switch
+        {
+            1 => $"{users[0]} is typing...",
+            2 => $"{users[0]} and {users[1]} are typing...",
+            3 => $"{users[0]}, {users[1]}, and {users[2]} are typing...",
+            _ => "Several people are typing..."
+        };
+    }
+
+    public void Dispose()
+    {
+        ChannelState.OnChange -= StateHasChanged;
+    }
+}

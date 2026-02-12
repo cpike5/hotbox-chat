@@ -1,0 +1,13 @@
+@page "/dm/{UserId:guid}"
+
+<PageTitle>HotBox - Direct Message</PageTitle>
+
+<div class="page-placeholder">
+    <h2>Direct Message</h2>
+    <p>Conversation with user @UserId will be rendered here. This is a shell placeholder.</p>
+</div>
+
+@code {
+    [Parameter]
+    public Guid UserId { get; set; }
+}

@@ -1,0 +1,28 @@
+@using HotBox.Client.State
+@using HotBox.Core.Enums
+@inject ChannelState ChannelState
+@implements IDisposable
+
+@if (ChannelState.ActiveChannel is not null)
+{
+    var channel = ChannelState.ActiveChannel;
+    <span class="channel-info-icon">@(channel.Type == ChannelType.Text ? "#" : "")</span>
+    <span class="channel-info-name">@channel.Name</span>
+    @if (!string.IsNullOrEmpty(channel.Topic))
+    {
+        <span class="channel-info-divider"></span>
+        <span class="channel-info-topic">@channel.Topic</span>
+    }
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        ChannelState.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        ChannelState.OnChange -= StateHasChanged;
+    }
+}
