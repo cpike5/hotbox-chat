@@ -95,6 +95,7 @@ public class ChannelsController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogWarning("Channel creation failed: {Reason}", ex.Message);
             return BadRequest(new { error = ex.Message });
         }
         catch (KeyNotFoundException ex)
@@ -124,6 +125,7 @@ public class ChannelsController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogWarning("Channel update failed for channel {ChannelId}: {Reason}", id, ex.Message);
             return BadRequest(new { error = ex.Message });
         }
         catch (KeyNotFoundException ex)
@@ -153,6 +155,7 @@ public class ChannelsController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
+            _logger.LogWarning("Channel deletion failed — channel {ChannelId} not found", id);
             return NotFound(new { error = ex.Message });
         }
     }

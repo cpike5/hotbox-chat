@@ -12,6 +12,7 @@
 @inject VoiceConnectionManager VoiceConnectionManager
 @inject NavigationManager Navigation
 @inject SearchState SearchState
+@inject ApiClient Api
 @inject ILogger<MainLayout> Logger
 @implements IDisposable
 
@@ -226,6 +227,10 @@
         ChatHubService.OnOnlineUsers += HandleOnlineUsers;
         ChatHubService.OnNotificationReceived += HandleNotificationReceived;
         ChatHubService.OnConnectionChanged += HandleConnectionChanged;
+
+        // Load channels into state so the sidebar and voice dropdown are populated immediately
+        var channels = await Api.GetChannelsAsync();
+        ChannelState.SetChannels(channels);
 
         // Initialize the voice connection manager with the current access token
         if (AuthState.AccessToken is not null)
