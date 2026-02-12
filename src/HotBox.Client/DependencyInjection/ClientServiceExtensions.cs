@@ -12,9 +12,13 @@ public static class ClientServiceExtensions
         services.AddScoped<ChannelState>();
         services.AddScoped<DirectMessageState>();
         services.AddScoped<PresenceState>();
+        services.AddScoped<VoiceState>();
         services.AddScoped<AppState>();
         services.AddScoped<ChatHubService>();
         services.AddScoped<NotificationService>();
+        services.AddScoped<VoiceHubService>();
+        services.AddScoped<WebRtcService>();
+        services.AddScoped<VoiceConnectionManager>();
 
         return services;
     }

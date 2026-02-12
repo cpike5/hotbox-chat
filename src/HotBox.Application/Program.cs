@@ -54,6 +54,7 @@ try
     app.UseAuthorization();
     app.MapControllers();
     app.MapHub<ChatHub>("/hubs/chat");
+    app.MapHub<VoiceSignalingHub>("/hubs/voice");
     app.MapFallbackToFile("index.html");
 
     // Wire up PresenceService status change events to broadcast via SignalR.
