@@ -20,7 +20,9 @@ RUN dotnet publish src/HotBox.Application/HotBox.Application.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
-RUN adduser --disabled-password --gecos '' hotbox
+RUN adduser --disabled-password --gecos '' hotbox \
+    && mkdir -p /data \
+    && chown hotbox:hotbox /data
 USER hotbox
 
 COPY --from=build /app/publish .

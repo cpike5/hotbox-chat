@@ -10,6 +10,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="8.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="8.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.0.*" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.23" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -35,6 +36,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HotBox.Core\HotBox.Core.csproj" />
     <ProjectReference Include="..\HotBox.Infrastructure\HotBox.Infrastructure.csproj" />
+    <ProjectReference Include="..\HotBox.Client\HotBox.Client.csproj" />
   </ItemGroup>
 
 </Project>

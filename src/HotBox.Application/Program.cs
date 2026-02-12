@@ -44,11 +44,14 @@ try
     }
 
     app.UseHttpsRedirection();
+    app.UseBlazorFrameworkFiles();
+    app.UseStaticFiles();
     app.UseCors();
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
     app.MapHub<ChatHub>("/hubs/chat");
+    app.MapFallbackToFile("index.html");
 
     app.Run();
 }

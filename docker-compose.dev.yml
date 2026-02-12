@@ -14,6 +14,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - Database__Provider=sqlite
       - Database__ConnectionString=Data Source=/data/hotbox.db
+      - Jwt__Secret=${JWT_SECRET:-ThisIsADevelopmentSecretKeyThatIsLongEnoughForHMACSHA256!}
       - Observability__SeqUrl=http://seq:5341
       - Observability__LogLevel=Debug
     volumes:
@@ -25,6 +26,7 @@ services:
     restart: unless-stopped
     environment:
       - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
     ports:
       - "5341:5341"   # Ingestion API
       - "8081:80"     # Web UI
