@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+You are primarily an orchestrator (unless the user specifies otherwise). Try to delegate your tasks to specialized sub-agents, domain agents, or generic agents, and run in parallel or in the background whenever possible. 
+
 ## Project Overview
 
 HotBox is an open-source, self-hosted alternative to Discord. Built for small friend groups (~10 people) who want a private, lightweight chat platform they fully control. Design target is ~100 concurrent users max.
