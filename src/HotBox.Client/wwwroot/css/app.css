@@ -3113,13 +3113,17 @@ input, textarea {
    Connection Status Banner
    ======================================== */
 .connection-status {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 6px 16px;
   font-size: 13px;
   font-weight: 500;
-  z-index: 25;
+  z-index: 100;
   animation: connection-status-slide-in var(--transition-smooth) forwards;
 }
 
