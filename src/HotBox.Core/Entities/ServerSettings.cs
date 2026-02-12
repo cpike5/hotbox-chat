@@ -8,5 +8,5 @@ public class ServerSettings
 
     public string ServerName { get; set; } = "HotBox";
 
-    public RegistrationMode RegistrationMode { get; set; } = RegistrationMode.Open;
+    public RegistrationMode RegistrationMode { get; set; } = RegistrationMode.InviteOnly;
 }
