@@ -265,7 +265,7 @@ public class AuthController : ControllerBase
         if (!authenticateResult.Succeeded || authenticateResult.Principal is null)
         {
             _logger.LogWarning("External authentication callback failed");
-            return Unauthorized(new { error = "External authentication failed." });
+            return Redirect("/login?error=External+authentication+failed");
         }
 
         var email = authenticateResult.Principal.FindFirstValue(ClaimTypes.Email);
@@ -274,7 +274,7 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(email))
         {
             _logger.LogWarning("External authentication returned no email claim");
-            return BadRequest(new { error = "Email claim not provided by the external provider." });
+            return Redirect("/login?error=Email+not+provided+by+the+external+provider");
         }
 
         var user = await _userManager.FindByEmailAsync(email);
@@ -286,7 +286,7 @@ public class AuthController : ControllerBase
             if (oauthSettings.RegistrationMode == RegistrationMode.Closed)
             {
                 _logger.LogWarning("OAuth registration rejected: registration is closed for {Email}", email);
-                return StatusCode(403, new { error = "Registration is currently closed." });
+                return Redirect("/login?error=Registration+is+currently+closed");
             }
 
             user = new AppUser
@@ -305,7 +305,7 @@ public class AuthController : ControllerBase
             {
                 var errors = string.Join("; ", createResult.Errors.Select(e => e.Description));
                 _logger.LogError("Failed to create user via OAuth for {Email}: {Errors}", email, errors);
-                return BadRequest(new { error = errors });
+                return Redirect($"/login?error={Uri.EscapeDataString(errors)}");
             }
 
             var roleResult = await _userManager.AddToRoleAsync(user, DefaultRole);
@@ -348,7 +348,9 @@ public class AuthController : ControllerBase
 
         _logger.LogInformation("User authenticated via OAuth: {UserId} ({Email})", user.Id, email);
 
-        return Ok(new AuthResponse { AccessToken = accessToken });
+        // Redirect to the Blazor client with the token in the URL fragment.
+        // Fragments are never sent to the server, keeping the token out of logs.
+        return Redirect($"/auth/callback#access_token={Uri.EscapeDataString(accessToken)}");
     }
 
     private void SetRefreshTokenCookie(string token, DateTime expiresAtUtc)

@@ -1,0 +1,44 @@
+@page "/auth/callback"
+@layout AuthLayout
+@inject AuthState AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>HotBox - Signing in...</PageTitle>
+
+<div class="auth-container">
+    <div class="auth-card">
+        <p>Signing you in...</p>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var fragment = uri.Fragment.TrimStart('#');
+
+        if (string.IsNullOrEmpty(fragment))
+        {
+            Navigation.NavigateTo("/login?error=OAuth+sign-in+failed", replace: true);
+            return;
+        }
+
+        // Parse the fragment as query string parameters (key=value&key=value)
+        var parameters = fragment.Split('&')
+            .Select(p => p.Split('=', 2))
+            .Where(p => p.Length == 2)
+            .ToDictionary(p => p[0], p => Uri.UnescapeDataString(p[1]));
+
+        if (!parameters.TryGetValue("access_token", out var accessToken) || string.IsNullOrEmpty(accessToken))
+        {
+            Navigation.NavigateTo("/login?error=OAuth+sign-in+failed", replace: true);
+            return;
+        }
+
+        var userInfo = JwtParser.ParseUserInfoFromToken(accessToken);
+        AuthState.SetAuthenticated(accessToken, userInfo);
+
+        var returnUrl = AuthState.ConsumeReturnUrl() ?? "/";
+        Navigation.NavigateTo(returnUrl, replace: true);
+    }
+}
