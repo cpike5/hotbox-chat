@@ -37,6 +37,8 @@ public class AdminUserResponse
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime LastSeenUtc { get; set; }
+
+    public bool IsAgent { get; set; }
 }
 
 public class CreateUserRequest
@@ -90,6 +92,49 @@ public class GenerateInviteRequest
     public DateTime? ExpiresAtUtc { get; set; }
 
     public int? MaxUses { get; set; }
+}
+
+// --- API Key Management ---
+
+public class CreateApiKeyRequest
+{
+    [Required]
+    [MaxLength(100)]
+    public string Name { get; set; } = string.Empty;
+}
+
+public class CreateApiKeyResponse
+{
+    public Guid Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public string Key { get; set; } = string.Empty;
+
+    public DateTime CreatedAtUtc { get; set; }
+}
+
+public class AdminApiKeyResponse
+{
+    public Guid Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public string MaskedKey { get; set; } = string.Empty;
+
+    public DateTime CreatedAtUtc { get; set; }
+
+    public DateTime? RevokedAtUtc { get; set; }
+
+    public string? RevokedReason { get; set; }
+
+    public bool IsActive { get; set; }
+}
+
+public class RevokeApiKeyRequest
+{
+    [MaxLength(500)]
+    public string? Reason { get; set; }
 }
 
 // --- Channel Management ---

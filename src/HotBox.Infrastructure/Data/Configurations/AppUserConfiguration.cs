@@ -40,5 +40,11 @@ public class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
             .WithOne(dm => dm.Recipient)
             .HasForeignKey(dm => dm.RecipientId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property(u => u.IsAgent)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(u => u.CreatedByApiKeyId);
     }
 }

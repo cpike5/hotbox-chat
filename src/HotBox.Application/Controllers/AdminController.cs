@@ -1,7 +1,10 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using HotBox.Application.Models;
 using HotBox.Core.Entities;
 using HotBox.Core.Interfaces;
+using HotBox.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +21,7 @@ public class AdminController : ControllerBase
     private readonly IInviteService _inviteService;
     private readonly IChannelRepository _channelRepository;
     private readonly UserManager<AppUser> _userManager;
+    private readonly HotBoxDbContext _dbContext;
     private readonly ILogger<AdminController> _logger;
 
     private static readonly string[] ValidRoles = ["Admin", "Moderator", "Member"];
@@ -27,12 +31,14 @@ public class AdminController : ControllerBase
         IInviteService inviteService,
         IChannelRepository channelRepository,
         UserManager<AppUser> userManager,
+        HotBoxDbContext dbContext,
         ILogger<AdminController> logger)
     {
         _serverSettingsService = serverSettingsService;
         _inviteService = inviteService;
         _channelRepository = channelRepository;
         _userManager = userManager;
+        _dbContext = dbContext;
         _logger = logger;
     }
 
@@ -104,6 +110,7 @@ public class AdminController : ControllerBase
                 Role = roles.FirstOrDefault() ?? "Member",
                 CreatedAtUtc = user.CreatedAtUtc,
                 LastSeenUtc = user.LastSeenUtc,
+                IsAgent = user.IsAgent,
             });
         }
 
@@ -157,6 +164,7 @@ public class AdminController : ControllerBase
             Role = request.Role,
             CreatedAtUtc = user.CreatedAtUtc,
             LastSeenUtc = user.LastSeenUtc,
+            IsAgent = user.IsAgent,
         });
     }
 
@@ -348,6 +356,103 @@ public class AdminController : ControllerBase
         {
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    // --- API Key Management ---
+
+    [HttpPost("apikeys")]
+    public async Task<IActionResult> CreateApiKey([FromBody] CreateApiKeyRequest request, CancellationToken ct)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized(new { error = "Unable to determine user identity." });
+        }
+
+        var randomBytes = RandomNumberGenerator.GetBytes(32);
+        var plaintextKey = Convert.ToBase64String(randomBytes);
+
+        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(plaintextKey));
+        var keyHash = Convert.ToBase64String(hashBytes);
+
+        var keyPrefix = plaintextKey[^8..];
+
+        var apiKey = new ApiKey
+        {
+            Id = Guid.NewGuid(),
+            KeyValue = keyHash,
+            KeyPrefix = keyPrefix,
+            Name = request.Name,
+            CreatedAtUtc = DateTime.UtcNow,
+        };
+
+        _dbContext.ApiKeys.Add(apiKey);
+        await _dbContext.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Admin {UserId} created API key {ApiKeyId} ({ApiKeyName})",
+            userId, apiKey.Id, apiKey.Name);
+
+        return CreatedAtAction(nameof(GetApiKeys), null, new CreateApiKeyResponse
+        {
+            Id = apiKey.Id,
+            Name = apiKey.Name,
+            Key = plaintextKey,
+            CreatedAtUtc = apiKey.CreatedAtUtc,
+        });
+    }
+
+    [HttpGet("apikeys")]
+    public async Task<IActionResult> GetApiKeys(CancellationToken ct)
+    {
+        var apiKeys = await _dbContext.ApiKeys
+            .AsNoTracking()
+            .OrderByDescending(ak => ak.CreatedAtUtc)
+            .ToListAsync(ct);
+
+        var response = apiKeys.Select(ak => new AdminApiKeyResponse
+        {
+            Id = ak.Id,
+            Name = ak.Name,
+            MaskedKey = $"\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022{ak.KeyPrefix}",
+            CreatedAtUtc = ak.CreatedAtUtc,
+            RevokedAtUtc = ak.RevokedAtUtc,
+            RevokedReason = ak.RevokedReason,
+            IsActive = ak.IsActive,
+        }).ToList();
+
+        return Ok(response);
+    }
+
+    [HttpPut("apikeys/{id:guid}/revoke")]
+    public async Task<IActionResult> RevokeApiKey(Guid id, [FromBody] RevokeApiKeyRequest request, CancellationToken ct)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized(new { error = "Unable to determine user identity." });
+        }
+
+        var apiKey = await _dbContext.ApiKeys.FindAsync([id], ct);
+        if (apiKey is null)
+        {
+            return NotFound(new { error = $"API key {id} not found." });
+        }
+
+        if (apiKey.RevokedAtUtc.HasValue)
+        {
+            return BadRequest(new { error = "API key is already revoked." });
+        }
+
+        apiKey.RevokedAtUtc = DateTime.UtcNow;
+        apiKey.RevokedReason = request.Reason;
+        await _dbContext.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Admin {UserId} revoked API key {ApiKeyId} ({ApiKeyName}). Reason: {RevokeReason}",
+            userId, apiKey.Id, apiKey.Name, request.Reason ?? "none");
+
+        return Ok(new { message = "API key revoked." });
     }
 
     private Guid? GetUserId()

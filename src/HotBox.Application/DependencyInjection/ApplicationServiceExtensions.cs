@@ -1,7 +1,9 @@
 using System.Text;
+using HotBox.Application.Authentication;
 using HotBox.Application.Services;
 using HotBox.Core.Interfaces;
 using HotBox.Core.Options;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,9 +39,23 @@ public static class ApplicationServiceExtensions
 
         var authBuilder = services.AddAuthentication(options =>
         {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultAuthenticateScheme = "JwtOrApiKey";
+            options.DefaultChallengeScheme = "JwtOrApiKey";
         })
+        .AddPolicyScheme("JwtOrApiKey", "JWT or API Key", options =>
+        {
+            options.ForwardDefaultSelector = context =>
+            {
+                if (context.Request.Headers.ContainsKey(ApiKeyAuthenticationHandler.HeaderName))
+                {
+                    return ApiKeyAuthenticationHandler.SchemeName;
+                }
+
+                return JwtBearerDefaults.AuthenticationScheme;
+            };
+        })
+        .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+            ApiKeyAuthenticationHandler.SchemeName, null)
         .AddJwtBearer(options =>
         {
             options.TokenValidationParameters = new TokenValidationParameters
