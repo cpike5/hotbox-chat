@@ -1,5 +1,7 @@
 using HotBox.Application.DependencyInjection;
+using HotBox.Infrastructure.Data;
 using HotBox.Infrastructure.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 // Bootstrap Serilog early for startup logging
@@ -20,6 +22,14 @@ try
     builder.Services.AddApplicationServices(builder.Configuration);
 
     var app = builder.Build();
+
+    // Auto-migrate database in development
+    if (app.Environment.IsDevelopment())
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HotBoxDbContext>();
+        db.Database.Migrate();
+    }
 
     // Configure the HTTP request pipeline.
     app.UseSerilogRequestLogging();
