@@ -89,6 +89,7 @@ public static class InfrastructureServiceExtensions
 
         // Register services
         services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IInviteService, InviteService>();
 
         return services;
     }

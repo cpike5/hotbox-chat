@@ -1,5 +1,6 @@
 using HotBox.Application.DependencyInjection;
 using HotBox.Infrastructure.Data;
+using HotBox.Infrastructure.Data.Seeding;
 using HotBox.Infrastructure.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -20,6 +21,7 @@ try
     // Add services to the container.
     builder.Services.AddInfrastructure(builder.Configuration);
     builder.Services.AddApplicationServices(builder.Configuration);
+    builder.Services.AddHostedService<DatabaseSeeder>();
 
     var app = builder.Build();
 
