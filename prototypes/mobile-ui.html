@@ -1,0 +1,2289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>HotBox Mobile</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ========================================
+       CSS Custom Properties / Design Tokens
+       (identical to desktop prototype)
+       ======================================== */
+    :root {
+      --bg-deepest: #0c0c0f;
+      --bg-deep: #111116;
+      --bg-base: #16161d;
+      --bg-raised: #1c1c25;
+      --bg-surface: #23232e;
+      --bg-hover: #2a2a37;
+      --bg-active: #32323f;
+
+      --text-primary: #e2e2ea;
+      --text-secondary: #9898a8;
+      --text-muted: #5c5c72;
+      --text-faint: #3e3e52;
+
+      --accent: #5de4c7;
+      --accent-hover: #7aecd5;
+      --accent-muted: rgba(93, 228, 199, 0.10);
+      --accent-strong: #a0f0de;
+      --accent-glow: rgba(93, 228, 199, 0.06);
+
+      --status-online: #6bc76b;
+      --status-idle: #c7a63e;
+      --status-dnd: #c76060;
+      --status-offline: #4a4a5a;
+
+      --voice-active: #6bc76b;
+      --voice-muted: #5c5c72;
+
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --border-light: rgba(255, 255, 255, 0.07);
+      --border-focus: rgba(93, 228, 199, 0.3);
+
+      --radius-xs: 3px;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --radius-pill: 9999px;
+      --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.5);
+      --shadow-lg: 0 8px 48px rgba(0, 0, 0, 0.6);
+      --shadow-overlay: 0 12px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-subtle);
+      --transition-fast: 100ms ease;
+      --transition-base: 180ms ease;
+      --transition-smooth: 280ms cubic-bezier(0.4, 0, 0.2, 1);
+
+      --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+
+      /* Mobile-specific */
+      --tab-bar-height: 56px;
+      --voice-bar-height: 44px;
+      --chat-header-height: 52px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
+
+    /* ========================================
+       Reset & Base
+       ======================================== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-deepest);
+      color: var(--text-primary);
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: inherit;
+      border: none;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    input, textarea {
+      font-family: inherit;
+      font-size: 16px; /* Prevents iOS zoom */
+      border: none;
+      outline: none;
+      background: none;
+      color: inherit;
+    }
+
+    ::-webkit-scrollbar { width: 0; height: 0; }
+
+    /* Status dots */
+    .status-dot.online { background: var(--status-online); }
+    .status-dot.idle { background: var(--status-idle); }
+    .status-dot.dnd { background: var(--status-dnd); }
+    .status-dot.offline { background: var(--status-offline); }
+
+    /* ========================================
+       App Shell
+       ======================================== */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      width: 100vw;
+      position: relative;
+      overflow: hidden;
+      padding-top: var(--safe-top);
+    }
+
+    /* ========================================
+       View Stack — one view at a time
+       ======================================== */
+    .view-stack {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .view {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-base);
+      transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1), opacity 320ms cubic-bezier(0.32, 0.72, 0, 1);
+      will-change: transform, opacity;
+    }
+
+    .view.hidden {
+      transform: translateX(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .view.hidden-left {
+      transform: translateX(-30%);
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .view.active {
+      transform: translateX(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* List views get no transform when active */
+    .view.list-view.hidden {
+      transform: translateX(-30%);
+      opacity: 0.4;
+    }
+
+    /* ========================================
+       List View Header (shared)
+       ======================================== */
+    .list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 12px;
+      background: var(--bg-base);
+    }
+
+    .list-header-title {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .list-header-brand {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    .list-header-action {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: all var(--transition-fast);
+    }
+
+    .list-header-action:active {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .list-header-action svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* ========================================
+       Channel List
+       ======================================== */
+    .channel-list {
+      flex: 1;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+      padding: 0 12px 12px;
+    }
+
+    .channel-list-section {
+      padding: 16px 8px 6px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .channel-list-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 12px;
+      border-radius: var(--radius-lg);
+      transition: background var(--transition-fast);
+      position: relative;
+      min-height: 52px;
+    }
+
+    .channel-list-item:active {
+      background: var(--bg-hover);
+    }
+
+    .channel-list-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-lg);
+      background: var(--bg-raised);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .channel-list-item.has-unread .channel-list-icon {
+      background: var(--accent-muted);
+      color: var(--accent);
+    }
+
+    .channel-list-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .channel-list-name {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .channel-list-item.has-unread .channel-list-name {
+      font-weight: 600;
+    }
+
+    .channel-list-preview {
+      font-size: 13px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+      margin-top: 1px;
+    }
+
+    .channel-list-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .channel-list-time {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      letter-spacing: 0.02em;
+    }
+
+    .channel-list-badge {
+      background: var(--accent);
+      color: var(--bg-deepest);
+      font-size: 10px;
+      font-weight: 700;
+      min-width: 18px;
+      height: 18px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 5px;
+      line-height: 1;
+    }
+
+    /* ========================================
+       DM List
+       ======================================== */
+    .dm-list-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .dm-list-avatar .status-dot {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 12px;
+      height: 12px;
+      border-radius: var(--radius-pill);
+      border: 2.5px solid var(--bg-base);
+    }
+
+    /* ========================================
+       Chat View
+       ======================================== */
+    .chat-header {
+      height: var(--chat-header-height);
+      min-height: var(--chat-header-height);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 8px 0 4px;
+      background: var(--bg-deep);
+      border-bottom: 1px solid var(--border-subtle);
+      z-index: 5;
+    }
+
+    .chat-back-btn {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      flex-shrink: 0;
+      border-radius: var(--radius-pill);
+    }
+
+    .chat-back-btn:active {
+      background: var(--bg-hover);
+    }
+
+    .chat-back-btn svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .chat-header-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .chat-header-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chat-header-name .hash {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--text-faint);
+      font-weight: 500;
+    }
+
+    .chat-header-topic {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-header-actions {
+      display: flex;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .chat-header-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+    }
+
+    .chat-header-btn:active {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .chat-header-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Messages area */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+      padding: 8px 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-messages-inner {
+      margin-top: auto;
+      padding: 0 16px;
+    }
+
+    .channel-welcome {
+      padding: 20px 0 8px;
+      margin-bottom: 4px;
+    }
+
+    .channel-welcome h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 2px;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .channel-welcome p {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Message groups */
+    .message-group {
+      display: flex;
+      gap: 10px;
+      padding: 4px 4px;
+      border-radius: var(--radius-md);
+    }
+
+    .message-group + .message-group {
+      margin-top: 2px;
+    }
+
+    .message-group.new-author {
+      margin-top: 14px;
+    }
+
+    .msg-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .msg-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .msg-header {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 1px;
+    }
+
+    .msg-author {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .msg-timestamp {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      letter-spacing: 0.02em;
+    }
+
+    .msg-body {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+
+    .msg-body + .msg-body {
+      margin-top: 2px;
+    }
+
+    /* Chat input */
+    .chat-input-area {
+      padding: 8px 12px;
+      padding-bottom: calc(8px + var(--safe-bottom));
+      background: var(--bg-base);
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .chat-input-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      background: var(--bg-raised);
+      border-radius: var(--radius-xl);
+      padding: 4px 4px 4px 16px;
+      border: 1px solid var(--border-subtle);
+      transition: border-color var(--transition-base);
+    }
+
+    .chat-input-row:focus-within {
+      border-color: var(--border-focus);
+    }
+
+    .chat-input-row input {
+      flex: 1;
+      padding: 10px 0;
+      color: var(--text-primary);
+      min-width: 0;
+    }
+
+    .chat-input-row input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .chat-send-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--bg-deepest);
+      background: var(--accent);
+      flex-shrink: 0;
+      transition: all var(--transition-fast);
+    }
+
+    .chat-send-btn:active {
+      background: var(--accent-hover);
+      transform: scale(0.92);
+    }
+
+    .chat-send-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* ========================================
+       Voice View
+       ======================================== */
+    .voice-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 16px 16px;
+    }
+
+    .voice-card {
+      background: var(--bg-raised);
+      border-radius: var(--radius-xl);
+      padding: 16px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border-subtle);
+      transition: all var(--transition-base);
+    }
+
+    .voice-card.connected {
+      border-color: rgba(107, 199, 107, 0.2);
+      background: rgba(107, 199, 107, 0.04);
+    }
+
+    .voice-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .voice-card-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .voice-card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-lg);
+      background: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+    }
+
+    .voice-card.connected .voice-card-icon {
+      background: rgba(107, 199, 107, 0.12);
+      color: var(--voice-active);
+    }
+
+    .voice-card-icon svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .voice-card-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .voice-card-count {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .voice-card.connected .voice-card-count {
+      color: var(--voice-active);
+    }
+
+    .voice-card-join {
+      padding: 8px 20px;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      transition: all var(--transition-fast);
+      min-height: 36px;
+    }
+
+    .voice-card-join.join {
+      background: var(--accent-muted);
+      color: var(--accent);
+    }
+
+    .voice-card-join.join:active {
+      background: var(--accent);
+      color: var(--bg-deepest);
+    }
+
+    .voice-card-join.leave {
+      background: rgba(199, 96, 96, 0.12);
+      color: var(--status-dnd);
+    }
+
+    .voice-card-join.leave:active {
+      background: rgba(199, 96, 96, 0.25);
+    }
+
+    .voice-card-users {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .voice-card-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--bg-surface);
+      border-radius: var(--radius-md);
+    }
+
+    .voice-card-user-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .voice-card-user-name {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 450;
+    }
+
+    .voice-empty {
+      padding: 12px 0;
+      font-size: 13px;
+      color: var(--text-faint);
+      font-style: italic;
+    }
+
+    /* Voice connected controls (inline in voice view) */
+    .voice-controls-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .voice-ctrl-btn {
+      flex: 1;
+      height: 44px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--text-secondary);
+      background: var(--bg-surface);
+      transition: all var(--transition-fast);
+    }
+
+    .voice-ctrl-btn:active {
+      background: var(--bg-active);
+    }
+
+    .voice-ctrl-btn.active {
+      background: rgba(199, 96, 96, 0.12);
+      color: var(--status-dnd);
+    }
+
+    .voice-ctrl-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ========================================
+       Profile View
+       ======================================== */
+    .profile-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 20px 20px;
+    }
+
+    .profile-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 20px 24px;
+      margin-bottom: 24px;
+    }
+
+    .profile-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent);
+      background: var(--accent-muted);
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .profile-avatar .status-dot {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: var(--radius-pill);
+      border: 3px solid var(--bg-base);
+    }
+
+    .profile-username {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: 2px;
+    }
+
+    .profile-role {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 3px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--accent-muted);
+      color: var(--accent);
+    }
+
+    .profile-section-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      padding: 0 4px 8px;
+    }
+
+    .profile-option-group {
+      background: var(--bg-raised);
+      border-radius: var(--radius-xl);
+      margin-bottom: 20px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .profile-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      min-height: 50px;
+      transition: background var(--transition-fast);
+    }
+
+    .profile-option:active {
+      background: var(--bg-hover);
+    }
+
+    .profile-option + .profile-option {
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .profile-option-icon {
+      width: 20px;
+      height: 20px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .profile-option-label {
+      flex: 1;
+      font-size: 15px;
+      color: var(--text-primary);
+      font-weight: 450;
+    }
+
+    .profile-option-value {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .profile-option-chevron {
+      width: 16px;
+      height: 16px;
+      color: var(--text-faint);
+      flex-shrink: 0;
+    }
+
+    .profile-option.danger .profile-option-label {
+      color: var(--status-dnd);
+    }
+
+    .profile-option.danger .profile-option-icon {
+      color: var(--status-dnd);
+    }
+
+    /* ========================================
+       Members View (fullscreen slide)
+       ======================================== */
+    .members-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 12px 12px;
+    }
+
+    .members-section-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      padding: 16px 12px 8px;
+    }
+
+    .member-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius-lg);
+      min-height: 50px;
+    }
+
+    .member-item:active {
+      background: var(--bg-hover);
+    }
+
+    .member-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .member-avatar .status-dot {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 12px;
+      height: 12px;
+      border-radius: var(--radius-pill);
+      border: 2.5px solid var(--bg-base);
+    }
+
+    .member-name {
+      flex: 1;
+      font-size: 15px;
+      font-weight: 450;
+      color: var(--text-secondary);
+    }
+
+    .member-role-tag {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      background: var(--accent-muted);
+      color: var(--accent);
+    }
+
+    .member-item.offline .member-avatar,
+    .member-item.offline .member-name {
+      opacity: 0.35;
+    }
+
+    /* ========================================
+       Voice Bar (compact, above tab bar)
+       ======================================== */
+    .voice-bar {
+      height: var(--voice-bar-height);
+      display: flex;
+      align-items: center;
+      background: linear-gradient(135deg, rgba(107, 199, 107, 0.08), rgba(93, 228, 199, 0.04));
+      border-top: 1px solid rgba(107, 199, 107, 0.12);
+      padding: 0 12px;
+      gap: 10px;
+      z-index: 20;
+    }
+
+    .voice-bar.hidden {
+      display: none;
+    }
+
+    .voice-bar-pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: var(--radius-pill);
+      background: var(--voice-active);
+      flex-shrink: 0;
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(107, 199, 107, 0.4); }
+      50% { opacity: 0.6; box-shadow: 0 0 8px rgba(107, 199, 107, 0.2); }
+    }
+
+    .voice-bar-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .voice-bar-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--voice-active);
+      line-height: 1.2;
+    }
+
+    .voice-bar-channel {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      line-height: 1.2;
+    }
+
+    .voice-bar-users {
+      display: flex;
+      align-items: center;
+    }
+
+    .voice-bar-user-chip {
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+      color: #fff;
+      margin-left: -5px;
+      border: 2px solid var(--bg-deep);
+    }
+
+    .voice-bar-user-chip:first-child {
+      margin-left: 0;
+    }
+
+    .voice-bar-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .voice-bar-btn:active {
+      background: var(--bg-hover);
+    }
+
+    .voice-bar-btn.active {
+      background: rgba(199, 96, 96, 0.12);
+      color: var(--status-dnd);
+    }
+
+    .voice-bar-btn.disconnect {
+      background: rgba(199, 96, 96, 0.12);
+      color: var(--status-dnd);
+    }
+
+    .voice-bar-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ========================================
+       Bottom Tab Bar
+       ======================================== */
+    .tab-bar {
+      height: var(--tab-bar-height);
+      min-height: var(--tab-bar-height);
+      display: flex;
+      align-items: stretch;
+      background: var(--bg-deep);
+      border-top: 1px solid var(--border-subtle);
+      padding-bottom: var(--safe-bottom);
+      z-index: 30;
+    }
+
+    .tab-bar-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: var(--text-muted);
+      transition: color var(--transition-fast);
+      position: relative;
+      padding: 6px 0;
+    }
+
+    .tab-bar-item:active {
+      color: var(--text-secondary);
+    }
+
+    .tab-bar-item.active {
+      color: var(--accent);
+    }
+
+    .tab-bar-item.active::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 0 0 var(--radius-pill) var(--radius-pill);
+    }
+
+    .tab-bar-icon {
+      width: 22px;
+      height: 22px;
+      position: relative;
+    }
+
+    .tab-bar-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .tab-bar-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .tab-bar-badge {
+      position: absolute;
+      top: -4px;
+      right: -8px;
+      background: var(--accent);
+      color: var(--bg-deepest);
+      font-size: 9px;
+      font-weight: 700;
+      min-width: 16px;
+      height: 16px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      line-height: 1;
+      border: 2px solid var(--bg-deep);
+    }
+
+    .tab-bar-voice-pip {
+      position: absolute;
+      top: -2px;
+      right: -4px;
+      width: 8px;
+      height: 8px;
+      border-radius: var(--radius-pill);
+      background: var(--voice-active);
+      border: 2px solid var(--bg-deep);
+    }
+
+    /* ========================================
+       Utility & animation
+       ======================================== */
+    .fade-in {
+      animation: fadeIn 200ms ease forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Stagger children */
+    .stagger-list > *:nth-child(1) { animation-delay: 0ms; }
+    .stagger-list > *:nth-child(2) { animation-delay: 30ms; }
+    .stagger-list > *:nth-child(3) { animation-delay: 60ms; }
+    .stagger-list > *:nth-child(4) { animation-delay: 90ms; }
+    .stagger-list > *:nth-child(5) { animation-delay: 120ms; }
+    .stagger-list > *:nth-child(6) { animation-delay: 150ms; }
+    .stagger-list > *:nth-child(7) { animation-delay: 180ms; }
+
+    .stagger-list > * {
+      animation: fadeIn 250ms ease both;
+    }
+
+    /* Hide inactive tab content without destroying DOM */
+    .tab-content { display: none; }
+    .tab-content.active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  </style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ============ View Stack ============ -->
+  <div class="view-stack" id="viewStack">
+
+    <!-- ===== CHANNELS LIST VIEW ===== -->
+    <div class="view list-view active" id="viewChannelList" data-tab="channels">
+      <div class="list-header">
+        <div>
+          <div class="list-header-brand">HotBox</div>
+          <div class="list-header-title">Channels</div>
+        </div>
+        <button class="list-header-action" aria-label="Search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+      </div>
+      <div class="channel-list stagger-list" id="channelListContainer">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- ===== CHANNEL CHAT VIEW ===== -->
+    <div class="view hidden" id="viewChannelChat">
+      <div class="chat-header">
+        <button class="chat-back-btn" id="btnChatBack" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="chat-header-info">
+          <div class="chat-header-name" id="chatHeaderName"><span class="hash">#</span> general</div>
+          <div class="chat-header-topic" id="chatHeaderTopic">The place for general conversation</div>
+        </div>
+        <div class="chat-header-actions">
+          <button class="chat-header-btn" id="btnChatMembers" aria-label="Members">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-messages-inner" id="chatMessagesInner">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="Message #general" autocomplete="off" />
+          <button class="chat-send-btn" id="btnChatSend" aria-label="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== DM LIST VIEW ===== -->
+    <div class="view list-view hidden" id="viewDmList" data-tab="dms">
+      <div class="list-header">
+        <div>
+          <div class="list-header-brand">HotBox</div>
+          <div class="list-header-title">Messages</div>
+        </div>
+        <button class="list-header-action" aria-label="New message">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </div>
+      <div class="channel-list stagger-list" id="dmListContainer">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- ===== DM CHAT VIEW ===== -->
+    <div class="view hidden" id="viewDmChat">
+      <div class="chat-header">
+        <button class="chat-back-btn" id="btnDmChatBack" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="chat-header-info">
+          <div class="chat-header-name" id="dmChatHeaderName">JohnDoe</div>
+          <div class="chat-header-topic" id="dmChatHeaderStatus">Online</div>
+        </div>
+      </div>
+      <div class="chat-messages" id="dmChatMessages">
+        <div class="chat-messages-inner" id="dmChatMessagesInner">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <div class="chat-input-row">
+          <input type="text" id="dmChatInput" placeholder="Message JohnDoe" autocomplete="off" />
+          <button class="chat-send-btn" id="btnDmChatSend" aria-label="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== VOICE VIEW ===== -->
+    <div class="view hidden" id="viewVoice" data-tab="voice">
+      <div class="list-header">
+        <div>
+          <div class="list-header-brand">HotBox</div>
+          <div class="list-header-title">Voice</div>
+        </div>
+      </div>
+      <div class="voice-list" id="voiceListContainer">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- ===== MEMBERS VIEW ===== -->
+    <div class="view hidden" id="viewMembers">
+      <div class="chat-header">
+        <button class="chat-back-btn" id="btnMembersBack" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="chat-header-info">
+          <div class="chat-header-name">Members</div>
+        </div>
+      </div>
+      <div class="members-list" id="membersListContainer">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- ===== PROFILE VIEW ===== -->
+    <div class="view hidden" id="viewProfile" data-tab="profile">
+      <div class="list-header">
+        <div>
+          <div class="list-header-brand">HotBox</div>
+          <div class="list-header-title">Profile</div>
+        </div>
+      </div>
+      <div class="profile-content" id="profileContent">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ Voice Bar (above tab bar) ============ -->
+  <div class="voice-bar hidden" id="mobileVoiceBar">
+    <div class="voice-bar-pulse"></div>
+    <div class="voice-bar-info">
+      <div class="voice-bar-label">Connected</div>
+      <div class="voice-bar-channel" id="mobileVoiceBarChannel">Lounge</div>
+    </div>
+    <div class="voice-bar-users" id="mobileVoiceBarUsers"></div>
+    <button class="voice-bar-btn" id="btnBarMute" aria-label="Toggle mute">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+    </button>
+    <button class="voice-bar-btn disconnect" id="btnBarDisconnect" aria-label="Disconnect">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="23" y1="1" x2="1" y2="23"/></svg>
+    </button>
+  </div>
+
+  <!-- ============ Bottom Tab Bar ============ -->
+  <nav class="tab-bar" id="tabBar">
+    <button class="tab-bar-item active" data-tab="channels" aria-label="Channels">
+      <div class="tab-bar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+      </div>
+      <span class="tab-bar-label">Channels</span>
+    </button>
+    <button class="tab-bar-item" data-tab="dms" aria-label="Messages">
+      <div class="tab-bar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <span class="tab-bar-label">DMs</span>
+    </button>
+    <button class="tab-bar-item" data-tab="voice" aria-label="Voice">
+      <div class="tab-bar-icon" id="voiceTabIcon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      </div>
+      <span class="tab-bar-label">Voice</span>
+    </button>
+    <button class="tab-bar-item" data-tab="profile" aria-label="Profile">
+      <div class="tab-bar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <span class="tab-bar-label">Profile</span>
+    </button>
+  </nav>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ==========================================
+  // Mock Data (same as desktop)
+  // ==========================================
+
+  var CURRENT_USER = 'cpike';
+
+  var USERS = {
+    cpike:        { initials: 'CP', status: 'online', role: 'admin' },
+    JohnDoe:      { initials: 'JD', status: 'online', role: null },
+    SaltyKid99:   { initials: 'SK', status: 'online', role: null },
+    Meghan:       { initials: 'MR', status: 'idle', role: 'mod' },
+    xXDarkLordXx: { initials: 'DL', status: 'online', role: null },
+    ghostpepper:  { initials: 'GP', status: 'online', role: null },
+    lurker42:     { initials: 'L4', status: 'offline', role: null },
+  };
+
+  var CHANNELS = {
+    general: {
+      type: 'text',
+      topic: 'The place for general conversation',
+      messages: [
+        { author: 'JohnDoe', time: todayAt(14, 22), text: 'yo anyone down to play later tonight?' },
+        { author: 'SaltyKid99', time: todayAt(14, 23), text: 'depends what game' },
+        { author: 'JohnDoe', time: todayAt(14, 23), text: 'valorant or something idk' },
+        { author: 'cpike', time: todayAt(14, 25), text: 'I could be down after like 9' },
+        { author: 'Meghan', time: todayAt(14, 30), text: 'count me in' },
+        { author: 'xXDarkLordXx', time: todayAt(14, 32), text: 'let\'s go, i\'ve been grinding all week' },
+        { author: 'SaltyKid99', time: todayAt(14, 33), text: 'darklordddddd lmao that name' },
+        { author: 'xXDarkLordXx', time: todayAt(14, 34), text: 'it\'s a classic, don\'t disrespect it' },
+        { author: 'ghostpepper', time: todayAt(15, 1), text: 'just got home, what did i miss' },
+        { author: 'cpike', time: todayAt(15, 2), text: 'val tonight around 9, you in?' },
+        { author: 'ghostpepper', time: todayAt(15, 3), text: 'hell yeah' },
+        { author: 'JohnDoe', time: todayAt(15, 10), text: 'sick, full squad then' },
+      ]
+    },
+    shitposting: {
+      type: 'text',
+      topic: 'Absolutely zero quality control',
+      messages: [
+        { author: 'SaltyKid99', time: todayAt(12, 5), text: 'what if farts had colors' },
+        { author: 'xXDarkLordXx', time: todayAt(12, 6), text: 'they do if you try hard enough' },
+        { author: 'ghostpepper', time: todayAt(12, 8), text: 'why is this channel even a thing' },
+        { author: 'SaltyKid99', time: todayAt(12, 9), text: 'because art has no boundaries' },
+        { author: 'JohnDoe', time: todayAt(13, 45), text: 'i just sneezed and farted at the same time' },
+        { author: 'Meghan', time: todayAt(13, 46), text: 'a sneeze-fart, the rarest combo' },
+      ]
+    },
+    gaming: {
+      type: 'text',
+      topic: 'Game discussion and LFG',
+      messages: [
+        { author: 'xXDarkLordXx', time: todayAt(10, 30), text: 'new elden ring DLC is wild' },
+        { author: 'JohnDoe', time: todayAt(10, 32), text: 'no spoilers, i haven\'t started it yet' },
+        { author: 'cpike', time: todayAt(11, 15), text: 'anyone played the new indie thing on steam? the one with the cats' },
+        { author: 'ghostpepper', time: todayAt(11, 20), text: 'stray? that\'s been out for a while' },
+        { author: 'cpike', time: todayAt(11, 21), text: 'no no, the new one. i forget the name.' },
+        { author: 'SaltyKid99', time: todayAt(14, 0), text: 'ok who\'s actually good at val here, be honest' },
+      ]
+    },
+    music: {
+      type: 'text',
+      topic: 'Share tunes and recommendations',
+      messages: [
+        { author: 'Meghan', time: todayAt(9, 15), text: 'morning playlist recommendation: anything by Khruangbin' },
+        { author: 'ghostpepper', time: todayAt(9, 30), text: 'W taste' },
+        { author: 'cpike', time: todayAt(10, 0), text: 'been listening to a lot of Tame Impala lately' },
+      ]
+    },
+    'dm-johndoe': {
+      type: 'dm',
+      dmUser: 'JohnDoe',
+      topic: null,
+      messages: [
+        { author: 'JohnDoe', time: todayAt(13, 0), text: 'hey you got the server link for that minecraft thing?' },
+        { author: 'cpike', time: todayAt(13, 5), text: 'yeah one sec let me find it' },
+        { author: 'cpike', time: todayAt(13, 6), text: 'mc.hotbox.gg' },
+        { author: 'JohnDoe', time: todayAt(13, 7), text: 'lmaooo the domain' },
+        { author: 'cpike', time: todayAt(13, 7), text: 'brand consistency' },
+      ]
+    },
+    'dm-saltykid99': {
+      type: 'dm',
+      dmUser: 'SaltyKid99',
+      topic: null,
+      messages: [
+        { author: 'SaltyKid99', time: todayAt(11, 0), text: 'yo is the voice chat working for you?' },
+        { author: 'cpike', time: todayAt(11, 5), text: 'yeah it was fine earlier, try reconnecting' },
+      ]
+    },
+    'dm-meghan': {
+      type: 'dm',
+      dmUser: 'Meghan',
+      topic: null,
+      messages: [
+        { author: 'Meghan', time: todayAt(8, 30), text: 'when are you deploying the update?' },
+        { author: 'cpike', time: todayAt(8, 45), text: 'probably this weekend, still fixing a couple things' },
+      ]
+    }
+  };
+
+  var VOICE_CHANNELS = {
+    lounge: { name: 'Lounge', users: ['JohnDoe', 'SaltyKid99'] },
+    'gaming-vc': { name: 'Gaming', users: [] },
+  };
+
+  var UNREAD = { gaming: 3 };
+
+  // ==========================================
+  // State
+  // ==========================================
+
+  var activeTab = 'channels';
+  var activeChannel = null;
+  var activeDm = null;
+  var connectedVoice = null;
+  var isMuted = false;
+  var isDeafened = false;
+  var viewHistory = []; // stack for back navigation
+
+  // ==========================================
+  // Helpers
+  // ==========================================
+
+  function todayAt(h, m) {
+    var d = new Date();
+    d.setHours(h, m, 0, 0);
+    return d.getTime();
+  }
+
+  function formatTime(ts) {
+    return new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function el(id) { return document.getElementById(id); }
+
+  function getAvatarColor(name) {
+    var hash = 0;
+    for (var i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    var hue = Math.abs(hash) % 360;
+    return 'hsl(' + hue + ', 32%, 38%)';
+  }
+
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function getLastMessage(channel) {
+    var msgs = channel.messages;
+    if (!msgs.length) return null;
+    return msgs[msgs.length - 1];
+  }
+
+  function getLastMessageTime(channel) {
+    var msg = getLastMessage(channel);
+    return msg ? msg.time : 0;
+  }
+
+  // ==========================================
+  // View Navigation
+  // ==========================================
+
+  function showView(viewId, opts) {
+    opts = opts || {};
+    var allViews = document.querySelectorAll('.view');
+    var target = el(viewId);
+
+    // Determine animation direction
+    var isBack = opts.isBack;
+
+    allViews.forEach(function(v) {
+      if (v === target) {
+        v.className = 'view active';
+      } else if (v.classList.contains('active')) {
+        // Outgoing view
+        if (isBack) {
+          v.className = 'view hidden'; // slide right
+        } else {
+          v.className = 'view hidden-left'; // push left
+        }
+      } else {
+        v.className = 'view hidden';
+      }
+    });
+  }
+
+  function navigateTo(viewId) {
+    // Push current active view onto stack
+    var current = document.querySelector('.view.active');
+    if (current) {
+      viewHistory.push(current.id);
+    }
+    showView(viewId, { isBack: false });
+  }
+
+  function navigateBack() {
+    if (viewHistory.length === 0) return;
+    var prevId = viewHistory.pop();
+    showView(prevId, { isBack: true });
+  }
+
+  function switchTab(tab) {
+    if (tab === activeTab && viewHistory.length === 0) return;
+
+    activeTab = tab;
+    viewHistory = []; // reset nav stack on tab switch
+
+    // Update tab bar UI
+    document.querySelectorAll('.tab-bar-item').forEach(function(item) {
+      item.classList.toggle('active', item.dataset.tab === tab);
+    });
+
+    // Show the corresponding list view
+    var viewMap = {
+      channels: 'viewChannelList',
+      dms: 'viewDmList',
+      voice: 'viewVoice',
+      profile: 'viewProfile',
+    };
+
+    var viewId = viewMap[tab];
+    if (viewId) {
+      // Reset all views, show target without animation
+      document.querySelectorAll('.view').forEach(function(v) {
+        v.className = 'view hidden';
+      });
+      var target = el(viewId);
+      // Brief delay for re-stagger animation
+      requestAnimationFrame(function() {
+        target.className = 'view active';
+      });
+    }
+  }
+
+  // ==========================================
+  // Render: Channel List
+  // ==========================================
+
+  function renderChannelList() {
+    var container = el('channelListContainer');
+    var html = '';
+    var textChannels = ['general', 'shitposting', 'gaming', 'music'];
+
+    html += '<div class="channel-list-section">Text Channels</div>';
+
+    textChannels.forEach(function(key) {
+      var ch = CHANNELS[key];
+      var lastMsg = getLastMessage(ch);
+      var unread = UNREAD[key] || 0;
+      var hasUnread = unread > 0;
+
+      html += '<div class="channel-list-item' + (hasUnread ? ' has-unread' : '') + '" data-channel="' + key + '">';
+      html += '<div class="channel-list-icon">#</div>';
+      html += '<div class="channel-list-info">';
+      html += '<div class="channel-list-name">' + key + '</div>';
+      if (lastMsg) {
+        html += '<div class="channel-list-preview">' + lastMsg.author + ': ' + escapeHtml(lastMsg.text) + '</div>';
+      }
+      html += '</div>';
+      html += '<div class="channel-list-meta">';
+      if (lastMsg) {
+        html += '<div class="channel-list-time">' + formatTime(lastMsg.time) + '</div>';
+      }
+      if (hasUnread) {
+        html += '<div class="channel-list-badge">' + unread + '</div>';
+      }
+      html += '</div>';
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+  }
+
+  // ==========================================
+  // Render: DM List
+  // ==========================================
+
+  function renderDmList() {
+    var container = el('dmListContainer');
+    var html = '';
+    var dmKeys = ['dm-johndoe', 'dm-saltykid99', 'dm-meghan'];
+
+    dmKeys.forEach(function(key) {
+      var ch = CHANNELS[key];
+      var user = USERS[ch.dmUser];
+      var color = getAvatarColor(ch.dmUser);
+      var lastMsg = getLastMessage(ch);
+
+      html += '<div class="channel-list-item" data-dm="' + key + '">';
+      html += '<div class="dm-list-avatar" style="background: ' + color + ';">' + user.initials;
+      html += '<span class="status-dot ' + user.status + '"></span>';
+      html += '</div>';
+      html += '<div class="channel-list-info">';
+      html += '<div class="channel-list-name">' + ch.dmUser + '</div>';
+      if (lastMsg) {
+        var preview = lastMsg.author === CURRENT_USER ? 'You: ' + escapeHtml(lastMsg.text) : escapeHtml(lastMsg.text);
+        html += '<div class="channel-list-preview">' + preview + '</div>';
+      }
+      html += '</div>';
+      html += '<div class="channel-list-meta">';
+      if (lastMsg) {
+        html += '<div class="channel-list-time">' + formatTime(lastMsg.time) + '</div>';
+      }
+      html += '</div>';
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+  }
+
+  // ==========================================
+  // Render: Chat Messages (shared)
+  // ==========================================
+
+  function renderChatMessages(channelKey, containerId, scrollAreaId) {
+    var container = el(containerId);
+    var channel = CHANNELS[channelKey];
+    if (!channel) return;
+
+    var html = '';
+
+    // Welcome
+    if (channel.type === 'text') {
+      html += '<div class="channel-welcome">';
+      html += '<h2># ' + channelKey + '</h2>';
+      html += '<p>This is the start of #' + channelKey + '.' + (channel.topic ? ' ' + channel.topic + '.' : '') + '</p>';
+      html += '</div>';
+    } else if (channel.type === 'dm') {
+      html += '<div class="channel-welcome">';
+      html += '<h2>' + channel.dmUser + '</h2>';
+      html += '<p>Beginning of your conversation with ' + channel.dmUser + '.</p>';
+      html += '</div>';
+    }
+
+    // Group messages
+    var messages = channel.messages;
+    var i = 0;
+    while (i < messages.length) {
+      var msg = messages[i];
+      var user = USERS[msg.author] || { initials: '??', status: 'offline' };
+      var color = getAvatarColor(msg.author);
+
+      var groupMessages = [msg];
+      while (
+        i + 1 < messages.length &&
+        messages[i + 1].author === msg.author &&
+        messages[i + 1].time - messages[i].time < 5 * 60 * 1000
+      ) {
+        i++;
+        groupMessages.push(messages[i]);
+      }
+
+      html += '<div class="message-group new-author">';
+      html += '<div class="msg-avatar" style="background: ' + color + ';">' + user.initials + '</div>';
+      html += '<div class="msg-content">';
+      html += '<div class="msg-header">';
+      html += '<span class="msg-author" style="color: ' + color + ';">' + msg.author + '</span>';
+      html += '<span class="msg-timestamp">' + formatTime(msg.time) + '</span>';
+      html += '</div>';
+      groupMessages.forEach(function(m) {
+        html += '<div class="msg-body">' + escapeHtml(m.text) + '</div>';
+      });
+      html += '</div>';
+      html += '</div>';
+
+      i++;
+    }
+
+    container.innerHTML = html;
+
+    // Scroll to bottom
+    var area = el(scrollAreaId);
+    area.scrollTop = area.scrollHeight;
+  }
+
+  // ==========================================
+  // Render: Voice List
+  // ==========================================
+
+  function renderVoiceList() {
+    var container = el('voiceListContainer');
+    var html = '';
+
+    for (var key in VOICE_CHANNELS) {
+      var vc = VOICE_CHANNELS[key];
+      var isConnected = connectedVoice === key;
+      var userCount = vc.users.length;
+
+      html += '<div class="voice-card' + (isConnected ? ' connected' : '') + '">';
+      html += '<div class="voice-card-header">';
+      html += '<div class="voice-card-title">';
+      html += '<div class="voice-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></div>';
+      html += '<div>';
+      html += '<div class="voice-card-name">' + vc.name + '</div>';
+      html += '<div class="voice-card-count">' + userCount + ' connected</div>';
+      html += '</div>';
+      html += '</div>';
+
+      if (isConnected) {
+        html += '<button class="voice-card-join leave" data-voice-action="leave" data-voice="' + key + '">Leave</button>';
+      } else {
+        html += '<button class="voice-card-join join" data-voice-action="join" data-voice="' + key + '">Join</button>';
+      }
+
+      html += '</div>';
+
+      // User list
+      if (userCount > 0) {
+        html += '<div class="voice-card-users">';
+        vc.users.forEach(function(uname) {
+          var u = USERS[uname] || { initials: '??', status: 'online' };
+          var color = getAvatarColor(uname);
+          html += '<div class="voice-card-user">';
+          html += '<div class="voice-card-user-avatar" style="background: ' + color + ';">' + u.initials + '</div>';
+          html += '<span class="voice-card-user-name">' + uname + '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      } else {
+        html += '<div class="voice-empty">No one here yet</div>';
+      }
+
+      // Controls when connected
+      if (isConnected) {
+        html += '<div class="voice-controls-row">';
+        html += '<button class="voice-ctrl-btn' + (isMuted ? ' active' : '') + '" data-voice-ctrl="mute">';
+        html += '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+        html += (isMuted ? 'Unmute' : 'Mute');
+        html += '</button>';
+        html += '<button class="voice-ctrl-btn' + (isDeafened ? ' active' : '') + '" data-voice-ctrl="deafen">';
+        html += '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>';
+        html += (isDeafened ? 'Undeafen' : 'Deafen');
+        html += '</button>';
+        html += '</div>';
+      }
+
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  // ==========================================
+  // Render: Members
+  // ==========================================
+
+  function renderMembersList() {
+    var container = el('membersListContainer');
+    var onlineHtml = '';
+    var offlineHtml = '';
+    var onlineCount = 0;
+    var offlineCount = 0;
+
+    for (var name in USERS) {
+      var user = USERS[name];
+      var color = getAvatarColor(name);
+      var roleTag = user.role
+        ? '<span class="member-role-tag">' + user.role + '</span>'
+        : '';
+
+      var item = '<div class="member-item' + (user.status === 'offline' ? ' offline' : '') + '">';
+      item += '<div class="member-avatar" style="background: ' + color + ';">';
+      item += user.initials;
+      item += '<span class="status-dot ' + user.status + '"></span>';
+      item += '</div>';
+      item += '<span class="member-name">' + name + '</span>';
+      item += roleTag;
+      item += '</div>';
+
+      if (user.status === 'offline') {
+        offlineHtml += item;
+        offlineCount++;
+      } else {
+        onlineHtml += item;
+        onlineCount++;
+      }
+    }
+
+    var html = '';
+    html += '<div class="members-section-label">Online \u2014 ' + onlineCount + '</div>';
+    html += onlineHtml;
+    html += '<div class="members-section-label">Offline \u2014 ' + offlineCount + '</div>';
+    html += offlineHtml;
+    container.innerHTML = html;
+  }
+
+  // ==========================================
+  // Render: Profile
+  // ==========================================
+
+  function renderProfile() {
+    var container = el('profileContent');
+    var user = USERS[CURRENT_USER];
+    var color = getAvatarColor(CURRENT_USER);
+
+    var html = '';
+
+    html += '<div class="profile-card">';
+    html += '<div class="profile-avatar">' + user.initials;
+    html += '<span class="status-dot ' + user.status + '"></span>';
+    html += '</div>';
+    html += '<div class="profile-username">' + CURRENT_USER + '</div>';
+    if (user.role) {
+      html += '<div class="profile-role">' + user.role + '</div>';
+    }
+    html += '</div>';
+
+    // Status section
+    html += '<div class="profile-section-label">Status</div>';
+    html += '<div class="profile-option-group">';
+    html += '<div class="profile-option">';
+    html += '<svg class="profile-option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>';
+    html += '<span class="profile-option-label">Status</span>';
+    html += '<span class="profile-option-value">Online</span>';
+    html += '<svg class="profile-option-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    html += '</div>';
+    html += '</div>';
+
+    // Settings section
+    html += '<div class="profile-section-label">Settings</div>';
+    html += '<div class="profile-option-group">';
+
+    html += '<div class="profile-option">';
+    html += '<svg class="profile-option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
+    html += '<span class="profile-option-label">Notifications</span>';
+    html += '<svg class="profile-option-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    html += '</div>';
+
+    html += '<div class="profile-option">';
+    html += '<svg class="profile-option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+    html += '<span class="profile-option-label">Privacy & Security</span>';
+    html += '<svg class="profile-option-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    html += '</div>';
+
+    html += '<div class="profile-option">';
+    html += '<svg class="profile-option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+    html += '<span class="profile-option-label">Appearance</span>';
+    html += '<svg class="profile-option-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    html += '</div>';
+
+    html += '</div>';
+
+    // Server section
+    html += '<div class="profile-section-label">Server</div>';
+    html += '<div class="profile-option-group">';
+
+    html += '<div class="profile-option">';
+    html += '<svg class="profile-option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>';
+    html += '<span class="profile-option-label">Server Info</span>';
+    html += '<span class="profile-option-value">hotbox.cpike.ca</span>';
+    html += '<svg class="profile-option-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    html += '</div>';
+
+    html += '</div>';
+
+    // Logout
+    html += '<div class="profile-option-group" style="margin-top: 8px;">';
+    html += '<div class="profile-option danger">';
+    html += '<svg class="profile-option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
+    html += '<span class="profile-option-label">Log Out</span>';
+    html += '</div>';
+    html += '</div>';
+
+    container.innerHTML = html;
+  }
+
+  // ==========================================
+  // Render: Voice Bar
+  // ==========================================
+
+  function updateVoiceBar() {
+    var bar = el('mobileVoiceBar');
+    if (connectedVoice) {
+      bar.classList.remove('hidden');
+      var vc = VOICE_CHANNELS[connectedVoice];
+      el('mobileVoiceBarChannel').textContent = vc.name;
+
+      var usersHtml = '';
+      vc.users.forEach(function(uname) {
+        var u = USERS[uname] || { initials: '??', status: 'online' };
+        var color = getAvatarColor(uname);
+        usersHtml += '<div class="voice-bar-user-chip" style="background: ' + color + ';">' + u.initials + '</div>';
+      });
+      el('mobileVoiceBarUsers').innerHTML = usersHtml;
+    } else {
+      bar.classList.add('hidden');
+    }
+
+    // Update voice tab pip
+    var voiceIcon = el('voiceTabIcon');
+    var existingPip = voiceIcon.querySelector('.tab-bar-voice-pip');
+    if (connectedVoice && !existingPip) {
+      var pip = document.createElement('div');
+      pip.className = 'tab-bar-voice-pip';
+      voiceIcon.appendChild(pip);
+    } else if (!connectedVoice && existingPip) {
+      existingPip.remove();
+    }
+
+    // Update mute button
+    el('btnBarMute').classList.toggle('active', isMuted);
+  }
+
+  // ==========================================
+  // Voice Logic
+  // ==========================================
+
+  function connectVoice(channelKey) {
+    if (connectedVoice) {
+      var prevVc = VOICE_CHANNELS[connectedVoice];
+      var idx = prevVc.users.indexOf(CURRENT_USER);
+      if (idx !== -1) prevVc.users.splice(idx, 1);
+    }
+
+    connectedVoice = channelKey;
+    var vc = VOICE_CHANNELS[channelKey];
+    if (vc.users.indexOf(CURRENT_USER) === -1) {
+      vc.users.push(CURRENT_USER);
+    }
+
+    isMuted = false;
+    isDeafened = false;
+    updateVoiceBar();
+    renderVoiceList();
+  }
+
+  function disconnectVoice() {
+    if (connectedVoice) {
+      var vc = VOICE_CHANNELS[connectedVoice];
+      var idx = vc.users.indexOf(CURRENT_USER);
+      if (idx !== -1) vc.users.splice(idx, 1);
+    }
+    connectedVoice = null;
+    isMuted = false;
+    isDeafened = false;
+    updateVoiceBar();
+    renderVoiceList();
+  }
+
+  // ==========================================
+  // Send Message
+  // ==========================================
+
+  function sendChannelMessage() {
+    var input = el('chatInput');
+    var text = input.value.trim();
+    if (!text || !activeChannel) return;
+
+    CHANNELS[activeChannel].messages.push({
+      author: CURRENT_USER,
+      time: Date.now(),
+      text: text,
+    });
+
+    input.value = '';
+    renderChatMessages(activeChannel, 'chatMessagesInner', 'chatMessages');
+    renderChannelList(); // update preview
+  }
+
+  function sendDmMessage() {
+    var input = el('dmChatInput');
+    var text = input.value.trim();
+    if (!text || !activeDm) return;
+
+    CHANNELS[activeDm].messages.push({
+      author: CURRENT_USER,
+      time: Date.now(),
+      text: text,
+    });
+
+    input.value = '';
+    renderChatMessages(activeDm, 'dmChatMessagesInner', 'dmChatMessages');
+    renderDmList(); // update preview
+  }
+
+  // ==========================================
+  // Open Channel / DM
+  // ==========================================
+
+  function openChannel(key) {
+    activeChannel = key;
+
+    // Clear unread
+    if (UNREAD[key]) {
+      delete UNREAD[key];
+      renderChannelList();
+      updateTabBadges();
+    }
+
+    var ch = CHANNELS[key];
+    el('chatHeaderName').innerHTML = '<span class="hash">#</span> ' + key;
+    el('chatHeaderTopic').textContent = ch.topic || '';
+    el('chatInput').placeholder = 'Message #' + key;
+
+    renderChatMessages(key, 'chatMessagesInner', 'chatMessages');
+    navigateTo('viewChannelChat');
+  }
+
+  function openDm(key) {
+    activeDm = key;
+    var ch = CHANNELS[key];
+    var user = USERS[ch.dmUser];
+
+    el('dmChatHeaderName').textContent = ch.dmUser;
+    el('dmChatHeaderStatus').textContent = user.status === 'online' ? 'Online' : user.status === 'idle' ? 'Idle' : 'Offline';
+    el('dmChatInput').placeholder = 'Message ' + ch.dmUser;
+
+    renderChatMessages(key, 'dmChatMessagesInner', 'dmChatMessages');
+    navigateTo('viewDmChat');
+  }
+
+  // ==========================================
+  // Tab Badges
+  // ==========================================
+
+  function updateTabBadges() {
+    // Count total channel unreads
+    var totalUnread = 0;
+    for (var key in UNREAD) {
+      totalUnread += UNREAD[key];
+    }
+
+    var channelTab = document.querySelector('[data-tab="channels"] .tab-bar-icon');
+    var existingBadge = channelTab.querySelector('.tab-bar-badge');
+    if (totalUnread > 0 && !existingBadge) {
+      var badge = document.createElement('div');
+      badge.className = 'tab-bar-badge';
+      badge.textContent = totalUnread;
+      channelTab.appendChild(badge);
+    } else if (totalUnread > 0 && existingBadge) {
+      existingBadge.textContent = totalUnread;
+    } else if (totalUnread === 0 && existingBadge) {
+      existingBadge.remove();
+    }
+  }
+
+  // ==========================================
+  // Event Listeners
+  // ==========================================
+
+  // Tab bar
+  el('tabBar').addEventListener('click', function(e) {
+    var item = e.target.closest('[data-tab]');
+    if (!item) return;
+    switchTab(item.dataset.tab);
+  });
+
+  // Channel list items
+  el('channelListContainer').addEventListener('click', function(e) {
+    var item = e.target.closest('[data-channel]');
+    if (!item) return;
+    openChannel(item.dataset.channel);
+  });
+
+  // DM list items
+  el('dmListContainer').addEventListener('click', function(e) {
+    var item = e.target.closest('[data-dm]');
+    if (!item) return;
+    openDm(item.dataset.dm);
+  });
+
+  // Back buttons
+  el('btnChatBack').addEventListener('click', navigateBack);
+  el('btnDmChatBack').addEventListener('click', navigateBack);
+  el('btnMembersBack').addEventListener('click', navigateBack);
+
+  // Members button in chat
+  el('btnChatMembers').addEventListener('click', function() {
+    renderMembersList();
+    navigateTo('viewMembers');
+  });
+
+  // Send messages
+  el('btnChatSend').addEventListener('click', sendChannelMessage);
+  el('chatInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChannelMessage();
+    }
+  });
+
+  el('btnDmChatSend').addEventListener('click', sendDmMessage);
+  el('dmChatInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendDmMessage();
+    }
+  });
+
+  // Voice list actions
+  el('voiceListContainer').addEventListener('click', function(e) {
+    // Join/leave buttons
+    var actionBtn = e.target.closest('[data-voice-action]');
+    if (actionBtn) {
+      var key = actionBtn.dataset.voice;
+      var action = actionBtn.dataset.voiceAction;
+      if (action === 'join') {
+        connectVoice(key);
+      } else {
+        disconnectVoice();
+      }
+      return;
+    }
+
+    // Mute/deafen controls
+    var ctrlBtn = e.target.closest('[data-voice-ctrl]');
+    if (ctrlBtn) {
+      var ctrl = ctrlBtn.dataset.voiceCtrl;
+      if (ctrl === 'mute') {
+        isMuted = !isMuted;
+      } else if (ctrl === 'deafen') {
+        isDeafened = !isDeafened;
+      }
+      updateVoiceBar();
+      renderVoiceList();
+    }
+  });
+
+  // Voice bar controls
+  el('btnBarMute').addEventListener('click', function() {
+    isMuted = !isMuted;
+    updateVoiceBar();
+    renderVoiceList();
+  });
+
+  el('btnBarDisconnect').addEventListener('click', function() {
+    disconnectVoice();
+  });
+
+  // ==========================================
+  // Initial Render
+  // ==========================================
+
+  renderChannelList();
+  renderDmList();
+  renderVoiceList();
+  renderProfile();
+  updateVoiceBar();
+  updateTabBadges();
+
+})();
+</script>
+
+</body>
+</html>
