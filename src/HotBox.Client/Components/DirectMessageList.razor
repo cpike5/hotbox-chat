@@ -1,0 +1,48 @@
+@using HotBox.Client.State
+@using HotBox.Client.Models
+@using HotBox.Client.Services
+@inject DirectMessageState DirectMessageState
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@foreach (var conversation in DirectMessageState.Conversations)
+{
+    var isActive = DirectMessageState.ActiveConversationUserId == conversation.UserId;
+    <button class="channel-tab @(isActive ? "active" : "")"
+            @onclick="() => SelectConversation(conversation)">
+        <span class="tab-hash">@@</span>
+        <span>@conversation.DisplayName</span>
+        @if (conversation.UnreadCount > 0)
+        {
+            <span class="unread-badge">@conversation.UnreadCount</span>
+        }
+    </button>
+}
+
+@code {
+    private bool _loaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        DirectMessageState.OnChange += StateHasChanged;
+
+        if (!_loaded)
+        {
+            _loaded = true;
+            var conversations = await Api.GetConversationsAsync();
+            DirectMessageState.SetConversations(conversations);
+        }
+    }
+
+    private void SelectConversation(ConversationSummaryResponse conversation)
+    {
+        DirectMessageState.SetActiveConversation(conversation.UserId, conversation.DisplayName);
+        Navigation.NavigateTo($"/dm/{conversation.UserId}");
+    }
+
+    public void Dispose()
+    {
+        DirectMessageState.OnChange -= StateHasChanged;
+    }
+}

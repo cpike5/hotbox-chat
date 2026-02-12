@@ -141,6 +141,37 @@ public class ApiClient
         return await GetAsync<MessageResponse>($"api/messages/{id}", ct);
     }
 
+    // ── Direct Messages ────────────────────────────────────────────────
+
+    public async Task<List<ConversationSummaryResponse>> GetConversationsAsync(CancellationToken ct = default)
+    {
+        return await GetAsync<List<ConversationSummaryResponse>>("api/dm", ct) ?? new List<ConversationSummaryResponse>();
+    }
+
+    public async Task<List<DirectMessageResponse>> GetDirectMessagesAsync(
+        Guid userId,
+        DateTime? before = null,
+        int limit = 50,
+        CancellationToken ct = default)
+    {
+        var url = $"api/dm/{userId}?limit={limit}";
+        if (before.HasValue)
+        {
+            url += $"&before={before.Value:O}";
+        }
+
+        return await GetAsync<List<DirectMessageResponse>>(url, ct) ?? new List<DirectMessageResponse>();
+    }
+
+    public async Task<DirectMessageResponse?> SendDirectMessageAsync(
+        Guid userId,
+        string content,
+        CancellationToken ct = default)
+    {
+        var request = new { Content = content };
+        return await PostAsync<DirectMessageResponse>($"api/dm/{userId}", request, ct);
+    }
+
     // ── HTTP Helpers ────────────────────────────────────────────────────
 
     private void SetAuthHeader()

@@ -1,13 +1,111 @@
 @page "/dm/{UserId:guid}"
+@using HotBox.Client.State
+@using HotBox.Client.Services
+@using HotBox.Client.Models
+@inject DirectMessageState DirectMessageState
+@inject AuthState AuthState
+@inject ApiClient Api
+@inject ChatHubService ChatHub
+@implements IDisposable
 
-<PageTitle>HotBox - Direct Message</PageTitle>
+<PageTitle>HotBox - DM with @(DirectMessageState.ActiveConversationDisplayName ?? "User")</PageTitle>
 
-<div class="page-placeholder">
-    <h2>Direct Message</h2>
-    <p>Conversation with user @UserId will be rendered here. This is a shell placeholder.</p>
-</div>
+<DirectMessageMessageList />
+<DirectMessageInput />
 
 @code {
     [Parameter]
     public Guid UserId { get; set; }
+
+    private Guid _currentUserId;
+
+    protected override void OnInitialized()
+    {
+        // Set the current user ID on state so AddMessage can determine the "other user"
+        if (AuthState.CurrentUser is not null)
+        {
+            DirectMessageState.SetCurrentUserId(AuthState.CurrentUser.Id);
+        }
+
+        // Subscribe to real-time DM events
+        ChatHub.OnDirectMessageReceived += HandleDirectMessageReceived;
+        ChatHub.OnDirectMessageTyping += HandleDirectMessageTyping;
+        ChatHub.OnDirectMessageStoppedTyping += HandleDirectMessageStoppedTyping;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Avoid reloading if navigating to the same conversation
+        if (_currentUserId == UserId)
+            return;
+
+        _currentUserId = UserId;
+
+        // Set active conversation from the already-loaded conversations list
+        var conversation = DirectMessageState.Conversations.FirstOrDefault(c => c.UserId == UserId);
+        if (conversation is not null)
+        {
+            DirectMessageState.SetActiveConversation(conversation.UserId, conversation.DisplayName);
+        }
+        else
+        {
+            // Conversation not in local state; set with userId and a placeholder name
+            DirectMessageState.SetActiveConversation(UserId, "User");
+        }
+
+        // Load messages for this conversation
+        DirectMessageState.SetLoadingMessages(true);
+        try
+        {
+            var messages = await Api.GetDirectMessagesAsync(UserId);
+            DirectMessageState.SetMessages(messages);
+        }
+        finally
+        {
+            DirectMessageState.SetLoadingMessages(false);
+        }
+    }
+
+    private void HandleDirectMessageReceived(DirectMessageResponse message)
+    {
+        // Only add to state if this message belongs to the active conversation
+        if (DirectMessageState.ActiveConversationUserId.HasValue &&
+            (message.SenderId == DirectMessageState.ActiveConversationUserId.Value ||
+             message.RecipientId == DirectMessageState.ActiveConversationUserId.Value))
+        {
+            DirectMessageState.AddMessage(message);
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void HandleDirectMessageTyping(Guid senderId, string displayName)
+    {
+        if (DirectMessageState.ActiveConversationUserId.HasValue &&
+            senderId == DirectMessageState.ActiveConversationUserId.Value)
+        {
+            DirectMessageState.AddTypingUser(senderId, displayName);
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void HandleDirectMessageStoppedTyping(Guid senderId)
+    {
+        if (DirectMessageState.ActiveConversationUserId.HasValue &&
+            senderId == DirectMessageState.ActiveConversationUserId.Value)
+        {
+            DirectMessageState.RemoveTypingUser(senderId);
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from real-time events
+        ChatHub.OnDirectMessageReceived -= HandleDirectMessageReceived;
+        ChatHub.OnDirectMessageTyping -= HandleDirectMessageTyping;
+        ChatHub.OnDirectMessageStoppedTyping -= HandleDirectMessageStoppedTyping;
+
+        // Clear active conversation when navigating away
+        DirectMessageState.ClearActiveConversation();
+    }
 }

@@ -13,15 +13,18 @@ namespace HotBox.Application.Hubs;
 public class ChatHub : Hub
 {
     private readonly IMessageService _messageService;
+    private readonly IDirectMessageService _directMessageService;
     private readonly UserManager<AppUser> _userManager;
     private readonly ILogger<ChatHub> _logger;
 
     public ChatHub(
         IMessageService messageService,
+        IDirectMessageService directMessageService,
         UserManager<AppUser> userManager,
         ILogger<ChatHub> logger)
     {
         _messageService = messageService;
+        _directMessageService = directMessageService;
         _userManager = userManager;
         _logger = logger;
     }
@@ -93,6 +96,52 @@ public class ChatHub : Hub
 
         await Clients.OthersInGroup(channelId.ToString())
             .SendAsync("UserStoppedTyping", channelId, userId);
+    }
+
+    public async Task SendDirectMessage(Guid recipientId, string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            throw new HubException("Message content cannot be empty.");
+
+        var senderId = GetUserId();
+
+        var message = await _directMessageService.SendAsync(senderId, recipientId, content);
+
+        var senderDisplayName = await GetDisplayNameAsync(senderId);
+
+        var response = new DirectMessageResponse
+        {
+            Id = message.Id,
+            Content = message.Content,
+            SenderId = message.SenderId,
+            SenderDisplayName = senderDisplayName,
+            RecipientId = message.RecipientId,
+            CreatedAtUtc = message.CreatedAtUtc,
+            ReadAtUtc = message.ReadAtUtc,
+        };
+
+        await Clients.User(recipientId.ToString())
+            .SendAsync("ReceiveDirectMessage", response);
+
+        await Clients.User(senderId.ToString())
+            .SendAsync("ReceiveDirectMessage", response);
+    }
+
+    public async Task DirectMessageTyping(Guid recipientId)
+    {
+        var senderId = GetUserId();
+        var displayName = await GetDisplayNameAsync(senderId);
+
+        await Clients.User(recipientId.ToString())
+            .SendAsync("DirectMessageTyping", senderId, displayName);
+    }
+
+    public async Task DirectMessageStoppedTyping(Guid recipientId)
+    {
+        var senderId = GetUserId();
+
+        await Clients.User(recipientId.ToString())
+            .SendAsync("DirectMessageStoppedTyping", senderId);
     }
 
     private Guid GetUserId()

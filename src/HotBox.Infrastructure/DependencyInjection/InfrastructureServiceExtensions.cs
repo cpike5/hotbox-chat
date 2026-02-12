@@ -92,6 +92,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IInviteService, InviteService>();
         services.AddScoped<IChannelService, ChannelService>();
         services.AddScoped<IMessageService, MessageService>();
+        services.AddScoped<IDirectMessageService, DirectMessageService>();
 
         return services;
     }
