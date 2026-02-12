@@ -1,7 +1,9 @@
+using HotBox.Core.Entities;
 using HotBox.Core.Interfaces;
 using HotBox.Core.Options;
 using HotBox.Infrastructure.Data;
 using HotBox.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,6 +57,28 @@ public static class InfrastructureServiceExtensions
                         $"Unsupported database provider: {dbOptions.Provider}");
             }
         });
+
+        // Register ASP.NET Identity
+        services.AddIdentity<AppUser, IdentityRole<Guid>>(options =>
+        {
+            // Password policy
+            options.Password.RequireDigit = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequiredLength = 8;
+            options.Password.RequiredUniqueChars = 4;
+
+            // Lockout settings
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.AllowedForNewUsers = true;
+
+            // User settings
+            options.User.RequireUniqueEmail = true;
+        })
+        .AddEntityFrameworkStores<HotBoxDbContext>()
+        .AddDefaultTokenProviders();
 
         // Register repositories
         services.AddScoped<IChannelRepository, ChannelRepository>();
