@@ -20,4 +20,6 @@ public interface IChannelRepository
     Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken ct = default);
 
     Task<int> GetMaxSortOrderAsync(CancellationToken ct = default);
+
+    Task ReorderAsync(List<Guid> channelIds, CancellationToken ct = default);
 }

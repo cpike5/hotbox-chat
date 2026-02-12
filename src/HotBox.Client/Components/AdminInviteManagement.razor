@@ -1,0 +1,384 @@
+@using HotBox.Client.Models
+@using HotBox.Client.Services
+@inject ApiClient Api
+@inject IJSRuntime JS
+@inject ILogger<AdminInviteManagement> Logger
+
+<div class="section-header">
+    <div>
+        <h2>Invites</h2>
+        <div class="section-header-subtitle">Manage invite codes and links</div>
+    </div>
+    <button class="btn btn-primary" @onclick="OpenGenerateModal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Generate Invite
+    </button>
+</div>
+
+@if (_isLoading)
+{
+    <div class="admin-empty-state">
+        <span class="spinner"></span>
+    </div>
+}
+else if (_invites.Count == 0)
+{
+    <div class="admin-table-wrap">
+        <div class="admin-empty-state">
+            <h3>No invites</h3>
+            <p>Generate your first invite to let people join.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Status</th>
+                    <th>Created By</th>
+                    <th>Created</th>
+                    <th>Expires</th>
+                    <th>Uses</th>
+                    <th style="width:120px; text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var invite in _invites)
+                {
+                    var status = GetInviteStatus(invite);
+                    <tr>
+                        <td><span class="invite-code">@invite.Code</span></td>
+                        <td>
+                            @switch (status)
+                            {
+                                case "active":
+                                    <span class="badge badge-active">Active</span>
+                                    break;
+                                case "expired":
+                                    <span class="badge badge-expired">Expired</span>
+                                    break;
+                                case "revoked":
+                                    <span class="badge badge-revoked">Revoked</span>
+                                    break;
+                                case "used-up":
+                                    <span class="badge badge-used-up">Used Up</span>
+                                    break;
+                            }
+                        </td>
+                        <td style="font-size:13px;">@(invite.CreatedByDisplayName ?? "--")</td>
+                        <td><span class="date-cell">@FormatDate(invite.CreatedAtUtc)</span></td>
+                        <td><span class="date-cell">@FormatNullableDate(invite.ExpiresAtUtc)</span></td>
+                        <td>
+                            <span class="uses-cell">
+                                @invite.UseCount / @(invite.MaxUses.HasValue ? invite.MaxUses.Value.ToString() : "\u221E")
+                            </span>
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="copy-btn @(_copiedCode == invite.Code ? "copied" : "")"
+                                        @onclick="() => CopyInviteCode(invite.Code)">
+                                    @if (_copiedCode == invite.Code)
+                                    {
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        <span>Copied!</span>
+                                    }
+                                    else
+                                    {
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                        <span>Copy</span>
+                                    }
+                                </button>
+                                @if (status == "active")
+                                {
+                                    <button class="btn-icon danger" title="Revoke"
+                                            @onclick="() => OpenRevokeConfirm(invite)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@* Toast *@
+@if (_toastMessage is not null)
+{
+    <div class="toast-container">
+        <div class="toast @(_toastType == "error" ? "toast-error" : "toast-success") show">
+            @if (_toastType == "success")
+            {
+                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            }
+            else
+            {
+                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+            }
+            <span>@_toastMessage</span>
+        </div>
+    </div>
+}
+
+@* Generate Invite Modal *@
+@if (_showGenerateModal)
+{
+    <div class="modal-overlay open" @onclick="CloseModals">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Generate Invite</h3>
+                <button class="modal-close" @onclick="CloseModals">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label admin-form-label">
+                        Expires On
+                        <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span>
+                    </label>
+                    <input type="date" class="form-input admin-form-input"
+                           @bind="_generateExpiry" style="color-scheme:dark;" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label admin-form-label">
+                        Max Uses
+                        <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional, leave blank for unlimited)</span>
+                    </label>
+                    <input type="number" class="form-input admin-form-input"
+                           @bind="_generateMaxUses" @bind:event="oninput" placeholder="e.g. 10" min="1" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+                <button class="btn btn-primary" @onclick="GenerateInvite" disabled="@_isSubmitting">
+                    @(_isSubmitting ? "Generating..." : "Generate")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@* Revoke Confirmation Modal *@
+@if (_showRevokeConfirm && _revokeInvite is not null)
+{
+    <div class="modal-overlay open" @onclick="CloseModals">
+        <div class="modal modal-confirm" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Revoke Invite</h3>
+                <button class="modal-close" @onclick="CloseModals">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="confirm-message">
+                    Are you sure you want to revoke invite <strong>@_revokeInvite.Code</strong>?
+                    Anyone with this code will no longer be able to join.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+                <button class="btn btn-danger" @onclick="ConfirmRevokeInvite" disabled="@_isSubmitting">
+                    @(_isSubmitting ? "Revoking..." : "Revoke Invite")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AdminInviteResponse> _invites = new();
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+
+    // Generate modal
+    private bool _showGenerateModal;
+    private DateTime? _generateExpiry;
+    private int? _generateMaxUses;
+
+    // Revoke confirm
+    private bool _showRevokeConfirm;
+    private AdminInviteResponse? _revokeInvite;
+
+    // Copy state
+    private string? _copiedCode;
+
+    // Toast
+    private string? _toastMessage;
+    private string _toastType = "success";
+
+    [Parameter]
+    public bool IsActive { get; set; }
+
+    private bool _hasLoaded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsActive && !_hasLoaded)
+        {
+            _hasLoaded = true;
+            await LoadInvites();
+        }
+    }
+
+    private async Task LoadInvites()
+    {
+        _isLoading = true;
+        try
+        {
+            _invites = await Api.GetAdminInvitesAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load admin invites");
+            ShowToast("Failed to load invites.", "error");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenGenerateModal()
+    {
+        _generateExpiry = DateTime.UtcNow.AddDays(30).Date;
+        _generateMaxUses = null;
+        _showGenerateModal = true;
+    }
+
+    private void OpenRevokeConfirm(AdminInviteResponse invite)
+    {
+        _revokeInvite = invite;
+        _showRevokeConfirm = true;
+    }
+
+    private void CloseModals()
+    {
+        _showGenerateModal = false;
+        _showRevokeConfirm = false;
+    }
+
+    private async Task GenerateInvite()
+    {
+        _isSubmitting = true;
+        try
+        {
+            DateTime? expiresAtUtc = _generateExpiry.HasValue
+                ? DateTime.SpecifyKind(_generateExpiry.Value, DateTimeKind.Utc)
+                : null;
+
+            var result = await Api.GenerateInviteAsync(expiresAtUtc, _generateMaxUses);
+            if (result is not null)
+            {
+                _invites.Insert(0, result);
+                CloseModals();
+                ShowToast($"Invite {result.Code} generated", "success");
+            }
+            else
+            {
+                ShowToast("Failed to generate invite.", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to generate invite");
+            ShowToast("Failed to generate invite.", "error");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task ConfirmRevokeInvite()
+    {
+        if (_revokeInvite is null) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var success = await Api.RevokeInviteAsync(_revokeInvite.Code);
+            if (success)
+            {
+                var code = _revokeInvite.Code;
+                _revokeInvite.IsRevoked = true;
+                CloseModals();
+                ShowToast($"Invite {code} revoked", "success");
+            }
+            else
+            {
+                ShowToast("Failed to revoke invite.", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to revoke invite {InviteCode}", _revokeInvite.Code);
+            ShowToast("Failed to revoke invite.", "error");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task CopyInviteCode(string code)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", code);
+            _copiedCode = code;
+            StateHasChanged();
+
+            await Task.Delay(2000);
+            if (_copiedCode == code)
+            {
+                _copiedCode = null;
+                StateHasChanged();
+            }
+        }
+        catch
+        {
+            ShowToast("Failed to copy to clipboard", "error");
+        }
+    }
+
+    private static string GetInviteStatus(AdminInviteResponse invite)
+    {
+        if (invite.IsRevoked) return "revoked";
+        if (invite.MaxUses.HasValue && invite.UseCount >= invite.MaxUses.Value) return "used-up";
+        if (invite.ExpiresAtUtc.HasValue && invite.ExpiresAtUtc.Value < DateTime.UtcNow) return "expired";
+        return "active";
+    }
+
+    private static string FormatDate(DateTime utcDate)
+    {
+        if (utcDate == default) return "--";
+        return utcDate.ToLocalTime().ToString("MMM d, yyyy");
+    }
+
+    private static string FormatNullableDate(DateTime? utcDate)
+    {
+        if (!utcDate.HasValue || utcDate.Value == default) return "--";
+        return utcDate.Value.ToLocalTime().ToString("MMM d, yyyy");
+    }
+
+    private void ShowToast(string message, string type)
+    {
+        _toastMessage = message;
+        _toastType = type;
+        StateHasChanged();
+        _ = HideToastAfterDelay();
+    }
+
+    private async Task HideToastAfterDelay()
+    {
+        await Task.Delay(3000);
+        _toastMessage = null;
+        await InvokeAsync(StateHasChanged);
+    }
+}

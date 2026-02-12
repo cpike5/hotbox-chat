@@ -11,4 +11,6 @@ public class UserInfo
     public string? AvatarUrl { get; set; }
 
     public UserStatus Status { get; set; } = UserStatus.Online;
+
+    public string Role { get; set; } = "Member";
 }

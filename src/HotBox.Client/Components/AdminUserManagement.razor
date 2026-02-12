@@ -1,0 +1,422 @@
+@using HotBox.Client.Models
+@using HotBox.Client.Services
+@using HotBox.Client.State
+@inject ApiClient Api
+@inject AuthState AuthState
+@inject ILogger<AdminUserManagement> Logger
+
+<div class="section-header">
+    <div>
+        <h2>Users</h2>
+        <div class="section-header-subtitle">Manage user accounts and roles</div>
+    </div>
+    <button class="btn btn-primary" @onclick="OpenCreateModal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Create User
+    </button>
+</div>
+
+<div class="filter-bar">
+    <div class="filter-input-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" class="filter-input" placeholder="Search users by name or email..."
+               @bind="_searchFilter" @bind:event="oninput" />
+    </div>
+</div>
+
+@if (_isLoading)
+{
+    <div class="admin-empty-state">
+        <span class="spinner"></span>
+    </div>
+}
+else if (_users.Count == 0)
+{
+    <div class="admin-table-wrap">
+        <div class="admin-empty-state">
+            <h3>No users</h3>
+            <p>Create the first user to get started.</p>
+        </div>
+    </div>
+}
+else if (FilteredUsers.Count == 0)
+{
+    <div class="admin-table-wrap">
+        <div class="admin-empty-state" style="padding:32px;">
+            <h3>No matching users</h3>
+            <p>Try a different search term.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Joined</th>
+                    <th>Last Seen</th>
+                    <th style="width:100px; text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in FilteredUsers)
+                {
+                    <tr>
+                        <td>
+                            <div class="user-cell">
+                                <div class="user-cell-avatar" style="background:@GetAvatarColor(user.DisplayName);">
+                                    @GetInitials(user.DisplayName)
+                                </div>
+                                <span class="user-cell-name">@user.DisplayName</span>
+                            </div>
+                        </td>
+                        <td style="color:var(--text-muted);font-size:12px;">@user.Email</td>
+                        <td>
+                            <select class="role-select"
+                                    value="@user.Role"
+                                    @onchange="(e) => ChangeRole(user, e)">
+                                <option value="Admin">Admin</option>
+                                <option value="Moderator">Moderator</option>
+                                <option value="Member">Member</option>
+                            </select>
+                        </td>
+                        <td><span class="date-cell">@FormatDate(user.CreatedAtUtc)</span></td>
+                        <td><span class="date-cell">@FormatDate(user.LastSeenUtc)</span></td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="btn-icon danger" title="Delete User"
+                                        @onclick="() => OpenDeleteConfirm(user)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@* Toast *@
+@if (_toastMessage is not null)
+{
+    <div class="toast-container">
+        <div class="toast @(_toastType == "error" ? "toast-error" : "toast-success") show">
+            @if (_toastType == "success")
+            {
+                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            }
+            else
+            {
+                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+            }
+            <span>@_toastMessage</span>
+        </div>
+    </div>
+}
+
+@* Create User Modal *@
+@if (_showCreateModal)
+{
+    <div class="modal-overlay open" @onclick="CloseModals">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Create User</h3>
+                <button class="modal-close" @onclick="CloseModals">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-input-row">
+                    <div class="form-group">
+                        <label class="form-label admin-form-label">Display Name</label>
+                        <input type="text" class="form-input admin-form-input @(_createErrors.ContainsKey("name") ? "error" : "")"
+                               @bind="_createDisplayName" @bind:event="oninput" placeholder="Display name" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label admin-form-label">Role</label>
+                        <select class="form-select" @bind="_createRole">
+                            <option value="Member">Member</option>
+                            <option value="Moderator">Moderator</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label admin-form-label">Email</label>
+                    <input type="email" class="form-input admin-form-input @(_createErrors.ContainsKey("email") ? "error" : "")"
+                           @bind="_createEmail" @bind:event="oninput" placeholder="user@example.com" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label admin-form-label">Password</label>
+                    <input type="password" class="form-input admin-form-input @(_createErrors.ContainsKey("password") ? "error" : "")"
+                           @bind="_createPassword" @bind:event="oninput" placeholder="Minimum 8 characters" />
+                </div>
+                @if (_createErrors.Count > 0)
+                {
+                    <div class="form-error visible">@_createErrors.Values.First()</div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+                <button class="btn btn-primary" @onclick="CreateUser" disabled="@_isSubmitting">
+                    @(_isSubmitting ? "Creating..." : "Create User")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@* Delete Confirmation Modal *@
+@if (_showDeleteConfirm && _deleteUser is not null)
+{
+    <div class="modal-overlay open" @onclick="CloseModals">
+        <div class="modal modal-confirm" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Delete User</h3>
+                <button class="modal-close" @onclick="CloseModals">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="confirm-message">
+                    Are you sure you want to permanently delete <strong>@_deleteUser.DisplayName</strong>?
+                    This action cannot be undone.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+                <button class="btn btn-danger" @onclick="ConfirmDeleteUser" disabled="@_isSubmitting">
+                    @(_isSubmitting ? "Deleting..." : "Delete User")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AdminUserResponse> _users = new();
+    private string _searchFilter = string.Empty;
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+
+    // Create modal
+    private bool _showCreateModal;
+    private string _createDisplayName = string.Empty;
+    private string _createEmail = string.Empty;
+    private string _createPassword = string.Empty;
+    private string _createRole = "Member";
+    private Dictionary<string, string> _createErrors = new();
+
+    // Delete confirm
+    private bool _showDeleteConfirm;
+    private AdminUserResponse? _deleteUser;
+
+    // Toast
+    private string? _toastMessage;
+    private string _toastType = "success";
+
+    private List<AdminUserResponse> FilteredUsers
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_searchFilter))
+                return _users;
+
+            var query = _searchFilter.ToLowerInvariant();
+            return _users.Where(u =>
+                u.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                u.Email.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+    }
+
+    [Parameter]
+    public bool IsActive { get; set; }
+
+    private bool _hasLoaded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsActive && !_hasLoaded)
+        {
+            _hasLoaded = true;
+            await LoadUsers();
+        }
+    }
+
+    private async Task LoadUsers()
+    {
+        _isLoading = true;
+        try
+        {
+            _users = await Api.GetAdminUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load admin users");
+            ShowToast("Failed to load users.", "error");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        _createDisplayName = string.Empty;
+        _createEmail = string.Empty;
+        _createPassword = string.Empty;
+        _createRole = "Member";
+        _createErrors = new();
+        _showCreateModal = true;
+    }
+
+    private void OpenDeleteConfirm(AdminUserResponse user)
+    {
+        _deleteUser = user;
+        _showDeleteConfirm = true;
+    }
+
+    private void CloseModals()
+    {
+        _showCreateModal = false;
+        _showDeleteConfirm = false;
+    }
+
+    private async Task CreateUser()
+    {
+        _createErrors = new();
+
+        if (string.IsNullOrWhiteSpace(_createDisplayName))
+            _createErrors["name"] = "Display name is required.";
+        if (string.IsNullOrWhiteSpace(_createEmail))
+            _createErrors["email"] = "Email is required.";
+        if (string.IsNullOrWhiteSpace(_createPassword) || _createPassword.Length < 8)
+            _createErrors["password"] = "Password must be at least 8 characters.";
+
+        if (_createErrors.Count > 0) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var result = await Api.CreateAdminUserAsync(
+                _createEmail.Trim(), _createPassword, _createDisplayName.Trim(), _createRole);
+
+            if (result is not null)
+            {
+                _users.Add(result);
+                CloseModals();
+                ShowToast($"User \"{_createDisplayName.Trim()}\" created", "success");
+            }
+            else
+            {
+                ShowToast("Failed to create user. The email may already be in use.", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to create admin user");
+            ShowToast("Failed to create user.", "error");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task ChangeRole(AdminUserResponse user, ChangeEventArgs e)
+    {
+        var newRole = e.Value?.ToString();
+        if (string.IsNullOrEmpty(newRole) || newRole == user.Role) return;
+
+        var oldRole = user.Role;
+        user.Role = newRole;
+
+        var success = await Api.ChangeUserRoleAsync(user.Id, newRole);
+        if (success)
+        {
+            ShowToast($"Role updated for {user.DisplayName}", "success");
+        }
+        else
+        {
+            user.Role = oldRole;
+            ShowToast("Failed to update role.", "error");
+        }
+    }
+
+    private async Task ConfirmDeleteUser()
+    {
+        if (_deleteUser is null) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var success = await Api.DeleteUserAsync(_deleteUser.Id);
+            if (success)
+            {
+                var name = _deleteUser.DisplayName;
+                _users.RemoveAll(u => u.Id == _deleteUser.Id);
+                CloseModals();
+                ShowToast($"User \"{name}\" deleted", "success");
+            }
+            else
+            {
+                ShowToast("Failed to delete user.", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete user {UserId}", _deleteUser.Id);
+            ShowToast("Failed to delete user.", "error");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void ShowToast(string message, string type)
+    {
+        _toastMessage = message;
+        _toastType = type;
+        StateHasChanged();
+        _ = HideToastAfterDelay();
+    }
+
+    private async Task HideToastAfterDelay()
+    {
+        await Task.Delay(3000);
+        _toastMessage = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static string FormatDate(DateTime utcDate)
+    {
+        if (utcDate == default) return "--";
+        return utcDate.ToLocalTime().ToString("MMM d, yyyy");
+    }
+
+    private static string GetInitials(string name)
+    {
+        var cleaned = System.Text.RegularExpressions.Regex.Replace(name, @"[^a-zA-Z0-9 ]", "");
+        var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpperInvariant();
+        return name.Length >= 2 ? name[..2].ToUpperInvariant() : name.ToUpperInvariant();
+    }
+
+    private static string GetAvatarColor(string name)
+    {
+        var hash = 0;
+        foreach (var c in name)
+        {
+            hash = c + ((hash << 5) - hash);
+        }
+        return $"hsl({Math.Abs(hash) % 360}, 32%, 38%)";
+    }
+}

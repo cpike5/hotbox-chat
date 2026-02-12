@@ -34,7 +34,7 @@ else
             var response = await ApiClient.RefreshTokenAsync();
             if (response is not null)
             {
-                var userInfo = new UserInfo { DisplayName = "User" };
+                var userInfo = JwtParser.ParseUserInfoFromToken(response.AccessToken);
                 AuthState.SetAuthenticated(response.AccessToken, userInfo);
             }
         }

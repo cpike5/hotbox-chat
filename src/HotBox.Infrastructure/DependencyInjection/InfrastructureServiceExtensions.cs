@@ -93,6 +93,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IChannelService, ChannelService>();
         services.AddScoped<IMessageService, MessageService>();
         services.AddScoped<IDirectMessageService, DirectMessageService>();
+        services.AddScoped<IServerSettingsService, ServerSettingsService>();
 
         // Singleton services (in-memory state shared across connections)
         services.AddSingleton<PresenceService>();

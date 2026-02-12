@@ -83,4 +83,27 @@ public class ChannelRepository : IChannelRepository
 
         return await _context.Channels.MaxAsync(c => c.SortOrder, ct);
     }
+
+    public async Task ReorderAsync(List<Guid> channelIds, CancellationToken ct = default)
+    {
+        var channels = await _context.Channels
+            .Where(c => channelIds.Contains(c.Id))
+            .ToListAsync(ct);
+
+        if (channels.Count != channelIds.Count)
+        {
+            var foundIds = channels.Select(c => c.Id).ToHashSet();
+            var missing = channelIds.Where(id => !foundIds.Contains(id)).ToList();
+            throw new KeyNotFoundException(
+                $"Channels not found: {string.Join(", ", missing)}");
+        }
+
+        for (var i = 0; i < channelIds.Count; i++)
+        {
+            var channel = channels.First(c => c.Id == channelIds[i]);
+            channel.SortOrder = i;
+        }
+
+        await _context.SaveChangesAsync(ct);
+    }
 }
