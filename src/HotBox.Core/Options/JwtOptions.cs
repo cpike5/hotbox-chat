@@ -10,7 +10,7 @@ public class JwtOptions
 
     public string Audience { get; set; } = "HotBox";
 
-    public TimeSpan AccessTokenExpiration { get; set; } = TimeSpan.FromMinutes(30);
+    public TimeSpan AccessTokenExpiration { get; set; } = TimeSpan.FromMinutes(15);
 
     public TimeSpan RefreshTokenExpiration { get; set; } = TimeSpan.FromDays(7);
 }
