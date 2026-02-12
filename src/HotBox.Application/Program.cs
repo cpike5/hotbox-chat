@@ -28,10 +28,13 @@ try
     builder.Services.AddApplicationServices(builder.Configuration);
     builder.Services.AddHostedService<DatabaseSeeder>();
 
+    // Health checks (used by Docker and load balancers)
+    builder.Services.AddHealthChecks()
+        .AddDbContextCheck<HotBoxDbContext>("database");
+
     var app = builder.Build();
 
-    // Auto-migrate database in development
-    if (app.Environment.IsDevelopment())
+    // Auto-migrate database on startup
     {
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HotBoxDbContext>();
@@ -63,6 +66,7 @@ try
     app.MapControllers();
     app.MapHub<ChatHub>("/hubs/chat");
     app.MapHub<VoiceSignalingHub>("/hubs/voice");
+    app.MapHealthChecks("/health");
     app.MapFallbackToFile("index.html");
 
     // Wire up PresenceService status change events to broadcast via SignalR.

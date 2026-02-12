@@ -2,33 +2,57 @@
 @inject PresenceState PresenceState
 @implements IDisposable
 
-@{ var isFirst = true; }
-@foreach (var group in GroupedUsers)
+@if (PresenceState.IsLoading)
 {
-    <div class="members-section-label"
-         role="heading"
-         aria-level="3"
-         style="@(!isFirst ? "margin-top: 16px;" : "")">
-        @group.Key - @group.Value.Count
-    </div>
-    <div role="list">
-        @foreach (var user in group.Value)
-        {
-            <div class="member-item @(user.Status == "Offline" ? "offline" : "")"
-                 role="listitem"
-                 aria-label="@user.DisplayName, @GetStatusLabel(user.Status)">
-                <div class="member-avatar" style="background: @GetAvatarColor(user.DisplayName);" aria-hidden="true">
-                    @GetInitials(user.DisplayName)
-                    <span class="status-dot @GetStatusCssClass(user.Status)" aria-hidden="true"></span>
+    <div class="skeleton skeleton-section-label"></div>
+    @for (var i = 0; i < 4; i++)
+    {
+        <div class="skeleton-member">
+            <div class="skeleton skeleton-avatar"></div>
+            <div class="skeleton skeleton-member-name" style="width: @(_skeletonNameWidths[i % _skeletonNameWidths.Length])px;"></div>
+        </div>
+    }
+    <div class="skeleton skeleton-section-label" style="margin-top: 16px;"></div>
+    @for (var i = 0; i < 3; i++)
+    {
+        <div class="skeleton-member">
+            <div class="skeleton skeleton-avatar"></div>
+            <div class="skeleton skeleton-member-name" style="width: @(_skeletonNameWidths[(i + 2) % _skeletonNameWidths.Length])px;"></div>
+        </div>
+    }
+}
+else
+{
+    var isFirst = true;
+    @foreach (var group in GroupedUsers)
+    {
+        <div class="members-section-label"
+             role="heading"
+             aria-level="3"
+             style="@(!isFirst ? "margin-top: 16px;" : "")">
+            @group.Key - @group.Value.Count
+        </div>
+        <div role="list">
+            @foreach (var user in group.Value)
+            {
+                <div class="member-item @(user.Status == "Offline" ? "offline" : "")"
+                     role="listitem"
+                     aria-label="@user.DisplayName, @GetStatusLabel(user.Status)">
+                    <div class="member-avatar" style="background: @GetAvatarColor(user.DisplayName);" aria-hidden="true">
+                        @GetInitials(user.DisplayName)
+                        <span class="status-dot @GetStatusCssClass(user.Status)" aria-hidden="true"></span>
+                    </div>
+                    <span class="member-name">@user.DisplayName</span>
                 </div>
-                <span class="member-name">@user.DisplayName</span>
-            </div>
-        }
-    </div>
-    isFirst = false;
+            }
+        </div>
+        isFirst = false;
+    }
 }
 
 @code {
+    private static readonly int[] _skeletonNameWidths = { 72, 56, 88, 64, 48, 80, 60 };
+
     private static readonly string[] _statusOrder = { "Online", "Idle", "DoNotDisturb", "Offline" };
 
     private static readonly Dictionary<string, string> _statusLabels = new()

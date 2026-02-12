@@ -14,6 +14,10 @@ public class ChannelState
 
     public bool IsLoadingMessages { get; private set; }
 
+    public bool IsLoadingChannels { get; private set; }
+
+    public bool IsLoadingOlderMessages { get; private set; }
+
     public event Action? OnChange;
 
     public void SetChannels(List<ChannelResponse> channels)
@@ -76,6 +80,18 @@ public class ChannelState
     public void SetLoadingMessages(bool loading)
     {
         IsLoadingMessages = loading;
+        NotifyStateChanged();
+    }
+
+    public void SetLoadingChannels(bool loading)
+    {
+        IsLoadingChannels = loading;
+        NotifyStateChanged();
+    }
+
+    public void SetLoadingOlderMessages(bool loading)
+    {
+        IsLoadingOlderMessages = loading;
         NotifyStateChanged();
     }
 

@@ -5,17 +5,32 @@
 @inject NavigationManager Navigation
 @implements IDisposable
 
-@foreach (var channel in TextChannels)
+@if (ChannelState.IsLoadingChannels)
 {
-    var isActive = ChannelState.ActiveChannel?.Id == channel.Id;
-    <button class="channel-tab @(isActive ? "active" : "")"
-            @onclick="() => SelectChannel(channel)">
-        <span class="tab-hash">#</span>
-        <span>@channel.Name</span>
-    </button>
+    @for (var i = 0; i < 5; i++)
+    {
+        <div class="skeleton-channel">
+            <div class="skeleton skeleton-channel-hash"></div>
+            <div class="skeleton skeleton-channel-name" style="width: @(_skeletonWidths[i % _skeletonWidths.Length])px;"></div>
+        </div>
+    }
+}
+else
+{
+    @foreach (var channel in TextChannels)
+    {
+        var isActive = ChannelState.ActiveChannel?.Id == channel.Id;
+        <button class="channel-tab @(isActive ? "active" : "")"
+                @onclick="() => SelectChannel(channel)">
+            <span class="tab-hash">#</span>
+            <span>@channel.Name</span>
+        </button>
+    }
 }
 
 @code {
+    private static readonly int[] _skeletonWidths = { 64, 48, 72, 56, 44 };
+
     private IEnumerable<ChannelResponse> TextChannels =>
         ChannelState.Channels
             .Where(c => c.Type == ChannelType.Text)
