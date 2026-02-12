@@ -3,6 +3,7 @@ using HotBox.Core.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
 namespace HotBox.Application.DependencyInjection;
@@ -31,7 +32,7 @@ public static class ApplicationServiceExtensions
                 "Jwt:Secret must be configured and at least 32 characters for HMAC-SHA256");
         }
 
-        services.AddAuthentication(options =>
+        var authBuilder = services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
             options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -51,6 +52,34 @@ public static class ApplicationServiceExtensions
                 ClockSkew = TimeSpan.FromSeconds(30),
             };
         });
+
+        // Conditionally add OAuth providers
+        var oauthOptions = configuration
+            .GetSection(OAuthOptions.SectionName)
+            .Get<OAuthOptions>()
+            ?? new OAuthOptions();
+
+        if (oauthOptions.Google.Enabled
+            && !string.IsNullOrWhiteSpace(oauthOptions.Google.ClientId)
+            && !string.IsNullOrWhiteSpace(oauthOptions.Google.ClientSecret))
+        {
+            authBuilder.AddGoogle(options =>
+            {
+                options.ClientId = oauthOptions.Google.ClientId;
+                options.ClientSecret = oauthOptions.Google.ClientSecret;
+            });
+        }
+
+        if (oauthOptions.Microsoft.Enabled
+            && !string.IsNullOrWhiteSpace(oauthOptions.Microsoft.ClientId)
+            && !string.IsNullOrWhiteSpace(oauthOptions.Microsoft.ClientSecret))
+        {
+            authBuilder.AddMicrosoftAccount(options =>
+            {
+                options.ClientId = oauthOptions.Microsoft.ClientId;
+                options.ClientSecret = oauthOptions.Microsoft.ClientSecret;
+            });
+        }
 
         services.AddAuthorization();
 
