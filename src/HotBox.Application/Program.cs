@@ -1,4 +1,5 @@
 using HotBox.Application.DependencyInjection;
+using HotBox.Application.Hubs;
 using HotBox.Infrastructure.Data;
 using HotBox.Infrastructure.Data.Seeding;
 using HotBox.Infrastructure.DependencyInjection;
@@ -47,6 +48,7 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
+    app.MapHub<ChatHub>("/hubs/chat");
 
     app.Run();
 }

@@ -18,6 +18,7 @@ public class MessageRepository : IMessageRepository
     {
         return await _context.Messages
             .AsNoTracking()
+            .Include(m => m.Author)
             .FirstOrDefaultAsync(m => m.Id == id, ct);
     }
 
@@ -29,6 +30,7 @@ public class MessageRepository : IMessageRepository
     {
         var query = _context.Messages
             .AsNoTracking()
+            .Include(m => m.Author)
             .Where(m => m.ChannelId == channelId);
 
         if (before.HasValue)
@@ -49,6 +51,10 @@ public class MessageRepository : IMessageRepository
     {
         _context.Messages.Add(message);
         await _context.SaveChangesAsync(ct);
-        return message;
+
+        return await _context.Messages
+            .AsNoTracking()
+            .Include(m => m.Author)
+            .FirstAsync(m => m.Id == message.Id, ct);
     }
 }
