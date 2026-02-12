@@ -8,20 +8,19 @@ COPY src/HotBox.Infrastructure/HotBox.Infrastructure.csproj src/HotBox.Infrastru
 COPY src/HotBox.Application/HotBox.Application.csproj src/HotBox.Application/
 COPY src/HotBox.Client/HotBox.Client.csproj src/HotBox.Client/
 
-# Restore dependencies
-RUN dotnet restore
+# Restore dependencies (app only, skip test projects)
+RUN dotnet restore src/HotBox.Application/HotBox.Application.csproj
 
 # Copy everything else and build
 COPY src/ src/
 RUN dotnet publish src/HotBox.Application/HotBox.Application.csproj \
     -c Release \
-    -o /app/publish \
-    --no-restore
+    -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
-RUN adduser --disabled-password --gecos '' --uid 1654 hotbox
+RUN adduser --disabled-password --gecos '' hotbox
 USER hotbox
 
 COPY --from=build /app/publish .
