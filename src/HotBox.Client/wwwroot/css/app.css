@@ -940,14 +940,15 @@ input, textarea {
 }
 
 .message-input button {
-  width: 34px;
-  height: 34px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
   transition: all var(--transition-fast);
+  margin: 1em;
 }
 
 .message-input button:hover {
