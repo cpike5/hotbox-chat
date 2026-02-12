@@ -1,0 +1,90 @@
+@using HotBox.Client.State
+@using HotBox.Client.Services
+@inject ChannelState ChannelState
+@inject ChatHubService ChatHub
+@implements IDisposable
+
+<div class="message-input-wrapper">
+    <div class="message-input">
+        <input type="text"
+               @bind="MessageText"
+               @bind:event="oninput"
+               @onkeydown="HandleKeyDown"
+               placeholder="@GetPlaceholder()"
+               disabled="@(ChannelState.ActiveChannel is null)" />
+        <button @onclick="SendMessage"
+                disabled="@(ChannelState.ActiveChannel is null)"
+                aria-label="Send message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+        </button>
+    </div>
+    <TypingIndicator />
+</div>
+
+@code {
+    private string MessageText { get; set; } = string.Empty;
+    private DateTime _lastTypingSignal = DateTime.MinValue;
+    private static readonly TimeSpan TypingDebounceInterval = TimeSpan.FromSeconds(3);
+
+    protected override void OnInitialized()
+    {
+        ChannelState.OnChange += StateHasChanged;
+    }
+
+    private string GetPlaceholder()
+    {
+        if (ChannelState.ActiveChannel is null)
+            return "Select a channel to start chatting";
+
+        return $"Message #{ChannelState.ActiveChannel.Name}";
+    }
+
+    private async Task HandleKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendMessage();
+            return;
+        }
+
+        // Debounced typing indicator
+        await SendTypingSignalAsync();
+    }
+
+    private async Task SendMessage()
+    {
+        var content = MessageText.Trim();
+        if (string.IsNullOrEmpty(content) || ChannelState.ActiveChannel is null)
+            return;
+
+        var channelId = ChannelState.ActiveChannel.Id;
+        MessageText = string.Empty;
+
+        if (ChatHub.IsConnected)
+        {
+            await ChatHub.SendMessageAsync(channelId, content);
+            await ChatHub.StopTypingAsync(channelId);
+        }
+    }
+
+    private async Task SendTypingSignalAsync()
+    {
+        if (ChannelState.ActiveChannel is null || !ChatHub.IsConnected)
+            return;
+
+        var now = DateTime.UtcNow;
+        if ((now - _lastTypingSignal) < TypingDebounceInterval)
+            return;
+
+        _lastTypingSignal = now;
+        await ChatHub.StartTypingAsync(ChannelState.ActiveChannel.Id);
+    }
+
+    public void Dispose()
+    {
+        ChannelState.OnChange -= StateHasChanged;
+    }
+}

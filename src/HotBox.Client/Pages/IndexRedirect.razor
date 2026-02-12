@@ -1,0 +1,19 @@
+@page "/"
+@inject NavigationManager Navigation
+
+<PageTitle>HotBox</PageTitle>
+
+<div class="page-placeholder">
+    <h2>Welcome to HotBox</h2>
+    <p>Select a channel or direct message to get started.</p>
+</div>
+
+@code {
+    // Future: redirect to first available channel once channel list is loaded.
+    // For now, show a welcome placeholder since we don't have channel data yet.
+    //
+    // protected override void OnInitialized()
+    // {
+    //     Navigation.NavigateTo("/channels/{firstChannelId}", replace: true);
+    // }
+}

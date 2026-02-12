@@ -1,0 +1,71 @@
+@page "/channels/{Id:guid}"
+@using HotBox.Client.State
+@using HotBox.Client.Services
+@inject ChannelState ChannelState
+@inject ApiClient Api
+@inject ChatHubService ChatHub
+@implements IDisposable
+
+<PageTitle>HotBox - @(ChannelState.ActiveChannel?.Name ?? "Channel")</PageTitle>
+
+<MessageList />
+<MessageInput />
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private Guid _currentChannelId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Avoid reloading if navigating to the same channel
+        if (_currentChannelId == Id)
+            return;
+
+        _currentChannelId = Id;
+
+        // Set active channel from the already-loaded channel list
+        var channel = ChannelState.Channels.FirstOrDefault(c => c.Id == Id);
+        if (channel is not null)
+        {
+            ChannelState.SetActiveChannel(channel);
+        }
+        else
+        {
+            // Channel not in local state; fetch it directly
+            var fetched = await Api.GetChannelAsync(Id);
+            if (fetched is not null)
+            {
+                ChannelState.SetActiveChannel(fetched);
+            }
+        }
+
+        // Load messages for this channel
+        ChannelState.SetLoadingMessages(true);
+        try
+        {
+            var messages = await Api.GetMessagesAsync(Id);
+            ChannelState.SetMessages(messages);
+        }
+        finally
+        {
+            ChannelState.SetLoadingMessages(false);
+        }
+
+        // Join the SignalR channel group if connected
+        if (ChatHub.IsConnected)
+        {
+            await ChatHub.JoinChannelAsync(Id);
+        }
+    }
+
+    public void Dispose()
+    {
+        // Leave the SignalR channel group when navigating away
+        if (ChatHub.IsConnected && _currentChannelId != Guid.Empty)
+        {
+            _ = ChatHub.LeaveChannelAsync(_currentChannelId);
+        }
+    }
+}
