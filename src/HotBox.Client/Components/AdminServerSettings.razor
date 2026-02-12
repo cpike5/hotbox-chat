@@ -1,0 +1,171 @@
+@using HotBox.Client.Models
+@using HotBox.Client.Services
+@using HotBox.Core.Enums
+@inject ApiClient Api
+@inject ILogger<AdminServerSettings> Logger
+
+<div class="section-header">
+    <div>
+        <h2>Server Settings</h2>
+        <div class="section-header-subtitle">Configure your HotBox server</div>
+    </div>
+</div>
+
+@if (_isLoading)
+{
+    <div class="admin-empty-state">
+        <span class="spinner"></span>
+    </div>
+}
+else
+{
+    <div class="settings-form">
+        <div class="form-group">
+            <label class="form-label admin-form-label">Server Name</label>
+            <input type="text"
+                   class="form-input admin-form-input @(_serverNameError is not null ? "error" : "")"
+                   @bind="_serverName"
+                   @bind:event="oninput"
+                   placeholder="My Server" />
+            @if (_serverNameError is not null)
+            {
+                <div class="form-error visible">@_serverNameError</div>
+            }
+        </div>
+
+        <div class="form-group">
+            <label class="form-label admin-form-label">Registration Mode</label>
+            <div class="segmented-control">
+                @foreach (var mode in Enum.GetValues<RegistrationMode>())
+                {
+                    var label = mode switch
+                    {
+                        RegistrationMode.InviteOnly => "Invite Only",
+                        _ => mode.ToString()
+                    };
+                    <button class="segmented-option @(_registrationMode == mode ? "active" : "")"
+                            @onclick="() => _registrationMode = mode">
+                        @label
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; margin-top: 28px;">
+            <button class="btn btn-primary" @onclick="SaveSettings" disabled="@_isSaving">
+                @if (_isSaving)
+                {
+                    <span class="spinner" style="width:14px;height:14px;"></span>
+                    <span>Saving...</span>
+                }
+                else
+                {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                    <span>Save Changes</span>
+                }
+            </button>
+            @if (_showSavedMessage)
+            {
+                <span class="settings-saved-msg visible">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Saved
+                </span>
+            }
+        </div>
+
+        @if (_errorMessage is not null)
+        {
+            <div class="admin-error-banner" style="margin-top: 16px;">@_errorMessage</div>
+        }
+    </div>
+}
+
+@code {
+    private string _serverName = string.Empty;
+    private RegistrationMode _registrationMode = RegistrationMode.Open;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _showSavedMessage;
+    private string? _serverNameError;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettings();
+    }
+
+    private async Task LoadSettings()
+    {
+        _isLoading = true;
+        try
+        {
+            var settings = await Api.GetAdminSettingsAsync();
+            if (settings is not null)
+            {
+                _serverName = settings.ServerName;
+                _registrationMode = settings.RegistrationMode;
+            }
+            else
+            {
+                _errorMessage = "Failed to load server settings.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load admin settings");
+            _errorMessage = "Failed to load server settings.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        _serverNameError = null;
+        _errorMessage = null;
+        _showSavedMessage = false;
+
+        if (string.IsNullOrWhiteSpace(_serverName))
+        {
+            _serverNameError = "Server name cannot be empty.";
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            var result = await Api.UpdateAdminSettingsAsync(_serverName.Trim(), _registrationMode);
+            if (result is not null)
+            {
+                _serverName = result.ServerName;
+                _registrationMode = result.RegistrationMode;
+                _showSavedMessage = true;
+                StateHasChanged();
+
+                _ = HideSavedMessageAfterDelay();
+            }
+            else
+            {
+                _errorMessage = "Failed to save settings. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save admin settings");
+            _errorMessage = "Failed to save settings. Please try again.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task HideSavedMessageAfterDelay()
+    {
+        await Task.Delay(2500);
+        _showSavedMessage = false;
+        StateHasChanged();
+    }
+}

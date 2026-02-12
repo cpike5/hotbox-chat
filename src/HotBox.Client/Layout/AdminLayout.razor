@@ -1,0 +1,45 @@
+@inherits LayoutComponentBase
+@using HotBox.Client.State
+@inject AuthState AuthState
+@inject NavigationManager Navigation
+
+<div class="admin-app">
+    <!-- Top Bar -->
+    <header class="topbar">
+        <a class="topbar-back" href="/" @onclick:preventDefault @onclick="NavigateToChat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            <span>Back to Chat</span>
+        </a>
+
+        <div class="topbar-brand">HotBox</div>
+
+        <div class="topbar-divider"></div>
+
+        <span class="topbar-title">Admin Panel</span>
+
+        <div class="topbar-spacer"></div>
+
+        <div class="topbar-user" title="@(AuthState.CurrentUser?.DisplayName ?? "User")">
+            @GetInitials(AuthState.CurrentUser?.DisplayName ?? "U")
+            <span class="status-dot online"></span>
+        </div>
+    </header>
+
+    @Body
+</div>
+
+@code {
+    private void NavigateToChat()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private static string GetInitials(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return "U";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpperInvariant();
+        return name.Length >= 2 ? name[..2].ToUpperInvariant() : name.ToUpperInvariant();
+    }
+}

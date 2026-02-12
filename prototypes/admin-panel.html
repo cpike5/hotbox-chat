@@ -1,0 +1,2006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HotBox - Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ========================================
+       CSS Custom Properties / Design Tokens
+       (Matching main-ui-proposal.html exactly)
+       ======================================== */
+    :root {
+      /* Background layers -- deep cool slate */
+      --bg-deepest: #0c0c0f;
+      --bg-deep: #111116;
+      --bg-base: #16161d;
+      --bg-raised: #1c1c25;
+      --bg-surface: #23232e;
+      --bg-hover: #2a2a37;
+      --bg-active: #32323f;
+
+      /* Text */
+      --text-primary: #e2e2ea;
+      --text-secondary: #9898a8;
+      --text-muted: #5c5c72;
+      --text-faint: #3e3e52;
+
+      /* Accent -- cool teal/mint */
+      --accent: #5de4c7;
+      --accent-hover: #7aecd5;
+      --accent-muted: rgba(93, 228, 199, 0.10);
+      --accent-strong: #a0f0de;
+      --accent-glow: rgba(93, 228, 199, 0.06);
+
+      /* Status (from main proto) */
+      --status-online: #6bc76b;
+      --status-idle: #c7a63e;
+      --status-dnd: #c76060;
+      --status-offline: #4a4a5a;
+
+      /* Admin-specific semantic colors */
+      --danger: #c76060;
+      --danger-hover: #d07070;
+      --danger-muted: rgba(199, 96, 96, 0.12);
+      --warning: #c7a63e;
+      --warning-muted: rgba(199, 166, 62, 0.12);
+      --success: #6bc76b;
+      --success-muted: rgba(107, 199, 107, 0.12);
+
+      /* Borders */
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --border-light: rgba(255, 255, 255, 0.07);
+      --border-focus: rgba(93, 228, 199, 0.3);
+
+      /* Misc */
+      --radius-xs: 3px;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-pill: 9999px;
+      --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.5);
+      --shadow-lg: 0 8px 48px rgba(0, 0, 0, 0.6);
+      --shadow-overlay: 0 12px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-subtle);
+      --transition-fast: 100ms ease;
+      --transition-base: 180ms ease;
+      --transition-smooth: 280ms cubic-bezier(0.4, 0, 0.2, 1);
+
+      /* Typography */
+      --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    }
+
+    /* ========================================
+       Reset & Base
+       ======================================== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-deepest);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: inherit;
+      border: none;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    input, textarea, select {
+      font-family: inherit;
+      font-size: inherit;
+      border: none;
+      outline: none;
+      background: none;
+      color: inherit;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-active);
+      border-radius: var(--radius-pill);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--bg-hover);
+    }
+
+    /* ========================================
+       Admin Layout
+       ======================================== */
+    .admin-app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ========================================
+       Top Bar (matching main proto)
+       ======================================== */
+    .topbar {
+      height: 52px;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      background: var(--bg-deep);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 16px;
+      gap: 0;
+      z-index: 20;
+      user-select: none;
+    }
+
+    .topbar-back {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all var(--transition-fast);
+      margin-right: 16px;
+      text-decoration: none;
+    }
+
+    .topbar-back:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .topbar-back svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .topbar-brand {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+
+    .topbar-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border-light);
+      margin: 0 12px;
+      flex-shrink: 0;
+    }
+
+    .topbar-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .topbar-spacer {
+      flex: 1;
+    }
+
+    .topbar-user {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--radius-pill);
+      background: var(--accent-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      transition: all var(--transition-base);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .topbar-user:hover {
+      background: var(--accent);
+      color: var(--bg-deepest);
+    }
+
+    .topbar-user .status-dot {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 10px;
+      height: 10px;
+      border-radius: var(--radius-pill);
+      border: 2px solid var(--bg-deep);
+      background: var(--status-online);
+    }
+
+    /* ========================================
+       Content Area: Sidebar + Main
+       ======================================== */
+    .admin-body {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    /* Sidebar */
+    .admin-sidebar {
+      width: 220px;
+      min-width: 220px;
+      background: var(--bg-deep);
+      border-right: 1px solid var(--border-subtle);
+      padding: 16px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      user-select: none;
+    }
+
+    .sidebar-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      padding: 8px 12px 6px;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 450;
+      transition: all var(--transition-fast);
+      cursor: pointer;
+    }
+
+    .sidebar-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .sidebar-item.active {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+    }
+
+    .sidebar-item.active .sidebar-icon {
+      color: var(--accent);
+    }
+
+    .sidebar-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      color: var(--text-faint);
+      transition: color var(--transition-fast);
+    }
+
+    .sidebar-item:hover .sidebar-icon {
+      color: var(--text-muted);
+    }
+
+    /* Main content area */
+    .admin-main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 40px;
+      background: var(--bg-base);
+    }
+
+    .admin-main-inner {
+      max-width: 860px;
+    }
+
+    /* ========================================
+       Section Headers
+       ======================================== */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .section-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .section-header-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ========================================
+       Buttons
+       ======================================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg-deepest);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-light);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .btn-danger {
+      background: var(--danger-muted);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: rgba(199, 96, 96, 0.2);
+      color: var(--danger-hover);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      padding: 6px 8px;
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .btn-icon {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      transition: all var(--transition-fast);
+    }
+
+    .btn-icon:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .btn-icon.danger:hover {
+      background: var(--danger-muted);
+      color: var(--danger);
+    }
+
+    .btn-icon svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    /* ========================================
+       Form Controls
+       ======================================== */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 14px;
+      transition: border-color var(--transition-base), box-shadow var(--transition-base);
+    }
+
+    .form-input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .form-input.error {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 3px var(--danger-muted);
+    }
+
+    .form-error {
+      font-size: 12px;
+      color: var(--danger);
+      margin-top: 4px;
+      display: none;
+    }
+
+    .form-error.visible {
+      display: block;
+    }
+
+    .form-input-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .form-input-row .form-group {
+      flex: 1;
+    }
+
+    textarea.form-input {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    /* Select */
+    .form-select {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 14px;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%239898a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+      transition: border-color var(--transition-base), box-shadow var(--transition-base);
+    }
+
+    .form-select:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .form-select option {
+      background: var(--bg-raised);
+      color: var(--text-primary);
+    }
+
+    /* Segmented control */
+    .segmented-control {
+      display: inline-flex;
+      background: var(--bg-raised);
+      border-radius: var(--radius-md);
+      padding: 3px;
+      gap: 2px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .segmented-option {
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .segmented-option:hover {
+      color: var(--text-secondary);
+    }
+
+    .segmented-option.active {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    /* ========================================
+       Tables
+       ======================================== */
+    .admin-table-wrap {
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .admin-table th {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      padding: 10px 16px;
+      text-align: left;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .admin-table td {
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-subtle);
+      vertical-align: middle;
+    }
+
+    .admin-table tbody tr {
+      transition: background var(--transition-fast);
+    }
+
+    .admin-table tbody tr:hover {
+      background: var(--bg-hover);
+    }
+
+    .admin-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .table-actions {
+      display: flex;
+      gap: 4px;
+      justify-content: flex-end;
+    }
+
+    /* ========================================
+       Badges
+       ======================================== */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
+    }
+
+    .badge-text {
+      background: var(--accent-muted);
+      color: var(--accent);
+    }
+
+    .badge-voice {
+      background: rgba(107, 199, 107, 0.12);
+      color: var(--status-online);
+    }
+
+    .badge-admin {
+      background: var(--accent-muted);
+      color: var(--accent);
+    }
+
+    .badge-mod {
+      background: rgba(160, 140, 220, 0.12);
+      color: #a08cdc;
+    }
+
+    .badge-member {
+      background: var(--bg-surface);
+      color: var(--text-muted);
+    }
+
+    .badge-active {
+      background: var(--success-muted);
+      color: var(--success);
+    }
+
+    .badge-expired {
+      background: var(--warning-muted);
+      color: var(--warning);
+    }
+
+    .badge-revoked {
+      background: var(--danger-muted);
+      color: var(--danger);
+    }
+
+    .badge-used-up {
+      background: var(--bg-surface);
+      color: var(--text-muted);
+    }
+
+    /* ========================================
+       Role Dropdown (inline in table)
+       ======================================== */
+    .role-select {
+      padding: 4px 24px 4px 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='none' stroke='%235c5c72' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 3.5l3 3 3-3'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+      transition: all var(--transition-fast);
+    }
+
+    .role-select:hover {
+      border-color: var(--border-light);
+    }
+
+    .role-select:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+
+    .role-select option {
+      background: var(--bg-raised);
+      color: var(--text-primary);
+    }
+
+    /* ========================================
+       Search / Filter Bar
+       ======================================== */
+    .filter-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .filter-input-wrap {
+      position: relative;
+      flex: 1;
+      max-width: 320px;
+    }
+
+    .filter-input-wrap svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .filter-input {
+      width: 100%;
+      padding: 8px 12px 8px 34px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 13px;
+      transition: border-color var(--transition-base), box-shadow var(--transition-base);
+    }
+
+    .filter-input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .filter-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* ========================================
+       Invite code / copy
+       ======================================== */
+    .invite-code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--accent);
+      background: var(--accent-muted);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      letter-spacing: 0.02em;
+      user-select: all;
+    }
+
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      transition: all var(--transition-fast);
+      cursor: pointer;
+    }
+
+    .copy-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .copy-btn.copied {
+      background: var(--success-muted);
+      color: var(--success);
+      border-color: transparent;
+    }
+
+    .copy-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* ========================================
+       Reorder arrows
+       ======================================== */
+    .reorder-arrows {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .reorder-btn {
+      width: 22px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-faint);
+      border-radius: var(--radius-xs);
+      transition: all var(--transition-fast);
+      cursor: pointer;
+    }
+
+    .reorder-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .reorder-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* ========================================
+       User avatar in table
+       ======================================== */
+    .user-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-cell-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .user-cell-name {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* ========================================
+       Modal / Dialog
+       ======================================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-smooth);
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: var(--bg-raised);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-overlay);
+      width: 480px;
+      max-width: 90vw;
+      max-height: 85vh;
+      overflow-y: auto;
+      transform: translateY(12px) scale(0.97);
+      transition: transform var(--transition-smooth);
+    }
+
+    .modal-overlay.open .modal {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px 0;
+    }
+
+    .modal-header h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .modal-close {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      transition: all var(--transition-fast);
+    }
+
+    .modal-close:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .modal-close svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .modal-body {
+      padding: 20px 24px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 0 24px 20px;
+    }
+
+    /* Confirmation dialog (smaller) */
+    .modal.modal-confirm {
+      width: 380px;
+    }
+
+    .confirm-message {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .confirm-message strong {
+      color: var(--text-primary);
+    }
+
+    /* ========================================
+       Toast Notifications
+       ======================================== */
+    .toast-container {
+      position: fixed;
+      top: 64px;
+      right: 20px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      font-size: 13px;
+      font-weight: 500;
+      pointer-events: auto;
+      transform: translateX(120%);
+      opacity: 0;
+      transition: all var(--transition-smooth);
+      min-width: 240px;
+    }
+
+    .toast.show {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    .toast.toast-success {
+      border-left: 3px solid var(--success);
+      color: var(--text-primary);
+    }
+
+    .toast.toast-error {
+      border-left: 3px solid var(--danger);
+      color: var(--text-primary);
+    }
+
+    .toast-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .toast-success .toast-icon {
+      color: var(--success);
+    }
+
+    .toast-error .toast-icon {
+      color: var(--danger);
+    }
+
+    /* ========================================
+       Empty State
+       ======================================== */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 32px;
+      color: var(--text-muted);
+      gap: 8px;
+      text-align: center;
+    }
+
+    .empty-state .empty-icon {
+      font-size: 40px;
+      opacity: 0.15;
+      margin-bottom: 8px;
+    }
+
+    .empty-state h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .empty-state p {
+      font-size: 13px;
+      max-width: 280px;
+    }
+
+    /* ========================================
+       Tab panels (hidden/shown)
+       ======================================== */
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* ========================================
+       Settings form specifics
+       ======================================== */
+    .settings-form {
+      max-width: 480px;
+    }
+
+    .settings-saved-msg {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--success);
+      opacity: 0;
+      transition: opacity var(--transition-base);
+      margin-left: 12px;
+    }
+
+    .settings-saved-msg.visible {
+      opacity: 1;
+    }
+
+    .settings-saved-msg svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ========================================
+       Misc utility
+       ======================================== */
+    .text-muted {
+      color: var(--text-muted);
+    }
+
+    .text-mono {
+      font-family: var(--font-mono);
+    }
+
+    .mr-8 { margin-right: 8px; }
+
+    .channel-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .channel-hash {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-faint);
+    }
+
+    .channel-name-text {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .topic-cell {
+      color: var(--text-muted);
+      font-size: 12px;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .date-cell {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+
+    .uses-cell {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+
+<div class="admin-app" id="app">
+
+  <!-- ============ Top Bar ============ -->
+  <header class="topbar">
+    <a href="main-ui-proposal.html" class="topbar-back" title="Back to Chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      <span>Back to Chat</span>
+    </a>
+
+    <div class="topbar-brand">HotBox</div>
+
+    <div class="topbar-divider"></div>
+
+    <span class="topbar-title">Admin Panel</span>
+
+    <div class="topbar-spacer"></div>
+
+    <div class="topbar-user" title="cpike">
+      CP
+      <span class="status-dot"></span>
+    </div>
+  </header>
+
+  <!-- ============ Body: Sidebar + Main ============ -->
+  <div class="admin-body">
+
+    <!-- Sidebar -->
+    <nav class="admin-sidebar">
+      <div class="sidebar-label">Administration</div>
+
+      <div class="sidebar-item active" data-tab="settings">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <span>Server Settings</span>
+      </div>
+
+      <div class="sidebar-item" data-tab="channels">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
+        <span>Channels</span>
+      </div>
+
+      <div class="sidebar-item" data-tab="users">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        <span>Users</span>
+      </div>
+
+      <div class="sidebar-item" data-tab="invites">
+        <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+        <span>Invites</span>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="admin-main">
+      <div class="admin-main-inner">
+
+        <!-- ========== Server Settings Tab ========== -->
+        <div class="tab-panel active" id="panel-settings">
+          <div class="section-header">
+            <div>
+              <h2>Server Settings</h2>
+              <div class="section-header-subtitle">Configure your HotBox server</div>
+            </div>
+          </div>
+
+          <div class="settings-form">
+            <div class="form-group">
+              <label class="form-label">Server Name</label>
+              <input type="text" class="form-input" id="serverName" value="cpike's HotBox" placeholder="My Server">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Registration Mode</label>
+              <div class="segmented-control" id="regModeControl">
+                <div class="segmented-option active" data-value="open">Open</div>
+                <div class="segmented-option" data-value="invite-only">Invite Only</div>
+                <div class="segmented-option" data-value="closed">Closed</div>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; margin-top: 28px;">
+              <button class="btn btn-primary" id="btnSaveSettings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                Save Changes
+              </button>
+              <span class="settings-saved-msg" id="settingsSavedMsg">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Saved
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== Channels Tab ========== -->
+        <div class="tab-panel" id="panel-channels">
+          <div class="section-header">
+            <div>
+              <h2>Channels</h2>
+              <div class="section-header-subtitle">Manage text and voice channels</div>
+            </div>
+            <button class="btn btn-primary" id="btnCreateChannel">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Create Channel
+            </button>
+          </div>
+
+          <div id="channelsTableArea"></div>
+        </div>
+
+        <!-- ========== Users Tab ========== -->
+        <div class="tab-panel" id="panel-users">
+          <div class="section-header">
+            <div>
+              <h2>Users</h2>
+              <div class="section-header-subtitle">Manage user accounts and roles</div>
+            </div>
+            <button class="btn btn-primary" id="btnCreateUser">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Create User
+            </button>
+          </div>
+
+          <div class="filter-bar">
+            <div class="filter-input-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" class="filter-input" id="userSearchInput" placeholder="Search users by name or email...">
+            </div>
+          </div>
+
+          <div id="usersTableArea"></div>
+        </div>
+
+        <!-- ========== Invites Tab ========== -->
+        <div class="tab-panel" id="panel-invites">
+          <div class="section-header">
+            <div>
+              <h2>Invites</h2>
+              <div class="section-header-subtitle">Manage invite codes and links</div>
+            </div>
+            <button class="btn btn-primary" id="btnGenerateInvite">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Generate Invite
+            </button>
+          </div>
+
+          <div id="invitesTableArea"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Modal Overlay ============ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalContent">
+    <!-- Populated by JS -->
+  </div>
+</div>
+
+<!-- ============ Toast Container ============ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ==========================================
+  // Mock Data
+  // ==========================================
+
+  var channels = [
+    { id: 1, name: 'general', type: 'text', topic: 'The place for general conversation', sortOrder: 1 },
+    { id: 2, name: 'shitposting', type: 'text', topic: 'Absolutely zero quality control', sortOrder: 2 },
+    { id: 3, name: 'gaming', type: 'text', topic: 'Game discussion and LFG', sortOrder: 3 },
+    { id: 4, name: 'music', type: 'text', topic: 'Share tunes and recommendations', sortOrder: 4 },
+    { id: 5, name: 'Lounge', type: 'voice', topic: '', sortOrder: 5 },
+    { id: 6, name: 'Gaming', type: 'voice', topic: '', sortOrder: 6 },
+  ];
+  var nextChannelId = 7;
+
+  var users = [
+    { id: 1, displayName: 'cpike', email: 'cpike@hotbox.gg', role: 'admin', joined: '2025-01-15', lastSeen: '2026-02-12', disabled: false },
+    { id: 2, displayName: 'JohnDoe', email: 'john@example.com', role: 'member', joined: '2025-02-01', lastSeen: '2026-02-12', disabled: false },
+    { id: 3, displayName: 'SaltyKid99', email: 'salty@example.com', role: 'member', joined: '2025-02-10', lastSeen: '2026-02-12', disabled: false },
+    { id: 4, displayName: 'Meghan', email: 'meghan@example.com', role: 'moderator', joined: '2025-02-14', lastSeen: '2026-02-11', disabled: false },
+    { id: 5, displayName: 'xXDarkLordXx', email: 'darklord@example.com', role: 'member', joined: '2025-03-05', lastSeen: '2026-02-12', disabled: false },
+    { id: 6, displayName: 'ghostpepper', email: 'ghost@example.com', role: 'member', joined: '2025-03-20', lastSeen: '2026-02-12', disabled: false },
+    { id: 7, displayName: 'lurker42', email: 'lurker@example.com', role: 'member', joined: '2025-04-01', lastSeen: '2026-01-28', disabled: false },
+  ];
+  var nextUserId = 8;
+
+  var invites = [
+    { id: 1, code: 'HOTBOX-XK9F', status: 'active', createdBy: 'cpike', createdDate: '2026-02-10', expiresDate: '2026-03-10', uses: 2, maxUses: 10 },
+    { id: 2, code: 'HOTBOX-M3PL', status: 'active', createdBy: 'Meghan', createdDate: '2026-02-08', expiresDate: '2026-02-15', uses: 0, maxUses: 5 },
+    { id: 3, code: 'HOTBOX-7TRQ', status: 'expired', createdBy: 'cpike', createdDate: '2025-12-01', expiresDate: '2026-01-01', uses: 3, maxUses: null },
+    { id: 4, code: 'HOTBOX-W2ND', status: 'revoked', createdBy: 'cpike', createdDate: '2026-01-15', expiresDate: '2026-02-15', uses: 1, maxUses: null },
+    { id: 5, code: 'HOTBOX-A1BC', status: 'used-up', createdBy: 'Meghan', createdDate: '2026-01-20', expiresDate: '2026-02-20', uses: 5, maxUses: 5 },
+  ];
+  var nextInviteId = 6;
+
+  // ==========================================
+  // Helpers
+  // ==========================================
+
+  function el(id) { return document.getElementById(id); }
+
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function getAvatarColor(name) {
+    var hash = 0;
+    for (var i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return 'hsl(' + (Math.abs(hash) % 360) + ', 32%, 38%)';
+  }
+
+  function getInitials(name) {
+    var parts = name.replace(/[^a-zA-Z0-9 ]/g, '').split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+  }
+
+  function generateCode() {
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var code = 'HOTBOX-';
+    for (var i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '--';
+    var d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  // ==========================================
+  // Toast System
+  // ==========================================
+
+  function showToast(message, type) {
+    type = type || 'success';
+    var container = el('toastContainer');
+    var toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+
+    var iconSvg = type === 'success'
+      ? '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+      : '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+
+    toast.innerHTML = iconSvg + '<span>' + escapeHtml(message) + '</span>';
+    container.appendChild(toast);
+
+    // Trigger animation
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        toast.classList.add('show');
+      });
+    });
+
+    setTimeout(function () {
+      toast.classList.remove('show');
+      setTimeout(function () {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 300);
+    }, 3000);
+  }
+
+  // ==========================================
+  // Modal System
+  // ==========================================
+
+  function openModal(html) {
+    el('modalContent').innerHTML = html;
+    el('modalOverlay').classList.add('open');
+  }
+
+  function closeModal() {
+    el('modalOverlay').classList.remove('open');
+  }
+
+  el('modalOverlay').addEventListener('click', function (e) {
+    if (e.target === el('modalOverlay')) closeModal();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  // ==========================================
+  // Tab Switching
+  // ==========================================
+
+  var activeTab = 'settings';
+
+  function switchTab(tab) {
+    if (tab === activeTab) return;
+    activeTab = tab;
+
+    document.querySelectorAll('.sidebar-item').forEach(function (item) {
+      item.classList.toggle('active', item.dataset.tab === tab);
+    });
+    document.querySelectorAll('.tab-panel').forEach(function (panel) {
+      panel.classList.toggle('active', panel.id === 'panel-' + tab);
+    });
+  }
+
+  document.querySelectorAll('.sidebar-item[data-tab]').forEach(function (item) {
+    item.addEventListener('click', function () {
+      switchTab(this.dataset.tab);
+    });
+  });
+
+  // ==========================================
+  // Server Settings
+  // ==========================================
+
+  el('regModeControl').addEventListener('click', function (e) {
+    var option = e.target.closest('.segmented-option');
+    if (!option) return;
+    this.querySelectorAll('.segmented-option').forEach(function (o) {
+      o.classList.remove('active');
+    });
+    option.classList.add('active');
+  });
+
+  el('btnSaveSettings').addEventListener('click', function () {
+    var name = el('serverName').value.trim();
+    if (!name) {
+      el('serverName').classList.add('error');
+      showToast('Server name cannot be empty', 'error');
+      return;
+    }
+    el('serverName').classList.remove('error');
+
+    var msg = el('settingsSavedMsg');
+    msg.classList.add('visible');
+    showToast('Server settings saved');
+    setTimeout(function () { msg.classList.remove('visible'); }, 2500);
+  });
+
+  // ==========================================
+  // Channels
+  // ==========================================
+
+  function renderChannelsTable() {
+    var area = el('channelsTableArea');
+
+    if (channels.length === 0) {
+      area.innerHTML = '<div class="admin-table-wrap"><div class="empty-state"><div class="empty-icon">#</div><h3>No channels yet</h3><p>Create your first channel to get started.</p></div></div>';
+      return;
+    }
+
+    var sorted = channels.slice().sort(function (a, b) { return a.sortOrder - b.sortOrder; });
+    var html = '<div class="admin-table-wrap"><table class="admin-table">';
+    html += '<thead><tr><th style="width:36px;"></th><th>Name</th><th>Type</th><th>Topic</th><th style="width:80px;">Order</th><th style="width:100px; text-align:right;">Actions</th></tr></thead>';
+    html += '<tbody>';
+
+    sorted.forEach(function (ch, idx) {
+      var typeIcon = ch.type === 'text' ? '#' : '';
+      var typeBadge = ch.type === 'text'
+        ? '<span class="badge badge-text">Text</span>'
+        : '<span class="badge badge-voice">Voice</span>';
+
+      html += '<tr data-channel-id="' + ch.id + '">';
+      html += '<td><div class="reorder-arrows">';
+      html += '<button class="reorder-btn" data-dir="up" data-id="' + ch.id + '" ' + (idx === 0 ? 'style="visibility:hidden"' : '') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg></button>';
+      html += '<button class="reorder-btn" data-dir="down" data-id="' + ch.id + '" ' + (idx === sorted.length - 1 ? 'style="visibility:hidden"' : '') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button>';
+      html += '</div></td>';
+      html += '<td><div class="channel-name-cell">';
+      if (ch.type === 'text') html += '<span class="channel-hash">#</span>';
+      else html += '<svg style="width:14px;height:14px;color:var(--text-faint);flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
+      html += '<span class="channel-name-text">' + escapeHtml(ch.name) + '</span></div></td>';
+      html += '<td>' + typeBadge + '</td>';
+      html += '<td><span class="topic-cell">' + (ch.topic ? escapeHtml(ch.topic) : '<span class="text-muted">--</span>') + '</span></td>';
+      html += '<td class="text-mono text-muted" style="font-size:12px;">' + ch.sortOrder + '</td>';
+      html += '<td><div class="table-actions">';
+      html += '<button class="btn-icon" title="Edit" data-edit-channel="' + ch.id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>';
+      html += '<button class="btn-icon danger" title="Delete" data-delete-channel="' + ch.id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>';
+      html += '</div></td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    area.innerHTML = html;
+  }
+
+  // Channel reorder
+  el('channelsTableArea').addEventListener('click', function (e) {
+    var reorderBtn = e.target.closest('[data-dir]');
+    if (reorderBtn) {
+      var id = parseInt(reorderBtn.dataset.id);
+      var dir = reorderBtn.dataset.dir;
+      var sorted = channels.slice().sort(function (a, b) { return a.sortOrder - b.sortOrder; });
+      var idx = sorted.findIndex(function (c) { return c.id === id; });
+      if (idx < 0) return;
+      var swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= sorted.length) return;
+      var tmp = sorted[idx].sortOrder;
+      sorted[idx].sortOrder = sorted[swapIdx].sortOrder;
+      sorted[swapIdx].sortOrder = tmp;
+      renderChannelsTable();
+      return;
+    }
+
+    var editBtn = e.target.closest('[data-edit-channel]');
+    if (editBtn) {
+      var chId = parseInt(editBtn.dataset.editChannel);
+      openEditChannelModal(chId);
+      return;
+    }
+
+    var deleteBtn = e.target.closest('[data-delete-channel]');
+    if (deleteBtn) {
+      var chId = parseInt(deleteBtn.dataset.deleteChannel);
+      openDeleteChannelConfirm(chId);
+    }
+  });
+
+  // Create channel modal
+  el('btnCreateChannel').addEventListener('click', function () {
+    var html = '';
+    html += '<div class="modal-header"><h3>Create Channel</h3><button class="modal-close" onclick="document.getElementById(\'modalOverlay\').classList.remove(\'open\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>';
+    html += '<div class="modal-body">';
+    html += '<div class="form-group"><label class="form-label">Channel Name</label><input type="text" class="form-input" id="modalChName" placeholder="e.g. off-topic"></div>';
+    html += '<div class="form-group"><label class="form-label">Type</label><div class="segmented-control" id="modalChTypeControl"><div class="segmented-option active" data-value="text">Text</div><div class="segmented-option" data-value="voice">Voice</div></div></div>';
+    html += '<div class="form-group"><label class="form-label">Topic <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span></label><input type="text" class="form-input" id="modalChTopic" placeholder="What\'s this channel about?"></div>';
+    html += '<div class="form-error" id="modalChError">Channel name is required.</div>';
+    html += '</div>';
+    html += '<div class="modal-footer"><button class="btn btn-secondary" id="modalChCancel">Cancel</button><button class="btn btn-primary" id="modalChCreate">Create Channel</button></div>';
+    openModal(html);
+
+    // Type switcher
+    el('modalChTypeControl').addEventListener('click', function (e) {
+      var opt = e.target.closest('.segmented-option');
+      if (!opt) return;
+      this.querySelectorAll('.segmented-option').forEach(function (o) { o.classList.remove('active'); });
+      opt.classList.add('active');
+    });
+
+    el('modalChCancel').addEventListener('click', closeModal);
+    el('modalChCreate').addEventListener('click', function () {
+      var name = el('modalChName').value.trim();
+      if (!name) {
+        el('modalChName').classList.add('error');
+        el('modalChError').classList.add('visible');
+        return;
+      }
+      var type = el('modalChTypeControl').querySelector('.active').dataset.value;
+      var topic = el('modalChTopic').value.trim();
+      var maxOrder = channels.reduce(function (max, c) { return Math.max(max, c.sortOrder); }, 0);
+      channels.push({ id: nextChannelId++, name: name, type: type, topic: topic, sortOrder: maxOrder + 1 });
+      closeModal();
+      renderChannelsTable();
+      showToast('Channel "' + name + '" created');
+    });
+
+    el('modalChName').focus();
+  });
+
+  function openEditChannelModal(id) {
+    var ch = channels.find(function (c) { return c.id === id; });
+    if (!ch) return;
+
+    var html = '';
+    html += '<div class="modal-header"><h3>Edit Channel</h3><button class="modal-close" onclick="document.getElementById(\'modalOverlay\').classList.remove(\'open\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>';
+    html += '<div class="modal-body">';
+    html += '<div class="form-group"><label class="form-label">Channel Name</label><input type="text" class="form-input" id="modalEditChName" value="' + escapeHtml(ch.name) + '"></div>';
+    html += '<div class="form-group"><label class="form-label">Topic <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span></label><input type="text" class="form-input" id="modalEditChTopic" value="' + escapeHtml(ch.topic) + '"></div>';
+    html += '<div class="form-error" id="modalEditChError">Channel name is required.</div>';
+    html += '</div>';
+    html += '<div class="modal-footer"><button class="btn btn-secondary" id="modalEditChCancel">Cancel</button><button class="btn btn-primary" id="modalEditChSave">Save Changes</button></div>';
+    openModal(html);
+
+    el('modalEditChCancel').addEventListener('click', closeModal);
+    el('modalEditChSave').addEventListener('click', function () {
+      var name = el('modalEditChName').value.trim();
+      if (!name) {
+        el('modalEditChName').classList.add('error');
+        el('modalEditChError').classList.add('visible');
+        return;
+      }
+      ch.name = name;
+      ch.topic = el('modalEditChTopic').value.trim();
+      closeModal();
+      renderChannelsTable();
+      showToast('Channel updated');
+    });
+
+    el('modalEditChName').focus();
+  }
+
+  function openDeleteChannelConfirm(id) {
+    var ch = channels.find(function (c) { return c.id === id; });
+    if (!ch) return;
+
+    var html = '';
+    html += '<div class="modal-header"><h3>Delete Channel</h3><button class="modal-close" onclick="document.getElementById(\'modalOverlay\').classList.remove(\'open\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>';
+    html += '<div class="modal-body"><p class="confirm-message">Are you sure you want to delete <strong>' + (ch.type === 'text' ? '#' : '') + escapeHtml(ch.name) + '</strong>? This action cannot be undone and all messages in this channel will be permanently lost.</p></div>';
+    html += '<div class="modal-footer"><button class="btn btn-secondary" id="modalDelChCancel">Cancel</button><button class="btn btn-danger" id="modalDelChConfirm">Delete Channel</button></div>';
+    openModal(html);
+
+    el('modalContent').classList.add('modal-confirm');
+    el('modalDelChCancel').addEventListener('click', function () {
+      el('modalContent').classList.remove('modal-confirm');
+      closeModal();
+    });
+    el('modalDelChConfirm').addEventListener('click', function () {
+      channels = channels.filter(function (c) { return c.id !== id; });
+      el('modalContent').classList.remove('modal-confirm');
+      closeModal();
+      renderChannelsTable();
+      showToast('Channel "' + ch.name + '" deleted');
+    });
+  }
+
+  // ==========================================
+  // Users
+  // ==========================================
+
+  var userSearchFilter = '';
+
+  function renderUsersTable() {
+    var area = el('usersTableArea');
+    var filtered = users.filter(function (u) {
+      if (!userSearchFilter) return true;
+      var q = userSearchFilter.toLowerCase();
+      return u.displayName.toLowerCase().indexOf(q) !== -1 || u.email.toLowerCase().indexOf(q) !== -1;
+    });
+
+    if (users.length === 0) {
+      area.innerHTML = '<div class="admin-table-wrap"><div class="empty-state"><div class="empty-icon">&#x1F464;</div><h3>No users</h3><p>Create the first user to get started.</p></div></div>';
+      return;
+    }
+
+    if (filtered.length === 0) {
+      area.innerHTML = '<div class="admin-table-wrap"><div class="empty-state" style="padding:32px;"><h3>No matching users</h3><p>Try a different search term.</p></div></div>';
+      return;
+    }
+
+    var html = '<div class="admin-table-wrap"><table class="admin-table">';
+    html += '<thead><tr><th>User</th><th>Email</th><th>Role</th><th>Joined</th><th>Last Seen</th><th style="width:100px; text-align:right;">Actions</th></tr></thead>';
+    html += '<tbody>';
+
+    filtered.forEach(function (u) {
+      var color = getAvatarColor(u.displayName);
+      var initials = getInitials(u.displayName);
+
+      var roleOptions = '<option value="admin"' + (u.role === 'admin' ? ' selected' : '') + '>Admin</option>';
+      roleOptions += '<option value="moderator"' + (u.role === 'moderator' ? ' selected' : '') + '>Moderator</option>';
+      roleOptions += '<option value="member"' + (u.role === 'member' ? ' selected' : '') + '>Member</option>';
+
+      html += '<tr data-user-id="' + u.id + '">';
+      html += '<td><div class="user-cell"><div class="user-cell-avatar" style="background:' + color + ';">' + initials + '</div><span class="user-cell-name">' + escapeHtml(u.displayName) + '</span></div></td>';
+      html += '<td style="color:var(--text-muted);font-size:12px;">' + escapeHtml(u.email) + '</td>';
+      html += '<td><select class="role-select" data-role-user="' + u.id + '">' + roleOptions + '</select></td>';
+      html += '<td><span class="date-cell">' + formatDate(u.joined) + '</span></td>';
+      html += '<td><span class="date-cell">' + formatDate(u.lastSeen) + '</span></td>';
+      html += '<td><div class="table-actions">';
+      html += '<button class="btn-icon danger" title="' + (u.disabled ? 'Enable' : 'Disable') + ' User" data-disable-user="' + u.id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></button>';
+      html += '<button class="btn-icon danger" title="Delete User" data-delete-user="' + u.id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>';
+      html += '</div></td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    area.innerHTML = html;
+  }
+
+  el('userSearchInput').addEventListener('input', function () {
+    userSearchFilter = this.value.trim();
+    renderUsersTable();
+  });
+
+  el('usersTableArea').addEventListener('change', function (e) {
+    var select = e.target.closest('[data-role-user]');
+    if (!select) return;
+    var userId = parseInt(select.dataset.roleUser);
+    var user = users.find(function (u) { return u.id === userId; });
+    if (!user) return;
+    user.role = select.value;
+    showToast('Role updated for ' + user.displayName);
+  });
+
+  el('usersTableArea').addEventListener('click', function (e) {
+    var disableBtn = e.target.closest('[data-disable-user]');
+    if (disableBtn) {
+      var userId = parseInt(disableBtn.dataset.disableUser);
+      var user = users.find(function (u) { return u.id === userId; });
+      if (!user) return;
+      openDisableUserConfirm(user);
+      return;
+    }
+
+    var deleteBtn = e.target.closest('[data-delete-user]');
+    if (deleteBtn) {
+      var userId = parseInt(deleteBtn.dataset.deleteUser);
+      openDeleteUserConfirm(userId);
+    }
+  });
+
+  // Create user modal
+  el('btnCreateUser').addEventListener('click', function () {
+    var html = '';
+    html += '<div class="modal-header"><h3>Create User</h3><button class="modal-close" onclick="document.getElementById(\'modalOverlay\').classList.remove(\'open\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>';
+    html += '<div class="modal-body">';
+    html += '<div class="form-input-row"><div class="form-group"><label class="form-label">Display Name</label><input type="text" class="form-input" id="modalUserName" placeholder="Display name"></div>';
+    html += '<div class="form-group"><label class="form-label">Role</label><select class="form-select" id="modalUserRole"><option value="member">Member</option><option value="moderator">Moderator</option><option value="admin">Admin</option></select></div></div>';
+    html += '<div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="modalUserEmail" placeholder="user@example.com"></div>';
+    html += '<div class="form-group"><label class="form-label">Password</label><input type="password" class="form-input" id="modalUserPassword" placeholder="Minimum 8 characters"></div>';
+    html += '<div class="form-error" id="modalUserError">All fields are required.</div>';
+    html += '</div>';
+    html += '<div class="modal-footer"><button class="btn btn-secondary" id="modalUserCancel">Cancel</button><button class="btn btn-primary" id="modalUserCreate">Create User</button></div>';
+    openModal(html);
+
+    el('modalUserCancel').addEventListener('click', closeModal);
+    el('modalUserCreate').addEventListener('click', function () {
+      var name = el('modalUserName').value.trim();
+      var email = el('modalUserEmail').value.trim();
+      var password = el('modalUserPassword').value;
+      var role = el('modalUserRole').value;
+
+      var hasError = false;
+      if (!name) { el('modalUserName').classList.add('error'); hasError = true; }
+      if (!email) { el('modalUserEmail').classList.add('error'); hasError = true; }
+      if (!password || password.length < 8) { el('modalUserPassword').classList.add('error'); hasError = true; }
+
+      if (hasError) {
+        el('modalUserError').classList.add('visible');
+        return;
+      }
+
+      var today = new Date().toISOString().split('T')[0];
+      users.push({ id: nextUserId++, displayName: name, email: email, role: role, joined: today, lastSeen: today, disabled: false });
+      closeModal();
+      renderUsersTable();
+      showToast('User "' + name + '" created');
+    });
+
+    el('modalUserName').focus();
+  });
+
+  function openDisableUserConfirm(user) {
+    var action = user.disabled ? 'Enable' : 'Disable';
+    var html = '';
+    html += '<div class="modal-header"><h3>' + action + ' User</h3><button class="modal-close" onclick="document.getElementById(\'modalOverlay\').classList.remove(\'open\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>';
+    html += '<div class="modal-body"><p class="confirm-message">Are you sure you want to ' + action.toLowerCase() + ' <strong>' + escapeHtml(user.displayName) + '</strong>?' + (!user.disabled ? ' They will not be able to log in.' : '') + '</p></div>';
+    html += '<div class="modal-footer"><button class="btn btn-secondary" id="modalDisableCancel">Cancel</button><button class="btn ' + (user.disabled ? 'btn-primary' : 'btn-danger') + '" id="modalDisableConfirm">' + action + '</button></div>';
+    openModal(html);
+
+    el('modalContent').classList.add('modal-confirm');
+    el('modalDisableCancel').addEventListener('click', function () {
+      el('modalContent').classList.remove('modal-confirm');
+      closeModal();
+    });
+    el('modalDisableConfirm').addEventListener('click', function () {
+      user.disabled = !user.disabled;
+      el('modalContent').classList.remove('modal-confirm');
+      closeModal();
+      renderUsersTable();
+      showToast(user.displayName + ' has been ' + (user.disabled ? 'disabled' : 'enabled'));
+    });
+  }
+
+  function openDeleteUserConfirm(userId) {
+    var user = users.find(function (u) { return u.id === userId; });
+    if (!user) return;
+
+    var html = '';
+    html += '<div class="modal-header"><h3>Delete User</h3><button class="modal-close" onclick="document.getElementById(\'modalOverlay\').classList.remove(\'open\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>';
+    html += '<div class="modal-body"><p class="confirm-message">Are you sure you want to permanently delete <strong>' + escapeHtml(user.displayName) + '</strong>? This action cannot be undone.</p></div>';
+    html += '<div class="modal-footer"><button class="btn btn-secondary" id="modalDelUserCancel">Cancel</button><button class="btn btn-danger" id="modalDelUserConfirm">Delete User</button></div>';
+    openModal(html);
+
+    el('modalContent').classList.add('modal-confirm');
+    el('modalDelUserCancel').addEventListener('click', function () {
+      el('modalContent').classList.remove('modal-confirm');
+      closeModal();
+    });
+    el('modalDelUserConfirm').addEventListener('click', function () {
+      users = users.filter(function (u) { return u.id !== userId; });
+      el('modalContent').classList.remove('modal-confirm');
+      closeModal();
+      renderUsersTable();
+      showToast('User "' + user.displayName + '" deleted');
+    });
+  }
+
+  // ==========================================
+  // Invites
+  // ==========================================
+
+  function renderInvitesTable() {
+    var area = el('invitesTableArea');
+
+    if (invites.length === 0) {
+      area.innerHTML = '<div class="admin-table-wrap"><div class="empty-state"><div class="empty-icon">&#x1F517;</div><h3>No invites</h3><p>Generate your first invite to let people join.</p></div></div>';
+      return;
+    }
+
+    var html = '<div class="admin-table-wrap"><table class="admin-table">';
+    html += '<thead><tr><th>Code</th><th>Status</th><th>Created By</th><th>Created</th><th>Expires</th><th>Uses</th><th style="width:120px; text-align:right;">Actions</th></tr></thead>';
+    html += '<tbody>';
+
+    invites.forEach(function (inv) {
+      var statusBadge;
+      switch (inv.status) {
+        case 'active': statusBadge = '<span class="badge badge-active">Active</span>'; break;
+        case 'expired': statusBadge = '<span class="badge badge-expired">Expired</span>'; break;
+        case 'revoked': statusBadge = '<span class="badge badge-revoked">Revoked</span>'; break;
+        case 'used-up': statusBadge = '<span class="badge badge-used-up">Used Up</span>'; break;
+        default: statusBadge = '<span class="badge badge-member">' + inv.status + '</span>';
+      }
+
+      var usesText = inv.maxUses ? inv.uses + ' / ' + inv.maxUses : inv.uses + ' / &infin;';
+
+      html += '<tr>';
+      html += '<td><span class="invite-code">' + escapeHtml(inv.code) + '</span></td>';
+      html += '<td>' + statusBadge + '</td>';
+      html += '<td style="font-size:13px;">' + escapeHtml(inv.createdBy) + '</td>';
+      html += '<td><span class="date-cell">' + formatDate(inv.createdDate) + '</span></td>';
+      html += '<td><span class="date-cell">' + formatDate(inv.expiresDate) + '</span></td>';
+      html += '<td><span class="uses-cell">' + usesText + '</span></td>';
+      html += '<td><div class="table-actions">';
+      html += '<button class="copy-btn" data-copy-code="' + escapeHtml(inv.code) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy</button>';
+      if (inv.status === 'active') {
+        html += '<button class="btn-icon danger" title="Revoke" data-revoke-invite="' + inv.id + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></button>';
+      }
+      html += '</div></td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    area.innerHTML = html;
+  }
+
+  el('invitesTableArea').addEventListener('click', function (e) {
+    var copyBtn = e.target.closest('[data-copy-code]');
+    if (copyBtn) {
+      var code = copyBtn.dataset.copyCode;
+      var link = 'https://hotbox.gg/invite/' + code;
+      navigator.clipboard.writeText(link).then(function () {
+        copyBtn.classList.add('copied');
+        copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!';
+        setTimeout(function () {
+          copyBtn.classList.remove('copied');
+          copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy';
+        }, 2000);
+      }).catch(function () {
+        showToast('Failed to copy to clipboard', 'error');
+      });
+      return;
+    }
+
+    var revokeBtn = e.target.closest('[data-revoke-invite]');
+    if (revokeBtn) {
+      var invId = parseInt(revokeBtn.dataset.revokeInvite);
+      openRevokeInviteConfirm(invId);
+    }
+  });
+
+  // Generate invite modal
+  el('btnGenerateInvite').addEventListener('click', function () {
+    var html = '';
+    html += '<div class="modal-header"><h3>Generate Invite</h3><button class="modal-close" onclick="document.getElementById(\'modalOverlay\').classList.remove(\'open\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>';
+    html += '<div class="modal-body">';
+    html += '<div class="form-group"><label class="form-label">Expires On <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span></label><input type="date" class="form-input" id="modalInvExpiry" style="color-scheme:dark;"></div>';
+    html += '<div class="form-group"><label class="form-label">Max Uses <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional, leave blank for unlimited)</span></label><input type="number" class="form-input" id="modalInvMaxUses" placeholder="e.g. 10" min="1"></div>';
+    html += '</div>';
+    html += '<div class="modal-footer"><button class="btn btn-secondary" id="modalInvCancel">Cancel</button><button class="btn btn-primary" id="modalInvGenerate">Generate</button></div>';
+    openModal(html);
+
+    // Set default expiry to 30 days from now
+    var defaultExpiry = new Date();
+    defaultExpiry.setDate(defaultExpiry.getDate() + 30);
+    el('modalInvExpiry').value = defaultExpiry.toISOString().split('T')[0];
+
+    el('modalInvCancel').addEventListener('click', closeModal);
+    el('modalInvGenerate').addEventListener('click', function () {
+      var expiryVal = el('modalInvExpiry').value;
+      var maxUsesVal = el('modalInvMaxUses').value;
+
+      var code = generateCode();
+      var today = new Date().toISOString().split('T')[0];
+
+      invites.unshift({
+        id: nextInviteId++,
+        code: code,
+        status: 'active',
+        createdBy: 'cpike',
+        createdDate: today,
+        expiresDate: expiryVal || null,
+        uses: 0,
+        maxUses: maxUsesVal ? parseInt(maxUsesVal) : null,
+      });
+
+      closeModal();
+      renderInvitesTable();
+      showToast('Invite ' + code + ' generated');
+    });
+  });
+
+  function openRevokeInviteConfirm(id) {
+    var inv = invites.find(function (i) { return i.id === id; });
+    if (!inv) return;
+
+    var html = '';
+    html += '<div class="modal-header"><h3>Revoke Invite</h3><button class="modal-close" onclick="document.getElementById(\'modalOverlay\').classList.remove(\'open\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>';
+    html += '<div class="modal-body"><p class="confirm-message">Are you sure you want to revoke invite <strong>' + escapeHtml(inv.code) + '</strong>? Anyone with this code will no longer be able to join.</p></div>';
+    html += '<div class="modal-footer"><button class="btn btn-secondary" id="modalRevokeCancel">Cancel</button><button class="btn btn-danger" id="modalRevokeConfirm">Revoke Invite</button></div>';
+    openModal(html);
+
+    el('modalContent').classList.add('modal-confirm');
+    el('modalRevokeCancel').addEventListener('click', function () {
+      el('modalContent').classList.remove('modal-confirm');
+      closeModal();
+    });
+    el('modalRevokeConfirm').addEventListener('click', function () {
+      inv.status = 'revoked';
+      el('modalContent').classList.remove('modal-confirm');
+      closeModal();
+      renderInvitesTable();
+      showToast('Invite ' + inv.code + ' revoked');
+    });
+  }
+
+  // ==========================================
+  // Initial Render
+  // ==========================================
+
+  renderChannelsTable();
+  renderUsersTable();
+  renderInvitesTable();
+
+})();
+</script>
+
+</body>
+</html>

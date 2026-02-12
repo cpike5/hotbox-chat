@@ -202,12 +202,7 @@
                 return;
             }
 
-            // Build a placeholder UserInfo from the email
-            var userInfo = new UserInfo
-            {
-                Id = Guid.Empty,
-                DisplayName = _email.Trim().Split('@')[0],
-            };
+            var userInfo = JwtParser.ParseUserInfoFromToken(response.AccessToken);
 
             AuthState.SetAuthenticated(response.AccessToken, userInfo);
 

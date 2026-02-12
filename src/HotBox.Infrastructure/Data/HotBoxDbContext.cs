@@ -22,6 +22,8 @@ public class HotBoxDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Gu
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<ServerSettings> ServerSettings => Set<ServerSettings>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

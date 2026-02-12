@@ -9,6 +9,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - Database__Provider=postgresql
       - Database__ConnectionString=Host=db;Port=5432;Database=hotbox;Username=hotbox;Password=${DB_PASSWORD:-changeme}
+      - AdminSeed__Email=${ADMIN_EMAIL:-admin@hotbox.local}
+      - AdminSeed__Password=${ADMIN_PASSWORD:-Admin123!}
+      - AdminSeed__DisplayName=${ADMIN_DISPLAY_NAME:-Admin}
     depends_on:
       db:
         condition: service_healthy

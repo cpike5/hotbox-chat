@@ -1,0 +1,495 @@
+@using HotBox.Client.Models
+@using HotBox.Client.Services
+@using HotBox.Client.State
+@using HotBox.Core.Enums
+@inject ApiClient Api
+@inject ChannelState ChannelState
+@inject ILogger<AdminChannelManagement> Logger
+@implements IDisposable
+
+<div class="section-header">
+    <div>
+        <h2>Channels</h2>
+        <div class="section-header-subtitle">Manage text and voice channels</div>
+    </div>
+    <button class="btn btn-primary" @onclick="OpenCreateModal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Create Channel
+    </button>
+</div>
+
+@if (_channels.Count == 0)
+{
+    <div class="admin-table-wrap">
+        <div class="admin-empty-state">
+            <div class="empty-icon">#</div>
+            <h3>No channels yet</h3>
+            <p>Create your first channel to get started.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width:36px;"></th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Topic</th>
+                    <th style="width:80px;">Order</th>
+                    <th style="width:100px; text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ var sorted = _channels.OrderBy(c => c.SortOrder).ToList(); }
+                @for (var i = 0; i < sorted.Count; i++)
+                {
+                    var channel = sorted[i];
+                    var idx = i;
+                    <tr>
+                        <td>
+                            <div class="reorder-arrows">
+                                @if (idx > 0)
+                                {
+                                    <button class="reorder-btn" @onclick="() => MoveChannel(channel, -1)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="reorder-btn" style="visibility:hidden;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                    </button>
+                                }
+                                @if (idx < sorted.Count - 1)
+                                {
+                                    <button class="reorder-btn" @onclick="() => MoveChannel(channel, 1)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="reorder-btn" style="visibility:hidden;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                        <td>
+                            <div class="channel-name-cell">
+                                @if (channel.Type == ChannelType.Text)
+                                {
+                                    <span class="channel-hash">#</span>
+                                }
+                                else
+                                {
+                                    <svg style="width:14px;height:14px;color:var(--text-faint);flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                                }
+                                <span class="channel-name-text">@channel.Name</span>
+                            </div>
+                        </td>
+                        <td>
+                            @if (channel.Type == ChannelType.Text)
+                            {
+                                <span class="badge badge-text">Text</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-voice">Voice</span>
+                            }
+                        </td>
+                        <td>
+                            <span class="topic-cell">
+                                @if (!string.IsNullOrEmpty(channel.Topic))
+                                {
+                                    @channel.Topic
+                                }
+                                else
+                                {
+                                    <span class="text-muted">--</span>
+                                }
+                            </span>
+                        </td>
+                        <td class="text-mono text-muted" style="font-size:12px;">@channel.SortOrder</td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="btn-icon" title="Edit" @onclick="() => OpenEditModal(channel)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                </button>
+                                <button class="btn-icon danger" title="Delete" @onclick="() => OpenDeleteConfirm(channel)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@* Toast messages *@
+@if (_toastMessage is not null)
+{
+    <div class="toast-container">
+        <div class="toast @(_toastType == "error" ? "toast-error" : "toast-success") show">
+            @if (_toastType == "success")
+            {
+                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            }
+            else
+            {
+                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+            }
+            <span>@_toastMessage</span>
+        </div>
+    </div>
+}
+
+@* Create Channel Modal *@
+@if (_showCreateModal)
+{
+    <div class="modal-overlay open" @onclick="CloseModals">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Create Channel</h3>
+                <button class="modal-close" @onclick="CloseModals">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label admin-form-label">Channel Name</label>
+                    <input type="text" class="form-input admin-form-input @(_createNameError is not null ? "error" : "")"
+                           @bind="_createName" @bind:event="oninput" placeholder="e.g. off-topic" />
+                    @if (_createNameError is not null)
+                    {
+                        <div class="form-error visible">@_createNameError</div>
+                    }
+                </div>
+                <div class="form-group">
+                    <label class="form-label admin-form-label">Type</label>
+                    <div class="segmented-control">
+                        <button class="segmented-option @(_createType == ChannelType.Text ? "active" : "")"
+                                @onclick="() => _createType = ChannelType.Text">Text</button>
+                        <button class="segmented-option @(_createType == ChannelType.Voice ? "active" : "")"
+                                @onclick="() => _createType = ChannelType.Voice">Voice</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label admin-form-label">Topic <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span></label>
+                    <input type="text" class="form-input admin-form-input"
+                           @bind="_createTopic" @bind:event="oninput" placeholder="What's this channel about?" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+                <button class="btn btn-primary" @onclick="CreateChannel" disabled="@_isSubmitting">
+                    @(_isSubmitting ? "Creating..." : "Create Channel")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@* Edit Channel Modal *@
+@if (_showEditModal && _editChannel is not null)
+{
+    <div class="modal-overlay open" @onclick="CloseModals">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Edit Channel</h3>
+                <button class="modal-close" @onclick="CloseModals">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label admin-form-label">Channel Name</label>
+                    <input type="text" class="form-input admin-form-input @(_editNameError is not null ? "error" : "")"
+                           @bind="_editName" @bind:event="oninput" />
+                    @if (_editNameError is not null)
+                    {
+                        <div class="form-error visible">@_editNameError</div>
+                    }
+                </div>
+                <div class="form-group">
+                    <label class="form-label admin-form-label">Topic <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span></label>
+                    <input type="text" class="form-input admin-form-input"
+                           @bind="_editTopic" @bind:event="oninput" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+                <button class="btn btn-primary" @onclick="SaveEditChannel" disabled="@_isSubmitting">
+                    @(_isSubmitting ? "Saving..." : "Save Changes")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@* Delete Confirmation Modal *@
+@if (_showDeleteConfirm && _deleteChannel is not null)
+{
+    <div class="modal-overlay open" @onclick="CloseModals">
+        <div class="modal modal-confirm" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Delete Channel</h3>
+                <button class="modal-close" @onclick="CloseModals">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="confirm-message">
+                    Are you sure you want to delete
+                    <strong>@(_deleteChannel.Type == ChannelType.Text ? "#" : "")@_deleteChannel.Name</strong>?
+                    This action cannot be undone and all messages in this channel will be permanently lost.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+                <button class="btn btn-danger" @onclick="ConfirmDeleteChannel" disabled="@_isSubmitting">
+                    @(_isSubmitting ? "Deleting..." : "Delete Channel")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ChannelResponse> _channels = new();
+
+    // Create modal
+    private bool _showCreateModal;
+    private string _createName = string.Empty;
+    private ChannelType _createType = ChannelType.Text;
+    private string _createTopic = string.Empty;
+    private string? _createNameError;
+
+    // Edit modal
+    private bool _showEditModal;
+    private ChannelResponse? _editChannel;
+    private string _editName = string.Empty;
+    private string _editTopic = string.Empty;
+    private string? _editNameError;
+
+    // Delete confirm
+    private bool _showDeleteConfirm;
+    private ChannelResponse? _deleteChannel;
+
+    // Shared
+    private bool _isSubmitting;
+    private string? _toastMessage;
+    private string _toastType = "success";
+
+    protected override void OnInitialized()
+    {
+        _channels = ChannelState.Channels.ToList();
+        ChannelState.OnChange += RefreshChannels;
+    }
+
+    private void RefreshChannels()
+    {
+        _channels = ChannelState.Channels.ToList();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OpenCreateModal()
+    {
+        _createName = string.Empty;
+        _createType = ChannelType.Text;
+        _createTopic = string.Empty;
+        _createNameError = null;
+        _showCreateModal = true;
+    }
+
+    private void OpenEditModal(ChannelResponse channel)
+    {
+        _editChannel = channel;
+        _editName = channel.Name;
+        _editTopic = channel.Topic ?? string.Empty;
+        _editNameError = null;
+        _showEditModal = true;
+    }
+
+    private void OpenDeleteConfirm(ChannelResponse channel)
+    {
+        _deleteChannel = channel;
+        _showDeleteConfirm = true;
+    }
+
+    private void CloseModals()
+    {
+        _showCreateModal = false;
+        _showEditModal = false;
+        _showDeleteConfirm = false;
+    }
+
+    private async Task CreateChannel()
+    {
+        _createNameError = null;
+        if (string.IsNullOrWhiteSpace(_createName))
+        {
+            _createNameError = "Channel name is required.";
+            return;
+        }
+
+        _isSubmitting = true;
+        try
+        {
+            var result = await Api.CreateChannelAsync(
+                _createName.Trim(),
+                string.IsNullOrWhiteSpace(_createTopic) ? null : _createTopic.Trim(),
+                _createType);
+
+            if (result is not null)
+            {
+                // Refresh channel list from state
+                var channels = await Api.GetChannelsAsync();
+                ChannelState.SetChannels(channels);
+                CloseModals();
+                ShowToast($"Channel \"{_createName.Trim()}\" created", "success");
+            }
+            else
+            {
+                ShowToast("Failed to create channel.", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to create channel");
+            ShowToast("Failed to create channel.", "error");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task SaveEditChannel()
+    {
+        _editNameError = null;
+        if (string.IsNullOrWhiteSpace(_editName))
+        {
+            _editNameError = "Channel name is required.";
+            return;
+        }
+
+        if (_editChannel is null) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var success = await Api.UpdateChannelAsync(
+                _editChannel.Id,
+                _editName.Trim(),
+                string.IsNullOrWhiteSpace(_editTopic) ? null : _editTopic.Trim());
+
+            if (success)
+            {
+                var channels = await Api.GetChannelsAsync();
+                ChannelState.SetChannels(channels);
+                CloseModals();
+                ShowToast("Channel updated", "success");
+            }
+            else
+            {
+                ShowToast("Failed to update channel.", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to update channel {ChannelId}", _editChannel.Id);
+            ShowToast("Failed to update channel.", "error");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task ConfirmDeleteChannel()
+    {
+        if (_deleteChannel is null) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var success = await Api.DeleteChannelAsync(_deleteChannel.Id);
+            if (success)
+            {
+                var channelName = _deleteChannel.Name;
+                var channels = await Api.GetChannelsAsync();
+                ChannelState.SetChannels(channels);
+                CloseModals();
+                ShowToast($"Channel \"{channelName}\" deleted", "success");
+            }
+            else
+            {
+                ShowToast("Failed to delete channel.", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete channel {ChannelId}", _deleteChannel.Id);
+            ShowToast("Failed to delete channel.", "error");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task MoveChannel(ChannelResponse channel, int direction)
+    {
+        var sorted = _channels.OrderBy(c => c.SortOrder).ToList();
+        var currentIdx = sorted.FindIndex(c => c.Id == channel.Id);
+        var targetIdx = currentIdx + direction;
+        if (targetIdx < 0 || targetIdx >= sorted.Count) return;
+
+        // Swap sort orders locally
+        var temp = sorted[currentIdx].SortOrder;
+        sorted[currentIdx].SortOrder = sorted[targetIdx].SortOrder;
+        sorted[targetIdx].SortOrder = temp;
+
+        // Build ordered ID list
+        var orderedIds = sorted.OrderBy(c => c.SortOrder).Select(c => c.Id).ToList();
+
+        var success = await Api.ReorderChannelsAsync(orderedIds);
+        if (success)
+        {
+            var channels = await Api.GetChannelsAsync();
+            ChannelState.SetChannels(channels);
+        }
+        else
+        {
+            // Revert local change
+            sorted[targetIdx].SortOrder = sorted[currentIdx].SortOrder;
+            sorted[currentIdx].SortOrder = temp;
+            ShowToast("Failed to reorder channels.", "error");
+        }
+    }
+
+    private void ShowToast(string message, string type)
+    {
+        _toastMessage = message;
+        _toastType = type;
+        StateHasChanged();
+        _ = HideToastAfterDelay();
+    }
+
+    private async Task HideToastAfterDelay()
+    {
+        await Task.Delay(3000);
+        _toastMessage = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ChannelState.OnChange -= RefreshChannels;
+    }
+}

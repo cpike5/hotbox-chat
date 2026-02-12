@@ -1,0 +1,91 @@
+@page "/admin"
+@layout AdminLayout
+@using HotBox.Client.Models
+@using HotBox.Client.Services
+@using HotBox.Client.State
+@inject AuthState AuthState
+@inject NavigationManager Navigation
+@inject ILogger<AdminPage> Logger
+
+<PageTitle>HotBox - Admin Panel</PageTitle>
+
+<div class="admin-body">
+    <!-- Sidebar -->
+    <nav class="admin-sidebar">
+        <div class="sidebar-label">Administration</div>
+
+        <button class="sidebar-item @(_activeTab == "settings" ? "active" : "")"
+                @onclick='() => SwitchTab("settings")'>
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <span>Server Settings</span>
+        </button>
+
+        <button class="sidebar-item @(_activeTab == "channels" ? "active" : "")"
+                @onclick='() => SwitchTab("channels")'>
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
+            <span>Channels</span>
+        </button>
+
+        <button class="sidebar-item @(_activeTab == "users" ? "active" : "")"
+                @onclick='() => SwitchTab("users")'>
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <span>Users</span>
+        </button>
+
+        <button class="sidebar-item @(_activeTab == "invites" ? "active" : "")"
+                @onclick='() => SwitchTab("invites")'>
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+            <span>Invites</span>
+        </button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="admin-main">
+        <div class="admin-main-inner">
+            @if (_activeTab == "settings")
+            {
+                <AdminServerSettings />
+            }
+            else if (_activeTab == "channels")
+            {
+                <AdminChannelManagement />
+            }
+            else if (_activeTab == "users")
+            {
+                <AdminUserManagement IsActive="@(_activeTab == "users")" />
+            }
+            else if (_activeTab == "invites")
+            {
+                <AdminInviteManagement IsActive="@(_activeTab == "invites")" />
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _activeTab = "settings";
+
+    protected override void OnInitialized()
+    {
+        // Auth guard: redirect unauthenticated users to login
+        if (!AuthState.IsAuthenticated)
+        {
+            AuthState.SetReturnUrl(Navigation.Uri);
+            Navigation.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        // Role guard: only admins can access
+        if (AuthState.CurrentUser?.Role is not "Admin")
+        {
+            Logger.LogWarning("Non-admin user {UserId} attempted to access admin panel", AuthState.CurrentUser?.Id);
+            Navigation.NavigateTo("/", replace: true);
+            return;
+        }
+    }
+
+    private void SwitchTab(string tab)
+    {
+        _activeTab = tab;
+    }
+}

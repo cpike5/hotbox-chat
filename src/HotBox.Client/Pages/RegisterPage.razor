@@ -354,11 +354,7 @@
 
             if (response is not null)
             {
-                var userInfo = new UserInfo
-                {
-                    DisplayName = _username.Trim(),
-                    Status = UserStatus.Online
-                };
+                var userInfo = JwtParser.ParseUserInfoFromToken(response.AccessToken);
                 AuthState.SetAuthenticated(response.AccessToken, userInfo);
 
                 var returnUrl = AuthState.ConsumeReturnUrl() ?? "/";
