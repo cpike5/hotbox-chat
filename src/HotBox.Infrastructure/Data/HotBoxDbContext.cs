@@ -20,6 +20,8 @@ public class HotBoxDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Gu
 
     public DbSet<Invite> Invites => Set<Invite>();
 
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

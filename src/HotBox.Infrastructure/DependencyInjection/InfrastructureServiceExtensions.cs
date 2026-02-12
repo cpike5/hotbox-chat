@@ -3,6 +3,7 @@ using HotBox.Core.Interfaces;
 using HotBox.Core.Options;
 using HotBox.Infrastructure.Data;
 using HotBox.Infrastructure.Repositories;
+using HotBox.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -85,6 +86,9 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IDirectMessageRepository, DirectMessageRepository>();
         services.AddScoped<IInviteRepository, InviteRepository>();
+
+        // Register services
+        services.AddScoped<ITokenService, TokenService>();
 
         return services;
     }
