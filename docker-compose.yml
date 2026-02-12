@@ -47,7 +47,7 @@ services:
     environment:
       ACCEPT_EULA: "Y"
     ports:
-      - "5341:80"
+      - "5342:80"
     volumes:
       - seqdata:/data
 

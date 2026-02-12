@@ -37,7 +37,7 @@
         <div class="topbar-divider"></div>
 
         <!-- Channel / DM tabs -->
-        <div class="channel-tabs">
+        <div class="channel-tabs @(ActiveSection == "dms" ? "dm-mode" : "")">
             @if (ActiveSection == "channels")
             {
                 <ChannelList />

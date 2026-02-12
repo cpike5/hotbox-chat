@@ -214,6 +214,26 @@ input, textarea {
   display: none;
 }
 
+.channel-tabs.dm-mode {
+  overflow: visible;
+}
+
+.dm-conversation-list {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  padding: 2px 0;
+}
+
+.dm-conversation-list::-webkit-scrollbar {
+  display: none;
+}
+
 .channel-tab {
   display: flex;
   align-items: center;

@@ -6,21 +6,23 @@
 @inject NavigationManager Navigation
 @implements IDisposable
 
-@foreach (var conversation in DirectMessageState.Conversations)
-{
-    var isActive = DirectMessageState.ActiveConversationUserId == conversation.UserId;
-    <button class="channel-tab @(isActive ? "active" : "")"
-            @onclick="() => SelectConversation(conversation)">
-        <span class="tab-hash">@@</span>
-        <span>@conversation.DisplayName</span>
-        @if (conversation.UnreadCount > 0)
-        {
-            <span class="unread-badge">@conversation.UnreadCount</span>
-        }
-    </button>
-}
+<div class="dm-conversation-list">
+    @foreach (var conversation in DirectMessageState.Conversations)
+    {
+        var isActive = DirectMessageState.ActiveConversationUserId == conversation.UserId;
+        <button class="channel-tab @(isActive ? "active" : "")"
+                @onclick="() => SelectConversation(conversation)">
+            <span class="tab-hash">@@</span>
+            <span>@conversation.DisplayName</span>
+            @if (conversation.UnreadCount > 0)
+            {
+                <span class="unread-badge">@conversation.UnreadCount</span>
+            }
+        </button>
+    }
+</div>
 
-<div style="position: relative;">
+<div style="position: relative; flex-shrink: 0;">
     <button class="new-dm-btn" @onclick="TogglePicker" @onclick:stopPropagation="true" aria-label="New direct message">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
