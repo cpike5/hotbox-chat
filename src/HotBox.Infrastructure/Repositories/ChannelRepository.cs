@@ -61,4 +61,26 @@ public class ChannelRepository : IChannelRepository
             await _context.SaveChangesAsync(ct);
         }
     }
+
+    public async Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken ct = default)
+    {
+        var query = _context.Channels.AsQueryable();
+
+        if (excludeId.HasValue)
+        {
+            query = query.Where(c => c.Id != excludeId.Value);
+        }
+
+        return await query.AnyAsync(c => c.Name.ToLower() == name.ToLower(), ct);
+    }
+
+    public async Task<int> GetMaxSortOrderAsync(CancellationToken ct = default)
+    {
+        if (!await _context.Channels.AnyAsync(ct))
+        {
+            return -1;
+        }
+
+        return await _context.Channels.MaxAsync(c => c.SortOrder, ct);
+    }
 }

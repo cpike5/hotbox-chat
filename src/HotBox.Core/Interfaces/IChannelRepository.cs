@@ -16,4 +16,8 @@ public interface IChannelRepository
     Task UpdateAsync(Channel channel, CancellationToken ct = default);
 
     Task DeleteAsync(Guid id, CancellationToken ct = default);
+
+    Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken ct = default);
+
+    Task<int> GetMaxSortOrderAsync(CancellationToken ct = default);
 }
