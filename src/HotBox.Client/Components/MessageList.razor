@@ -17,12 +17,34 @@
 
         @if (ChannelState.IsLoadingMessages)
         {
-            <div class="page-placeholder">
-                <p>Loading messages...</p>
-            </div>
+            @for (var i = 0; i < _skeletonMessages.Length; i++)
+            {
+                var msg = _skeletonMessages[i];
+                <div class="skeleton-message">
+                    <div class="skeleton skeleton-avatar"></div>
+                    <div class="skeleton-message-content">
+                        <div class="skeleton-message-header">
+                            <div class="skeleton skeleton-message-author" style="width: @(msg.AuthorWidth)px;"></div>
+                            <div class="skeleton skeleton-message-time"></div>
+                        </div>
+                        <div class="skeleton skeleton-message-line" style="width: @(msg.Line1Width)%;"></div>
+                        @if (msg.Line2Width > 0)
+                        {
+                            <div class="skeleton skeleton-message-line" style="width: @(msg.Line2Width)%;"></div>
+                        }
+                    </div>
+                </div>
+            }
         }
         else
         {
+            @if (ChannelState.IsLoadingOlderMessages)
+            {
+                <div class="pagination-loader">
+                    <span class="spinner"></span>
+                </div>
+            }
+
             string? lastAuthor = null;
             DateTime? lastTime = null;
 
@@ -66,6 +88,18 @@
 </div>
 
 @code {
+    private record SkeletonMessageDef(int AuthorWidth, int Line1Width, int Line2Width);
+
+    private static readonly SkeletonMessageDef[] _skeletonMessages =
+    {
+        new(72, 80, 45),
+        new(56, 60, 0),
+        new(88, 90, 70),
+        new(64, 50, 30),
+        new(48, 75, 0),
+        new(80, 65, 40)
+    };
+
     protected override void OnInitialized()
     {
         ChannelState.OnChange += StateHasChanged;

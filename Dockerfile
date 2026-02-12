@@ -20,6 +20,9 @@ RUN dotnet publish src/HotBox.Application/HotBox.Application.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN adduser --disabled-password --gecos '' hotbox \
     && mkdir -p /data \
     && chown hotbox:hotbox /data

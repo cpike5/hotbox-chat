@@ -9,12 +9,20 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - Database__Provider=postgresql
       - Database__ConnectionString=Host=db;Port=5432;Database=hotbox;Username=hotbox;Password=${DB_PASSWORD:-changeme}
+      - Jwt__Secret=${JWT_SECRET:-super-secret-key-change-in-production-minimum-32-chars}
+      - Observability__SeqUrl=http://seq:5341
       - AdminSeed__Email=${ADMIN_EMAIL:-admin@hotbox.local}
       - AdminSeed__Password=${ADMIN_PASSWORD:-Admin123!}
       - AdminSeed__DisplayName=${ADMIN_DISPLAY_NAME:-Admin}
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   db:
     image: postgres:16-alpine
@@ -32,5 +40,17 @@ services:
       timeout: 3s
       retries: 5
 
+  seq:
+    image: datalust/seq:latest
+    container_name: hotbox-seq
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "5341:80"
+    volumes:
+      - seqdata:/data
+
 volumes:
   pgdata:
+  seqdata:

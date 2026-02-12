@@ -8,6 +8,8 @@ public class PresenceState
 {
     private readonly Dictionary<Guid, UserPresenceInfo> _users = new();
 
+    public bool IsLoading { get; private set; }
+
     public event Action? OnChange;
 
     /// <summary>
@@ -37,6 +39,15 @@ public class PresenceState
     }
 
     /// <summary>
+    /// Sets the loading state for the members panel.
+    /// </summary>
+    public void SetLoading(bool loading)
+    {
+        IsLoading = loading;
+        NotifyStateChanged();
+    }
+
+    /// <summary>
     /// Sets the initial list of online users, typically received when first connecting.
     /// </summary>
     public void SetOnlineUsers(List<OnlineUserInfoModel> users)
@@ -47,6 +58,7 @@ public class PresenceState
             _users[user.UserId] = new UserPresenceInfo(user.UserId, user.DisplayName, user.Status);
         }
 
+        IsLoading = false;
         NotifyStateChanged();
     }
 

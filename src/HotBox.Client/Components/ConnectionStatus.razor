@@ -1,0 +1,157 @@
+@inject ChatHubService ChatHubService
+@inject AuthState AuthState
+@inject ILogger<ConnectionStatus> Logger
+@implements IDisposable
+
+@if (_displayState != ConnectionDisplayState.Hidden)
+{
+    <div class="connection-status @GetBannerCssClass()" role="status" aria-live="polite">
+        <div class="connection-status-content">
+            @if (_displayState == ConnectionDisplayState.Reconnecting)
+            {
+                <span class="connection-status-spinner" aria-hidden="true"></span>
+                <span>Connection lost. Reconnecting...</span>
+            }
+            else if (_displayState == ConnectionDisplayState.Reconnected)
+            {
+                <svg class="connection-status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>Reconnected!</span>
+            }
+            else if (_displayState == ConnectionDisplayState.Disconnected)
+            {
+                <svg class="connection-status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+                <span>Connection lost.</span>
+                <button class="connection-status-retry" @onclick="RetryConnection">Click to retry</button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private enum ConnectionDisplayState
+    {
+        Hidden,
+        Reconnecting,
+        Reconnected,
+        Disconnected
+    }
+
+    private ConnectionDisplayState _displayState = ConnectionDisplayState.Hidden;
+    private Timer? _disconnectedTimer;
+    private Timer? _reconnectedHideTimer;
+    private bool _wasDisconnected;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        ChatHubService.OnConnectionChanged += HandleConnectionChanged;
+    }
+
+    private void HandleConnectionChanged(bool connected)
+    {
+        ClearTimers();
+
+        if (connected)
+        {
+            if (_wasDisconnected)
+            {
+                // Briefly show "Reconnected!" message before hiding
+                _displayState = ConnectionDisplayState.Reconnected;
+                _reconnectedHideTimer = new Timer(_ =>
+                {
+                    if (_disposed) return;
+                    _displayState = ConnectionDisplayState.Hidden;
+                    _wasDisconnected = false;
+                    InvokeAsync(StateHasChanged);
+                }, null, TimeSpan.FromSeconds(2), Timeout.InfiniteTimeSpan);
+            }
+            else
+            {
+                _displayState = ConnectionDisplayState.Hidden;
+            }
+        }
+        else
+        {
+            _wasDisconnected = true;
+            _displayState = ConnectionDisplayState.Reconnecting;
+
+            // After the default automatic reconnect window (~30s with default policy),
+            // transition to disconnected state so the user can manually retry.
+            _disconnectedTimer = new Timer(_ =>
+            {
+                if (_disposed) return;
+                _displayState = ConnectionDisplayState.Disconnected;
+                InvokeAsync(StateHasChanged);
+            }, null, TimeSpan.FromSeconds(35), Timeout.InfiniteTimeSpan);
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RetryConnection()
+    {
+        if (ChatHubService.IsConnected)
+        {
+            _displayState = ConnectionDisplayState.Reconnected;
+            return;
+        }
+
+        _displayState = ConnectionDisplayState.Reconnecting;
+        ClearTimers();
+
+        try
+        {
+            var token = AuthState.AccessToken;
+            if (token is null)
+            {
+                Logger.LogWarning("Cannot retry connection: no access token available");
+                _displayState = ConnectionDisplayState.Disconnected;
+                return;
+            }
+
+            Logger.LogInformation("User initiated manual reconnection retry");
+            await ChatHubService.StartAsync(token);
+            // OnConnectionChanged(true) will fire from StartAsync on success,
+            // which will update the display state via HandleConnectionChanged.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Manual reconnection attempt failed");
+            _displayState = ConnectionDisplayState.Disconnected;
+        }
+    }
+
+    private string GetBannerCssClass()
+    {
+        return _displayState switch
+        {
+            ConnectionDisplayState.Reconnecting => "connection-status-reconnecting",
+            ConnectionDisplayState.Reconnected => "connection-status-reconnected",
+            ConnectionDisplayState.Disconnected => "connection-status-disconnected",
+            _ => ""
+        };
+    }
+
+    private void ClearTimers()
+    {
+        _disconnectedTimer?.Dispose();
+        _disconnectedTimer = null;
+        _reconnectedHideTimer?.Dispose();
+        _reconnectedHideTimer = null;
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        ChatHubService.OnConnectionChanged -= HandleConnectionChanged;
+        ClearTimers();
+    }
+}
