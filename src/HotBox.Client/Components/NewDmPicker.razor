@@ -1,0 +1,139 @@
+@using HotBox.Client.Models
+@using HotBox.Client.Services
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<div class="new-dm-picker" @onclick:stopPropagation="true">
+    <input class="new-dm-search"
+           type="text"
+           placeholder="Find a user..."
+           @bind="SearchQuery"
+           @bind:event="oninput"
+           @bind:after="OnSearchInput"
+           @ref="_inputRef" />
+
+    <div class="new-dm-results">
+        @if (IsLoading)
+        {
+            <div class="new-dm-result-item loading">Searching...</div>
+        }
+        else if (Results.Count > 0)
+        {
+            @foreach (var user in Results)
+            {
+                <button class="new-dm-result-item" @onclick="() => SelectUser(user)">
+                    <div class="new-dm-avatar" style="background: @GetAvatarColor(user.DisplayName);">
+                        @GetInitials(user.DisplayName)
+                    </div>
+                    <span>@user.DisplayName</span>
+                </button>
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(SearchQuery))
+        {
+            <div class="new-dm-result-item loading">No users found</div>
+        }
+        else
+        {
+            <div class="new-dm-result-item loading">Type to search for users</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback OnUserSelected { get; set; }
+
+    private string SearchQuery { get; set; } = string.Empty;
+    private List<UserSearchResult> Results { get; set; } = new();
+    private bool IsLoading { get; set; }
+    private System.Threading.Timer? _debounceTimer;
+    private CancellationTokenSource? _searchCts;
+    private ElementReference _inputRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try { await _inputRef.FocusAsync(); } catch { }
+        }
+    }
+
+    private void OnSearchInput()
+    {
+        _debounceTimer?.Dispose();
+        _debounceTimer = new System.Threading.Timer(
+            async _ => await InvokeAsync(ExecuteSearch),
+            null,
+            300,
+            Timeout.Infinite);
+    }
+
+    private async Task ExecuteSearch()
+    {
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var ct = _searchCts.Token;
+
+        var query = SearchQuery?.Trim();
+        if (string.IsNullOrEmpty(query))
+        {
+            Results = new();
+            StateHasChanged();
+            return;
+        }
+
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            Results = await Api.SearchUsersAsync(query, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        finally
+        {
+            if (!ct.IsCancellationRequested)
+            {
+                IsLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task SelectUser(UserSearchResult user)
+    {
+        Navigation.NavigateTo($"/dm/{user.Id}");
+        await OnUserSelected.InvokeAsync();
+    }
+
+    private static string GetAvatarColor(string name)
+    {
+        int hash = 0;
+        foreach (char c in name)
+            hash = c + ((hash << 5) - hash);
+        int hue = Math.Abs(hash) % 360;
+        return $"hsl({hue}, 32%, 38%)";
+    }
+
+    private static string GetInitials(string displayName)
+    {
+        var parts = displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return displayName.Length >= 2
+            ? displayName[..2].ToUpper()
+            : displayName.ToUpper();
+    }
+
+    public void Dispose()
+    {
+        _debounceTimer?.Dispose();
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+    }
+}

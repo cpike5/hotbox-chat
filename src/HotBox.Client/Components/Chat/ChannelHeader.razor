@@ -1,6 +1,7 @@
 @using HotBox.Client.State
 @using HotBox.Core.Enums
 @inject ChannelState ChannelState
+@inject DirectMessageState DirectMessageState
 @implements IDisposable
 
 @if (ChannelState.ActiveChannel is not null)
@@ -14,15 +15,22 @@
         <span class="channel-info-topic">@channel.Topic</span>
     }
 }
+else if (DirectMessageState.ActiveConversationUserId.HasValue)
+{
+    <span class="channel-info-icon">@@</span>
+    <span class="channel-info-name">@DirectMessageState.ActiveConversationDisplayName</span>
+}
 
 @code {
     protected override void OnInitialized()
     {
         ChannelState.OnChange += StateHasChanged;
+        DirectMessageState.OnChange += StateHasChanged;
     }
 
     public void Dispose()
     {
         ChannelState.OnChange -= StateHasChanged;
+        DirectMessageState.OnChange -= StateHasChanged;
     }
 }

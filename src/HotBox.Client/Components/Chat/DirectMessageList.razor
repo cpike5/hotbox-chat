@@ -20,8 +20,27 @@
     </button>
 }
 
+<div style="position: relative;">
+    <button class="new-dm-btn" @onclick="TogglePicker" @onclick:stopPropagation="true" aria-label="New direct message">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+    </button>
+    @if (PickerOpen)
+    {
+        <NewDmPicker OnUserSelected="ClosePicker" />
+    }
+</div>
+
+@if (PickerOpen)
+{
+    <div class="click-away-overlay active" @onclick="ClosePicker" style="z-index: 99;"></div>
+}
+
 @code {
     private bool _loaded;
+    private bool PickerOpen { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -39,6 +58,16 @@
     {
         DirectMessageState.SetActiveConversation(conversation.UserId, conversation.DisplayName);
         Navigation.NavigateTo($"/dm/{conversation.UserId}");
+    }
+
+    private void TogglePicker()
+    {
+        PickerOpen = !PickerOpen;
+    }
+
+    private void ClosePicker()
+    {
+        PickerOpen = false;
     }
 
     public void Dispose()

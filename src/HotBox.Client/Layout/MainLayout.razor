@@ -11,6 +11,7 @@
 @inject NotificationService NotificationService
 @inject VoiceConnectionManager VoiceConnectionManager
 @inject NavigationManager Navigation
+@inject DirectMessageState DirectMessageState
 @inject SearchState SearchState
 @inject ApiClient Api
 @inject ILogger<MainLayout> Logger
@@ -313,7 +314,25 @@
 
     private void SwitchSection(string section)
     {
+        if (ActiveSection == section)
+            return;
+
         ActiveSection = section;
+
+        if (section == "dms")
+        {
+            if (DirectMessageState.ActiveConversationUserId.HasValue)
+                Navigation.NavigateTo($"/dm/{DirectMessageState.ActiveConversationUserId.Value}");
+            else
+                Navigation.NavigateTo("/dms");
+        }
+        else
+        {
+            if (ChannelState.ActiveChannel is not null)
+                Navigation.NavigateTo($"/channels/{ChannelState.ActiveChannel.Id}");
+            else
+                Navigation.NavigateTo("/");
+        }
     }
 
     private void ToggleMembers()

@@ -240,6 +240,16 @@ public class ApiClient
         return await PutAsync("api/admin/channels/reorder", request, ct);
     }
 
+    // ── Users ──────────────────────────────────────────────────────────────
+
+    public async Task<List<UserSearchResult>> SearchUsersAsync(string? query = null, CancellationToken ct = default)
+    {
+        var url = "api/users/search";
+        if (!string.IsNullOrWhiteSpace(query))
+            url += $"?q={Uri.EscapeDataString(query)}";
+        return await GetAsync<List<UserSearchResult>>(url, ct) ?? new List<UserSearchResult>();
+    }
+
     // ── Search ────────────────────────────────────────────────────────────
 
     public async Task<SearchResultModel?> SearchMessagesAsync(

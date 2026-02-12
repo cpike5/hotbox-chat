@@ -1267,6 +1267,114 @@ input, textarea {
   max-width: 320px;
 }
 
+.placeholder-icon {
+  width: 48px;
+  height: 48px;
+  opacity: 0.2;
+  margin-bottom: 4px;
+}
+
+/* ========================================
+   New DM Picker & Button
+   ======================================== */
+.new-dm-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 10px;
+  height: 28px;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.new-dm-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.new-dm-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.new-dm-picker {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 260px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.new-dm-search {
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+.new-dm-search::placeholder {
+  color: var(--text-faint);
+}
+
+.new-dm-results {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.new-dm-result-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+}
+
+.new-dm-result-item:hover:not(.loading) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.new-dm-result-item.loading {
+  cursor: default;
+  color: var(--text-muted);
+  justify-content: center;
+  padding: 12px 8px;
+}
+
+.new-dm-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  flex-shrink: 0;
+}
+
 /* ========================================
    Auth Pages (Login & Register)
    ======================================== */
