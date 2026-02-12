@@ -1,0 +1,108 @@
+@using HotBox.Client.State
+@using HotBox.Client.Services
+@inject DirectMessageState DirectMessageState
+@inject ChatHubService ChatHub
+@implements IDisposable
+
+<div class="message-input-wrapper">
+    <div class="message-input">
+        <input type="text"
+               @bind="MessageText"
+               @bind:event="oninput"
+               @onkeydown="HandleKeyDown"
+               placeholder="@GetPlaceholder()"
+               disabled="@(DirectMessageState.ActiveConversationUserId is null)" />
+        <button @onclick="SendMessage"
+                disabled="@(DirectMessageState.ActiveConversationUserId is null)"
+                aria-label="Send message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+        </button>
+    </div>
+    @if (DirectMessageState.TypingDisplayNames.Count > 0)
+    {
+        <div class="typing-indicator">
+            @FormatTypingText()
+        </div>
+    }
+</div>
+
+@code {
+    private string MessageText { get; set; } = string.Empty;
+    private DateTime _lastTypingSignal = DateTime.MinValue;
+    private static readonly TimeSpan TypingDebounceInterval = TimeSpan.FromSeconds(3);
+
+    protected override void OnInitialized()
+    {
+        DirectMessageState.OnChange += StateHasChanged;
+    }
+
+    private string GetPlaceholder()
+    {
+        if (DirectMessageState.ActiveConversationUserId is null)
+            return "Select a conversation to start chatting";
+
+        return $"Message @{DirectMessageState.ActiveConversationDisplayName}";
+    }
+
+    private async Task HandleKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendMessage();
+            return;
+        }
+
+        // Debounced typing indicator
+        await SendTypingSignalAsync();
+    }
+
+    private async Task SendMessage()
+    {
+        var content = MessageText.Trim();
+        if (string.IsNullOrEmpty(content) || DirectMessageState.ActiveConversationUserId is null)
+            return;
+
+        var recipientId = DirectMessageState.ActiveConversationUserId.Value;
+        MessageText = string.Empty;
+
+        if (ChatHub.IsConnected)
+        {
+            await ChatHub.SendDirectMessageAsync(recipientId, content);
+            await ChatHub.DirectMessageStoppedTypingAsync(recipientId);
+        }
+    }
+
+    private async Task SendTypingSignalAsync()
+    {
+        if (DirectMessageState.ActiveConversationUserId is null || !ChatHub.IsConnected)
+            return;
+
+        var now = DateTime.UtcNow;
+        if ((now - _lastTypingSignal) < TypingDebounceInterval)
+            return;
+
+        _lastTypingSignal = now;
+        await ChatHub.DirectMessageTypingAsync(DirectMessageState.ActiveConversationUserId.Value);
+    }
+
+    private string FormatTypingText()
+    {
+        var users = DirectMessageState.TypingDisplayNames.ToList();
+
+        return users.Count switch
+        {
+            1 => $"{users[0]} is typing...",
+            2 => $"{users[0]} and {users[1]} are typing...",
+            3 => $"{users[0]}, {users[1]}, and {users[2]} are typing...",
+            _ => "Several people are typing..."
+        };
+    }
+
+    public void Dispose()
+    {
+        DirectMessageState.OnChange -= StateHasChanged;
+    }
+}

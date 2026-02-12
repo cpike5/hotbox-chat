@@ -42,6 +42,15 @@ public class ChatHubService : IAsyncDisposable
     /// <summary>Raised when the connection state changes. True means connected, false means disconnected or reconnecting.</summary>
     public event Action<bool>? OnConnectionChanged;
 
+    /// <summary>Raised when a direct message is received.</summary>
+    public event Action<DirectMessageResponse>? OnDirectMessageReceived;
+
+    /// <summary>Raised when another user starts typing in a DM conversation.</summary>
+    public event Action<Guid, string>? OnDirectMessageTyping;
+
+    /// <summary>Raised when another user stops typing in a DM conversation.</summary>
+    public event Action<Guid>? OnDirectMessageStoppedTyping;
+
     // ----- Connection lifecycle -----
 
     /// <summary>
@@ -149,6 +158,33 @@ public class ChatHubService : IAsyncDisposable
         await _hubConnection!.InvokeAsync("StopTyping", channelId);
     }
 
+    /// <summary>
+    /// Sends a direct message to a specific user.
+    /// </summary>
+    public async Task SendDirectMessageAsync(Guid recipientId, string content)
+    {
+        EnsureConnected();
+        await _hubConnection!.InvokeAsync("SendDirectMessage", recipientId, content);
+    }
+
+    /// <summary>
+    /// Notifies the recipient that the current user has started typing in a DM.
+    /// </summary>
+    public async Task DirectMessageTypingAsync(Guid recipientId)
+    {
+        EnsureConnected();
+        await _hubConnection!.InvokeAsync("DirectMessageTyping", recipientId);
+    }
+
+    /// <summary>
+    /// Notifies the recipient that the current user has stopped typing in a DM.
+    /// </summary>
+    public async Task DirectMessageStoppedTypingAsync(Guid recipientId)
+    {
+        EnsureConnected();
+        await _hubConnection!.InvokeAsync("DirectMessageStoppedTyping", recipientId);
+    }
+
     // ----- IAsyncDisposable -----
 
     public async ValueTask DisposeAsync()
@@ -187,6 +223,21 @@ public class ChatHubService : IAsyncDisposable
         connection.On<Guid, Guid>("UserLeftChannel", (channelId, userId) =>
         {
             OnUserLeftChannel?.Invoke(channelId, userId);
+        });
+
+        connection.On<DirectMessageResponse>("ReceiveDirectMessage", message =>
+        {
+            OnDirectMessageReceived?.Invoke(message);
+        });
+
+        connection.On<Guid, string>("DirectMessageTyping", (senderId, displayName) =>
+        {
+            OnDirectMessageTyping?.Invoke(senderId, displayName);
+        });
+
+        connection.On<Guid>("DirectMessageStoppedTyping", senderId =>
+        {
+            OnDirectMessageStoppedTyping?.Invoke(senderId);
         });
     }
 

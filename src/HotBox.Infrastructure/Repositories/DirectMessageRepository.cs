@@ -24,6 +24,7 @@ public class DirectMessageRepository : IDirectMessageRepository
     {
         var query = _context.DirectMessages
             .AsNoTracking()
+            .Include(dm => dm.Sender)
             .Where(dm =>
                 (dm.SenderId == userId && dm.RecipientId == otherUserId) ||
                 (dm.SenderId == otherUserId && dm.RecipientId == userId));
@@ -76,6 +77,11 @@ public class DirectMessageRepository : IDirectMessageRepository
     {
         _context.DirectMessages.Add(message);
         await _context.SaveChangesAsync(ct);
-        return message;
+
+        // Re-query with navigation properties included
+        return await _context.DirectMessages
+            .AsNoTracking()
+            .Include(dm => dm.Sender)
+            .FirstAsync(dm => dm.Id == message.Id, ct);
     }
 }

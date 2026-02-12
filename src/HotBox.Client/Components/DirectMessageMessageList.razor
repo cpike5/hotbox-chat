@@ -1,0 +1,105 @@
+@using HotBox.Client.State
+@using HotBox.Client.Models
+@inject DirectMessageState DirectMessageState
+@implements IDisposable
+
+<div class="messages-area">
+    <div class="messages-container">
+        @if (DirectMessageState.ActiveConversationUserId is not null)
+        {
+            <div class="channel-welcome">
+                <h2>@@ @DirectMessageState.ActiveConversationDisplayName</h2>
+                <p>
+                    This is the beginning of your conversation with @DirectMessageState.ActiveConversationDisplayName.
+                </p>
+            </div>
+        }
+
+        @if (DirectMessageState.IsLoadingMessages)
+        {
+            <div class="page-placeholder">
+                <p>Loading messages...</p>
+            </div>
+        }
+        else
+        {
+            string? lastAuthor = null;
+            DateTime? lastTime = null;
+
+            @foreach (var msg in DirectMessageState.Messages)
+            {
+                var isNewAuthor = msg.SenderDisplayName != lastAuthor
+                    || (lastTime.HasValue && (msg.CreatedAtUtc - lastTime.Value).TotalMinutes > 5);
+
+                if (isNewAuthor)
+                {
+                    <div class="message-group new-author">
+                        <div class="msg-avatar" style="background: @GetAvatarColor(msg.SenderDisplayName);">
+                            @GetInitials(msg.SenderDisplayName)
+                        </div>
+                        <div class="msg-content">
+                            <div class="msg-header">
+                                <span class="msg-author" style="color: @GetAvatarColor(msg.SenderDisplayName);">
+                                    @msg.SenderDisplayName
+                                </span>
+                                <span class="msg-timestamp">@FormatTime(msg.CreatedAtUtc)</span>
+                            </div>
+                            <div class="msg-body">@msg.Content</div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="message-group">
+                        <div style="width: 34px; flex-shrink: 0;"></div>
+                        <div class="msg-content">
+                            <div class="msg-body">@msg.Content</div>
+                        </div>
+                    </div>
+                }
+
+                lastAuthor = msg.SenderDisplayName;
+                lastTime = msg.CreatedAtUtc;
+            }
+        }
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        DirectMessageState.OnChange += StateHasChanged;
+    }
+
+    private static string FormatTime(DateTime utc)
+    {
+        var local = utc.ToLocalTime();
+        return local.ToString("h:mm tt");
+    }
+
+    private static string GetAvatarColor(string name)
+    {
+        int hash = 0;
+        foreach (char c in name)
+        {
+            hash = c + ((hash << 5) - hash);
+        }
+        int hue = Math.Abs(hash) % 360;
+        return $"hsl({hue}, 32%, 38%)";
+    }
+
+    private static string GetInitials(string displayName)
+    {
+        var parts = displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return displayName.Length >= 2
+            ? displayName[..2].ToUpper()
+            : displayName.ToUpper();
+    }
+
+    public void Dispose()
+    {
+        DirectMessageState.OnChange -= StateHasChanged;
+    }
+}
