@@ -1,15 +1,14 @@
-# Development overlay — use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Local development override — automatically loaded by `docker compose up`
 #
-# Adds:
-#   - Seq for log aggregation (UI at http://localhost:8081)
-#   - SQLite instead of PostgreSQL
-#   - Development environment variables
-#
-# Note: The PostgreSQL container from docker-compose.yml will still start but
-# the app uses SQLite via the environment overrides below.
+# Uses SQLite + Seq for a zero-dependency dev experience.
+# To run production-style (PostgreSQL) instead, use:
+#   docker compose -f docker-compose.yml up
 
 services:
   hotbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - Database__Provider=sqlite
@@ -18,6 +17,9 @@ services:
       - Observability__LogLevel=Debug
     volumes:
       - hotbox-data:/data
+    depends_on:
+      seq:
+        condition: service_started
 
   seq:
     image: datalust/seq:latest
