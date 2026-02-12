@@ -157,10 +157,14 @@ sudo systemctl status hotbox
 sudo journalctl -u hotbox -f
 ```
 
-## 6. Nginx Reverse Proxy
+## 6. Nginx Reverse Proxy + TLS
+
+### Step 1: HTTP-Only Config (for Certbot)
+
+Install nginx and certbot:
 
 ```bash
-sudo apt install -y nginx
+sudo apt install -y nginx certbot
 ```
 
 Create `/etc/nginx/sites-available/hotbox`:
@@ -170,6 +174,12 @@ server {
     listen 80;
     server_name chat.example.com;
 
+    # Certbot challenge directory
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Proxy everything else to HotBox while waiting for certs
     location / {
         proxy_pass http://localhost:5000;
         proxy_http_version 1.1;
@@ -183,24 +193,80 @@ server {
 }
 ```
 
-Enable the site:
+Enable the site and run certbot:
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/hotbox /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo mkdir -p /var/www/certbot
+sudo nginx -t && sudo systemctl reload nginx
+
+# Obtain the certificate
+sudo certbot certonly --webroot -w /var/www/certbot -d chat.example.com
+```
+
+### Step 2: HTTPS Config (after first cert)
+
+Once certbot succeeds, replace `/etc/nginx/sites-available/hotbox` with the full config:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name chat.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/chat.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/chat.example.com/privkey.pem;
+
+    # Mozilla intermediate TLS settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+
+    # HSTS (optional — uncomment after confirming TLS works)
+    # add_header Strict-Transport-Security "max-age=63072000" always;
+
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 80;
+    server_name chat.example.com;
+
+    # Continue serving certbot renewals over HTTP
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
+}
+```
+
+Reload nginx:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 The `Upgrade` / `Connection` headers are required for SignalR WebSocket connections.
 
-## 7. TLS with Let's Encrypt
+### Auto-Renewal
+
+Certbot installs a systemd timer or cron job automatically. Verify it works:
 
 ```bash
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d chat.example.com
+sudo certbot renew --dry-run
 ```
-
-Certbot will modify the Nginx config to add TLS and set up auto-renewal.
 
 ## 8. Firewall
 
