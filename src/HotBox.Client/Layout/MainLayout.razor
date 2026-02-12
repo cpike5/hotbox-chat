@@ -1,8 +1,13 @@
 @inherits LayoutComponentBase
 @using HotBox.Client.State
+@using HotBox.Client.Services
 @inject ChannelState ChannelState
 @inject AuthState AuthState
+@inject PresenceState PresenceState
+@inject ChatHubService ChatHubService
+@inject NotificationService NotificationService
 @inject NavigationManager Navigation
+@inject ILogger<MainLayout> Logger
 @implements IDisposable
 
 <div class="app">
@@ -164,6 +169,7 @@
     private string ActiveSection { get; set; } = "channels";
     private bool MembersVisible { get; set; }
     private bool VoiceDropdownOpen { get; set; }
+    private System.Threading.Timer? _heartbeatTimer;
 
     protected override void OnInitialized()
     {
@@ -176,6 +182,71 @@
         }
 
         ChannelState.OnChange += StateHasChanged;
+
+        // Subscribe to presence events from ChatHubService
+        ChatHubService.OnUserStatusChanged += HandleUserStatusChanged;
+        ChatHubService.OnOnlineUsers += HandleOnlineUsers;
+        ChatHubService.OnNotificationReceived += HandleNotificationReceived;
+        ChatHubService.OnConnectionChanged += HandleConnectionChanged;
+
+        // Heartbeat timer is started/stopped via HandleConnectionChanged
+        // based on actual connection state rather than running unconditionally.
+    }
+
+    private void HandleUserStatusChanged(Guid userId, string displayName, string status)
+    {
+        PresenceState.UpdateUserStatus(userId, displayName, status);
+    }
+
+    private void HandleOnlineUsers(List<HotBox.Client.Models.OnlineUserInfoModel> users)
+    {
+        PresenceState.SetOnlineUsers(users);
+    }
+
+    private async void HandleNotificationReceived(HotBox.Client.Models.NotificationPayloadModel payload)
+    {
+        await NotificationService.ShowNotificationIfHiddenAsync(
+            payload.SenderDisplayName,
+            payload.MessagePreview);
+    }
+
+    private void HandleConnectionChanged(bool connected)
+    {
+        if (connected)
+        {
+            // Start heartbeat timer when connected (fires every 60 seconds)
+            _heartbeatTimer?.Dispose();
+            _heartbeatTimer = new System.Threading.Timer(
+                async _ => await SendHeartbeatAsync(),
+                null,
+                TimeSpan.FromSeconds(60),
+                TimeSpan.FromSeconds(60));
+        }
+        else
+        {
+            // Stop heartbeat timer and clear presence data when disconnected
+            _heartbeatTimer?.Dispose();
+            _heartbeatTimer = null;
+            PresenceState.Clear();
+        }
+    }
+
+    private async Task SendHeartbeatAsync()
+    {
+        if (_heartbeatTimer is null)
+            return;
+
+        try
+        {
+            if (ChatHubService.IsConnected)
+            {
+                await ChatHubService.SendHeartbeatAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to send heartbeat");
+        }
     }
 
     private void SwitchSection(string section)
@@ -201,5 +272,10 @@
     public void Dispose()
     {
         ChannelState.OnChange -= StateHasChanged;
+        ChatHubService.OnUserStatusChanged -= HandleUserStatusChanged;
+        ChatHubService.OnOnlineUsers -= HandleOnlineUsers;
+        ChatHubService.OnNotificationReceived -= HandleNotificationReceived;
+        ChatHubService.OnConnectionChanged -= HandleConnectionChanged;
+        _heartbeatTimer?.Dispose();
     }
 }

@@ -1,58 +1,86 @@
 @using HotBox.Client.State
-@inject ChannelState ChannelState
+@inject PresenceState PresenceState
 @implements IDisposable
 
-@* Placeholder members until a user presence API is available *@
-
-<div class="members-section-label">Online - @OnlineMembers.Count</div>
-@foreach (var member in OnlineMembers)
+@{ var isFirst = true; }
+@foreach (var group in GroupedUsers)
 {
-    <div class="member-item">
-        <div class="member-avatar" style="background: @GetAvatarColor(member.Name);">
-            @GetInitials(member.Name)
-            <span class="status-dot @member.Status"></span>
-        </div>
-        <span class="member-name">@member.Name</span>
-        @if (member.Role is not null)
+    <div class="members-section-label"
+         role="heading"
+         aria-level="3"
+         style="@(!isFirst ? "margin-top: 16px;" : "")">
+        @group.Key - @group.Value.Count
+    </div>
+    <div role="list">
+        @foreach (var user in group.Value)
         {
-            <span class="member-role-tag">@member.Role</span>
+            <div class="member-item @(user.Status == "Offline" ? "offline" : "")"
+                 role="listitem"
+                 aria-label="@user.DisplayName, @GetStatusLabel(user.Status)">
+                <div class="member-avatar" style="background: @GetAvatarColor(user.DisplayName);" aria-hidden="true">
+                    @GetInitials(user.DisplayName)
+                    <span class="status-dot @GetStatusCssClass(user.Status)" aria-hidden="true"></span>
+                </div>
+                <span class="member-name">@user.DisplayName</span>
+            </div>
         }
     </div>
-}
-
-<div class="members-section-label" style="margin-top: 16px;">Offline - @OfflineMembers.Count</div>
-@foreach (var member in OfflineMembers)
-{
-    <div class="member-item offline">
-        <div class="member-avatar" style="background: @GetAvatarColor(member.Name);">
-            @GetInitials(member.Name)
-            <span class="status-dot offline"></span>
-        </div>
-        <span class="member-name">@member.Name</span>
-        @if (member.Role is not null)
-        {
-            <span class="member-role-tag">@member.Role</span>
-        }
-    </div>
+    isFirst = false;
 }
 
 @code {
-    private record MemberInfo(string Name, string Status, string? Role);
+    private static readonly string[] _statusOrder = { "Online", "Idle", "DoNotDisturb", "Offline" };
 
-    private List<MemberInfo> OnlineMembers { get; set; } = new()
+    private static readonly Dictionary<string, string> _statusLabels = new()
     {
-        new("cpike", "online", "admin"),
-        new("JohnDoe", "online", null),
-        new("SaltyKid99", "online", null),
-        new("Meghan", "idle", "mod"),
-        new("xXDarkLordXx", "online", null),
-        new("ghostpepper", "online", null),
+        ["Online"] = "Online",
+        ["Idle"] = "Idle",
+        ["DoNotDisturb"] = "Do Not Disturb",
+        ["Offline"] = "Offline"
     };
 
-    private List<MemberInfo> OfflineMembers { get; set; } = new()
+    private List<KeyValuePair<string, List<UserPresenceInfo>>> GroupedUsers { get; set; } = new();
+
+    protected override void OnInitialized()
     {
-        new("lurker42", "offline", null),
-    };
+        PresenceState.OnChange += OnPresenceChanged;
+        BuildGroupedUsers();
+    }
+
+    private void OnPresenceChanged()
+    {
+        BuildGroupedUsers();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void BuildGroupedUsers()
+    {
+        var allUsers = PresenceState.GetAllUsers();
+
+        GroupedUsers = _statusOrder
+            .Select(status => new KeyValuePair<string, List<UserPresenceInfo>>(
+                _statusLabels.GetValueOrDefault(status, status),
+                allUsers.Where(u => u.Status == status).OrderBy(u => u.DisplayName).ToList()))
+            .Where(g => g.Value.Count > 0)
+            .ToList();
+    }
+
+    private static string GetStatusCssClass(string status)
+    {
+        return status switch
+        {
+            "Online" => "online",
+            "Idle" => "idle",
+            "DoNotDisturb" => "dnd",
+            "Offline" => "offline",
+            _ => "offline"
+        };
+    }
+
+    private static string GetStatusLabel(string status)
+    {
+        return _statusLabels.GetValueOrDefault(status, status);
+    }
 
     private static string GetAvatarColor(string name)
     {
@@ -75,13 +103,8 @@
             : displayName.ToUpper();
     }
 
-    protected override void OnInitialized()
-    {
-        ChannelState.OnChange += StateHasChanged;
-    }
-
     public void Dispose()
     {
-        ChannelState.OnChange -= StateHasChanged;
+        PresenceState.OnChange -= OnPresenceChanged;
     }
 }

@@ -2,15 +2,17 @@ namespace HotBox.Client.State;
 
 public class AppState
 {
-    public AppState(AuthState auth, ChannelState channel, DirectMessageState directMessage)
+    public AppState(AuthState auth, ChannelState channel, DirectMessageState directMessage, PresenceState presence)
     {
         Auth = auth;
         Channel = channel;
         DirectMessage = directMessage;
+        Presence = presence;
 
         Auth.OnChange += NotifyStateChanged;
         Channel.OnChange += NotifyStateChanged;
         DirectMessage.OnChange += NotifyStateChanged;
+        Presence.OnChange += NotifyStateChanged;
     }
 
     public AuthState Auth { get; }
@@ -18,6 +20,8 @@ public class AppState
     public ChannelState Channel { get; }
 
     public DirectMessageState DirectMessage { get; }
+
+    public PresenceState Presence { get; }
 
     public bool IsConnected { get; private set; }
 

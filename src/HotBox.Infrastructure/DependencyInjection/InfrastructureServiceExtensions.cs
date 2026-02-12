@@ -94,6 +94,10 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IMessageService, MessageService>();
         services.AddScoped<IDirectMessageService, DirectMessageService>();
 
+        // Singleton services (in-memory state shared across connections)
+        services.AddSingleton<PresenceService>();
+        services.AddSingleton<IPresenceService>(sp => sp.GetRequiredService<PresenceService>());
+
         return services;
     }
 }

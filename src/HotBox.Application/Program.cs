@@ -1,8 +1,11 @@
 using HotBox.Application.DependencyInjection;
 using HotBox.Application.Hubs;
+using HotBox.Core.Enums;
 using HotBox.Infrastructure.Data;
 using HotBox.Infrastructure.Data.Seeding;
 using HotBox.Infrastructure.DependencyInjection;
+using HotBox.Infrastructure.Services;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -52,6 +55,16 @@ try
     app.MapControllers();
     app.MapHub<ChatHub>("/hubs/chat");
     app.MapFallbackToFile("index.html");
+
+    // Wire up PresenceService status change events to broadcast via SignalR.
+    // This handles deferred events like grace-period expiration and idle timeouts
+    // that fire outside of a Hub method invocation.
+    var presenceService = app.Services.GetRequiredService<PresenceService>();
+    var hubContext = app.Services.GetRequiredService<IHubContext<ChatHub>>();
+    presenceService.OnUserStatusChanged += (userId, displayName, status) =>
+    {
+        _ = hubContext.Clients.All.SendAsync("UserStatusChanged", userId, displayName, status);
+    };
 
     app.Run();
 }

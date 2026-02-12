@@ -51,6 +51,20 @@ public class ChatHubService : IAsyncDisposable
     /// <summary>Raised when another user stops typing in a DM conversation.</summary>
     public event Action<Guid>? OnDirectMessageStoppedTyping;
 
+    /// <summary>
+    /// Raised when a user's presence status changes. Parameters: userId, displayName, status.
+    /// The status parameter is a stringified <c>UserStatus</c> enum value
+    /// (e.g. "Online", "Idle", "DoNotDisturb", "Offline") because SignalR serializes
+    /// enums as strings in JSON by default.
+    /// </summary>
+    public event Action<Guid, string, string>? OnUserStatusChanged;
+
+    /// <summary>Raised when the initial list of online users is received after connecting.</summary>
+    public event Action<List<OnlineUserInfoModel>>? OnOnlineUsers;
+
+    /// <summary>Raised when a notification payload is received from the server.</summary>
+    public event Action<NotificationPayloadModel>? OnNotificationReceived;
+
     // ----- Connection lifecycle -----
 
     /// <summary>
@@ -185,6 +199,15 @@ public class ChatHubService : IAsyncDisposable
         await _hubConnection!.InvokeAsync("DirectMessageStoppedTyping", recipientId);
     }
 
+    /// <summary>
+    /// Sends a heartbeat to the server to indicate the user is still active.
+    /// </summary>
+    public async Task SendHeartbeatAsync()
+    {
+        EnsureConnected();
+        await _hubConnection!.InvokeAsync("Heartbeat");
+    }
+
     // ----- IAsyncDisposable -----
 
     public async ValueTask DisposeAsync()
@@ -238,6 +261,21 @@ public class ChatHubService : IAsyncDisposable
         connection.On<Guid>("DirectMessageStoppedTyping", senderId =>
         {
             OnDirectMessageStoppedTyping?.Invoke(senderId);
+        });
+
+        connection.On<Guid, string, string>("UserStatusChanged", (userId, displayName, status) =>
+        {
+            OnUserStatusChanged?.Invoke(userId, displayName, status);
+        });
+
+        connection.On<List<OnlineUserInfoModel>>("OnlineUsers", users =>
+        {
+            OnOnlineUsers?.Invoke(users);
+        });
+
+        connection.On<NotificationPayloadModel>("ReceiveNotification", payload =>
+        {
+            OnNotificationReceived?.Invoke(payload);
         });
     }
 

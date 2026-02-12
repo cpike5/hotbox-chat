@@ -11,8 +11,10 @@ public static class ClientServiceExtensions
         services.AddScoped<AuthState>();
         services.AddScoped<ChannelState>();
         services.AddScoped<DirectMessageState>();
+        services.AddScoped<PresenceState>();
         services.AddScoped<AppState>();
         services.AddScoped<ChatHubService>();
+        services.AddScoped<NotificationService>();
 
         return services;
     }
