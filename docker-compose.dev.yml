@@ -1,0 +1,15 @@
+services:
+  seq:
+    image: datalust/seq:latest
+    container_name: hotbox-seq
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+    ports:
+      - "5341:5341"   # Ingestion API
+      - "8081:80"     # Web UI
+    volumes:
+      - seqdata:/data
+
+volumes:
+  seqdata:
