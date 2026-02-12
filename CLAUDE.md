@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 HotBox is an open-source, self-hosted alternative to Discord. Built for small friend groups (~10 people) who want a private, lightweight chat platform they fully control. Design target is ~100 concurrent users max.
 
-**Status**: Early development — requirements are defined, a UI prototype exists, but `src/` has no application code yet.
+**Status**: Early development — solution scaffolded with Core/Infrastructure/Application/Client projects, EF Core multi-provider DbContext implemented, deployment scripts and guides in place. No application-layer features yet.
 
 ## Tech Stack
 
@@ -32,19 +32,28 @@ Key patterns:
 - `IServiceCollection` extension methods for DI registration
 - Options pattern (`IOptions<T>`) for configuration
 - Configuration via `appsettings.json` and environment variables
-- Docker-first deployment
+- Docker-first deployment (see `deploy/` scripts and `docs/deployment/`)
 
 ## Project Structure
 
 ```
+deploy/              # Deployment scripts (docker-deploy.sh, bare-metal-deploy.sh)
 docs/
-  requirements/    # Product requirements
-  architecture/    # Architecture decisions (empty, to be populated)
-  designs/         # Design documents (empty, to be populated)
-  research/        # Technical research (empty, to be populated)
-prototypes/        # HTML prototypes for UI exploration
-src/               # Application source code (not yet scaffolded)
-temp/              # Drafts — move to docs/ when finalized
+  requirements/      # Product requirements
+  deployment/        # Docker and bare-metal deployment guides
+  architecture/      # Architecture decisions (empty, to be populated)
+  designs/           # Design documents (empty, to be populated)
+  research/          # Technical research (empty, to be populated)
+prototypes/          # HTML prototypes for UI exploration
+src/
+  HotBox.Core/       # Domain models, interfaces, enums
+  HotBox.Infrastructure/ # EF Core DbContext, configurations, DI
+  HotBox.Application/    # ASP.NET Core host (API entry point)
+  HotBox.Client/         # Blazor WASM client
+tests/               # Unit/integration test projects
+temp/                # Drafts — move to docs/ when finalized
+Dockerfile           # Multi-stage build (SDK → runtime)
+docker-compose.yml   # App + PostgreSQL
 ```
 
 ## Core MVP Features

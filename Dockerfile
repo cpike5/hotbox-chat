@@ -1,0 +1,32 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Copy solution and project files first for layer caching
+COPY HotBox.sln ./
+COPY src/HotBox.Core/HotBox.Core.csproj src/HotBox.Core/
+COPY src/HotBox.Infrastructure/HotBox.Infrastructure.csproj src/HotBox.Infrastructure/
+COPY src/HotBox.Application/HotBox.Application.csproj src/HotBox.Application/
+COPY src/HotBox.Client/HotBox.Client.csproj src/HotBox.Client/
+
+# Restore dependencies
+RUN dotnet restore
+
+# Copy everything else and build
+COPY src/ src/
+RUN dotnet publish src/HotBox.Application/HotBox.Application.csproj \
+    -c Release \
+    -o /app/publish \
+    --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+
+RUN adduser --disabled-password --gecos '' --uid 1654 hotbox
+USER hotbox
+
+COPY --from=build /app/publish .
+
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "HotBox.Application.dll"]

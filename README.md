@@ -41,12 +41,36 @@ Core (domain models, interfaces, business logic)
 
 ## Getting Started
 
-> **Note**: The project is in early development. Source code has not been scaffolded yet. See `docs/requirements/requirements.md` for the full product specification and `prototypes/` for UI explorations.
+> **Note**: The project is in early development. The solution is scaffolded and infrastructure is in place, but application features are not yet implemented.
+
+### Docker (Recommended)
+
+```bash
+git clone https://github.com/your-org/hotbox-chat.git
+cd hotbox-chat
+./deploy/docker-deploy.sh up
+```
+
+HotBox will be running at `http://localhost:8080` with PostgreSQL.
+
+See [docs/deployment/docker.md](docs/deployment/docker.md) for full configuration options (MySQL/MariaDB, SQLite, Nginx, TLS, backups).
+
+### Bare Metal (Linux VPS)
+
+```bash
+git clone https://github.com/your-org/hotbox-chat.git
+cd hotbox-chat
+sudo ./deploy/bare-metal-deploy.sh install
+```
+
+Installs to `/opt/hotbox` with a systemd service listening on `http://localhost:5000`.
+
+See [docs/deployment/bare-metal.md](docs/deployment/bare-metal.md) for PostgreSQL setup, Nginx reverse proxy, TLS, and firewall configuration.
 
 ### Prerequisites
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download) (or latest)
-- [Docker](https://www.docker.com/) (for containerized deployment)
+- [.NET 8 SDK](https://dotnet.microsoft.com/download) (for building)
+- [Docker](https://www.docker.com/) (for containerized deployment) **or** ASP.NET Core 8 Runtime (for bare-metal)
 
 ## Configuration
 
