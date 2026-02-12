@@ -1,7 +1,12 @@
 @inherits LayoutComponentBase
+@using HotBox.Client.Models
+@using HotBox.Client.Services
 @using HotBox.Client.State
+@using HotBox.Core.Enums
 @inject ChannelState ChannelState
 @inject AuthState AuthState
+@inject VoiceState VoiceState
+@inject VoiceConnectionManager VoiceConnectionManager
 @inject NavigationManager Navigation
 @implements IDisposable
 
@@ -60,24 +65,28 @@
                         <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
                     </svg>
                     <span>Voice</span>
-                    <span class="voice-count">0</span>
+                    <span class="voice-count">@VoiceState.ConnectedPeers.Count</span>
                 </button>
                 <div class="voice-dropdown @(VoiceDropdownOpen ? "open" : "")">
                     <div class="voice-dropdown-header">Voice Channels</div>
-                    <div class="voice-channel-item">
-                        <svg class="voice-channel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                        </svg>
-                        <span class="voice-channel-name">Lounge</span>
-                    </div>
-                    <div class="voice-channel-item">
-                        <svg class="voice-channel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                        </svg>
-                        <span class="voice-channel-name">Gaming</span>
-                    </div>
+                    @foreach (var channel in VoiceChannels)
+                    {
+                        var isConnected = VoiceState.CurrentVoiceChannelId == channel.Id;
+                        <div class="voice-channel-item @(isConnected ? "connected" : "")"
+                             @onclick="() => JoinVoiceChannel(channel)">
+                            <svg class="voice-channel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            </svg>
+                            <span class="voice-channel-name">@channel.Name</span>
+                        </div>
+                    }
+                    @if (!VoiceChannels.Any())
+                    {
+                        <div class="voice-channel-item" style="opacity: 0.5; cursor: default;">
+                            <span class="voice-channel-name">No voice channels</span>
+                        </div>
+                    }
                 </div>
             </div>
 
@@ -120,38 +129,54 @@
         <MembersPanel />
     </aside>
 
-    <!-- ============ Voice Bar (bottom, hidden by default) ============ -->
-    <div class="voice-bar hidden">
-        <div class="voice-bar-status">
-            <div class="voice-bar-pulse"></div>
-            <span class="voice-bar-label">Connected</span>
+    <!-- ============ Voice Bar (bottom, shown when connected) ============ -->
+    @if (VoiceState.ConnectionStatus != VoiceConnectionStatus.Disconnected)
+    {
+        <div class="voice-bar">
+            <div class="voice-bar-status">
+                <div class="voice-bar-pulse"></div>
+                <span class="voice-bar-label">
+                    @(VoiceState.ConnectionStatus == VoiceConnectionStatus.Connecting ? "Connecting..." : "Connected")
+                </span>
+            </div>
+            <span class="voice-bar-channel">@VoiceState.CurrentVoiceChannelName</span>
+            <div class="voice-bar-users">
+                @foreach (var peer in VoiceState.ConnectedPeers)
+                {
+                    <span class="voice-bar-user-chip">@peer.DisplayName</span>
+                }
+            </div>
+            <div class="voice-bar-spacer"></div>
+            <div class="voice-bar-controls">
+                <button class="voice-bar-btn @(VoiceState.IsMuted ? "active" : "")"
+                        @onclick="ToggleMute"
+                        aria-label="Toggle mute">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                </button>
+                <button class="voice-bar-btn @(VoiceState.IsDeafened ? "active" : "")"
+                        @onclick="ToggleDeafen"
+                        aria-label="Toggle deafen">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                        <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                    </svg>
+                </button>
+                <button class="voice-bar-btn disconnect"
+                        @onclick="LeaveVoiceChannel"
+                        aria-label="Disconnect from voice">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path>
+                        <line x1="23" y1="1" x2="1" y2="23"></line>
+                    </svg>
+                </button>
+            </div>
         </div>
-        <span class="voice-bar-channel">Lounge</span>
-        <div class="voice-bar-users"></div>
-        <div class="voice-bar-spacer"></div>
-        <div class="voice-bar-controls">
-            <button class="voice-bar-btn" aria-label="Toggle mute">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                    <line x1="12" y1="19" x2="12" y2="23"></line>
-                    <line x1="8" y1="23" x2="16" y2="23"></line>
-                </svg>
-            </button>
-            <button class="voice-bar-btn" aria-label="Toggle deafen">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-                    <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
-                </svg>
-            </button>
-            <button class="voice-bar-btn disconnect" aria-label="Disconnect from voice">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path>
-                    <line x1="23" y1="1" x2="1" y2="23"></line>
-                </svg>
-            </button>
-        </div>
-    </div>
+    }
 </div>
 
 @* Click-away overlay for closing dropdowns *@
@@ -165,7 +190,10 @@
     private bool MembersVisible { get; set; }
     private bool VoiceDropdownOpen { get; set; }
 
-    protected override void OnInitialized()
+    private IEnumerable<ChannelResponse> VoiceChannels =>
+        ChannelState.Channels.Where(c => c.Type == ChannelType.Voice);
+
+    protected override async Task OnInitializedAsync()
     {
         // Route guard: redirect unauthenticated users to login
         if (!AuthState.IsAuthenticated)
@@ -176,6 +204,13 @@
         }
 
         ChannelState.OnChange += StateHasChanged;
+        VoiceState.OnChange += StateHasChanged;
+
+        // Initialize the voice connection manager with the current access token
+        if (AuthState.AccessToken is not null)
+        {
+            await VoiceConnectionManager.InitializeAsync(AuthState.AccessToken);
+        }
     }
 
     private void SwitchSection(string section)
@@ -198,8 +233,45 @@
         VoiceDropdownOpen = false;
     }
 
+    private async Task JoinVoiceChannel(ChannelResponse channel)
+    {
+        // If already connected to this channel, do nothing
+        if (VoiceState.CurrentVoiceChannelId == channel.Id)
+        {
+            CloseVoiceDropdown();
+            return;
+        }
+
+        // If connected to a different channel, leave it first
+        if (VoiceState.ConnectionStatus != VoiceConnectionStatus.Disconnected
+            && VoiceState.CurrentVoiceChannelId.HasValue)
+        {
+            await LeaveVoiceChannel();
+        }
+
+        CloseVoiceDropdown();
+
+        await VoiceConnectionManager.JoinChannelAsync(channel.Id, channel.Name);
+    }
+
+    private async Task LeaveVoiceChannel()
+    {
+        await VoiceConnectionManager.LeaveChannelAsync();
+    }
+
+    private async Task ToggleMute()
+    {
+        await VoiceConnectionManager.ToggleMuteAsync();
+    }
+
+    private async Task ToggleDeafen()
+    {
+        await VoiceConnectionManager.ToggleDeafenAsync();
+    }
+
     public void Dispose()
     {
         ChannelState.OnChange -= StateHasChanged;
+        VoiceState.OnChange -= StateHasChanged;
     }
 }
