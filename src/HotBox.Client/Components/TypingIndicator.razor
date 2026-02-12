@@ -17,7 +17,7 @@
 
     private string FormatTypingText()
     {
-        var users = ChannelState.TypingUsers.ToList();
+        var users = ChannelState.TypingUsers.Values.ToList();
 
         return users.Count switch
         {

@@ -18,11 +18,11 @@ public class AuthController : ControllerBase
 {
     private readonly ITokenService _tokenService;
     private readonly JwtOptions _jwtOptions;
-    private readonly ServerOptions _serverOptions;
     private readonly OAuthOptions _oauthOptions;
     private readonly UserManager<AppUser> _userManager;
     private readonly SignInManager<AppUser> _signInManager;
     private readonly IInviteService _inviteService;
+    private readonly IServerSettingsService _serverSettingsService;
     private readonly ILogger<AuthController> _logger;
     private readonly IWebHostEnvironment _environment;
 
@@ -38,21 +38,21 @@ public class AuthController : ControllerBase
     public AuthController(
         ITokenService tokenService,
         IOptions<JwtOptions> jwtOptions,
-        IOptions<ServerOptions> serverOptions,
         IOptions<OAuthOptions> oauthOptions,
         UserManager<AppUser> userManager,
         SignInManager<AppUser> signInManager,
         IInviteService inviteService,
+        IServerSettingsService serverSettingsService,
         ILogger<AuthController> logger,
         IWebHostEnvironment environment)
     {
         _tokenService = tokenService;
         _jwtOptions = jwtOptions.Value;
-        _serverOptions = serverOptions.Value;
         _oauthOptions = oauthOptions.Value;
         _userManager = userManager;
         _signInManager = signInManager;
         _inviteService = inviteService;
+        _serverSettingsService = serverSettingsService;
         _logger = logger;
         _environment = environment;
     }
@@ -60,8 +60,9 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken ct)
     {
-        // Enforce registration mode
-        switch (_serverOptions.RegistrationMode)
+        // Enforce registration mode (read from DB, falls back to appsettings)
+        var serverSettings = await _serverSettingsService.GetAsync(ct);
+        switch (serverSettings.RegistrationMode)
         {
             case RegistrationMode.Closed:
                 _logger.LogWarning("Registration attempt rejected: registration is closed");
@@ -235,9 +236,10 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("registration-mode")]
-    public IActionResult GetRegistrationMode()
+    public async Task<IActionResult> GetRegistrationMode(CancellationToken ct)
     {
-        return Ok(new { mode = _serverOptions.RegistrationMode.ToString() });
+        var serverSettings = await _serverSettingsService.GetAsync(ct);
+        return Ok(new { mode = serverSettings.RegistrationMode.ToString() });
     }
 
     [HttpGet("external/{provider}")]
@@ -280,7 +282,8 @@ public class AuthController : ControllerBase
         if (user is null)
         {
             // Check registration mode for new OAuth users
-            if (_serverOptions.RegistrationMode == RegistrationMode.Closed)
+            var oauthSettings = await _serverSettingsService.GetAsync(ct);
+            if (oauthSettings.RegistrationMode == RegistrationMode.Closed)
             {
                 _logger.LogWarning("OAuth registration rejected: registration is closed for {Email}", email);
                 return StatusCode(403, new { error = "Registration is currently closed." });

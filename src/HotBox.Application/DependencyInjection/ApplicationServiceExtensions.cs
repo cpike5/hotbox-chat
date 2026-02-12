@@ -17,6 +17,7 @@ public static class ApplicationServiceExtensions
         IConfiguration configuration)
     {
         // Bind options that Application owns
+        services.Configure<ServerOptions>(configuration.GetSection(ServerOptions.SectionName));
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<OAuthOptions>(configuration.GetSection(OAuthOptions.SectionName));
         services.Configure<IceServerOptions>(configuration.GetSection(IceServerOptions.SectionName));
@@ -86,10 +87,20 @@ public static class ApplicationServiceExtensions
         services.AddAuthorization();
 
         // API controllers
-        services.AddControllers();
+        services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(
+                    new System.Text.Json.Serialization.JsonStringEnumConverter());
+            });
 
         // SignalR for real-time hubs
-        services.AddSignalR();
+        services.AddSignalR()
+            .AddJsonProtocol(options =>
+            {
+                options.PayloadSerializerOptions.Converters.Add(
+                    new System.Text.Json.Serialization.JsonStringEnumConverter());
+            });
 
         // CORS — permissive for development, tighten for production
         services.AddCors(options =>

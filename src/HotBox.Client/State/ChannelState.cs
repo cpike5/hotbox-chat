@@ -10,7 +10,7 @@ public class ChannelState
 
     public List<MessageResponse> Messages { get; private set; } = new();
 
-    public HashSet<string> TypingUsers { get; private set; } = new();
+    public Dictionary<Guid, string> TypingUsers { get; private set; } = new();
 
     public bool IsLoadingMessages { get; private set; }
 
@@ -30,7 +30,7 @@ public class ChannelState
     {
         ActiveChannel = channel;
         Messages = new();
-        TypingUsers = new();
+        TypingUsers = new Dictionary<Guid, string>();
         NotifyStateChanged();
     }
 
@@ -52,17 +52,15 @@ public class ChannelState
         NotifyStateChanged();
     }
 
-    public void AddTypingUser(string displayName)
+    public void AddTypingUser(Guid userId, string displayName)
     {
-        if (TypingUsers.Add(displayName))
-        {
-            NotifyStateChanged();
-        }
+        TypingUsers[userId] = displayName;
+        NotifyStateChanged();
     }
 
-    public void RemoveTypingUser(string displayName)
+    public void RemoveTypingUser(Guid userId)
     {
-        if (TypingUsers.Remove(displayName))
+        if (TypingUsers.Remove(userId))
         {
             NotifyStateChanged();
         }

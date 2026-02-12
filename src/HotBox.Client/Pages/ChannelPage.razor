@@ -1,4 +1,5 @@
 @page "/channels/{Id:guid}"
+@using HotBox.Client.Models
 @using HotBox.Client.State
 @using HotBox.Client.Services
 @inject ChannelState ChannelState
@@ -16,6 +17,14 @@
     public Guid Id { get; set; }
 
     private Guid _currentChannelId;
+
+    protected override void OnInitialized()
+    {
+        // Subscribe to real-time channel events
+        ChatHub.OnMessageReceived += HandleMessageReceived;
+        ChatHub.OnUserTyping += HandleUserTyping;
+        ChatHub.OnUserStoppedTyping += HandleUserStoppedTyping;
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -60,8 +69,42 @@
         }
     }
 
+    private void HandleMessageReceived(MessageResponse message)
+    {
+        if (message.ChannelId == _currentChannelId)
+        {
+            // Clear typing indicator for the author who just sent a message
+            ChannelState.RemoveTypingUser(message.AuthorId);
+            ChannelState.AddMessage(message);
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void HandleUserTyping(Guid channelId, Guid userId, string displayName)
+    {
+        if (channelId == _currentChannelId)
+        {
+            ChannelState.AddTypingUser(userId, displayName);
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void HandleUserStoppedTyping(Guid channelId, Guid userId)
+    {
+        if (channelId == _currentChannelId)
+        {
+            ChannelState.RemoveTypingUser(userId);
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
     public void Dispose()
     {
+        // Unsubscribe from real-time events
+        ChatHub.OnMessageReceived -= HandleMessageReceived;
+        ChatHub.OnUserTyping -= HandleUserTyping;
+        ChatHub.OnUserStoppedTyping -= HandleUserStoppedTyping;
+
         // Leave the SignalR channel group when navigating away
         if (ChatHub.IsConnected && _currentChannelId != Guid.Empty)
         {

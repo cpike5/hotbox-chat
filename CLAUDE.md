@@ -93,3 +93,7 @@ The project is organized into five ownership domains, each with a dedicated sub-
 | `client-experience` | Blazor WASM shell, layout, design system, theming, notifications UI | Task tool with `.claude/agents/client-experience.md` |
 
 See `docs/ownership-domains.md` for full domain boundaries, code ownership, and coordination rules.
+
+## Enum Serialization
+
+All enums in `HotBox.Core/Enums/` must have `[JsonConverter(typeof(JsonStringEnumConverter))]`. The server (API controllers + SignalR) serializes enums as strings. The Blazor WASM client deserializes API responses with default `System.Text.Json` options — without the attribute on the enum itself, the client cannot parse string values like `"Text"` back into `ChannelType`. Adding `JsonStringEnumConverter` only on the server side is **not enough**; the attribute must live on the enum type in Core so both sides agree.

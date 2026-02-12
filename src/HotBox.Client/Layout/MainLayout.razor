@@ -232,9 +232,12 @@
         var channels = await Api.GetChannelsAsync();
         ChannelState.SetChannels(channels);
 
-        // Initialize the voice connection manager with the current access token
+        // Start the SignalR hub connection so we receive presence and real-time events
         if (AuthState.AccessToken is not null)
         {
+            await ChatHubService.StartAsync(AuthState.AccessToken);
+
+            // Initialize the voice connection manager with the current access token
             await VoiceConnectionManager.InitializeAsync(AuthState.AccessToken);
         }
 
