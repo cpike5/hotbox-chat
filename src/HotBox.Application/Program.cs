@@ -1,6 +1,7 @@
 using HotBox.Application.DependencyInjection;
 using HotBox.Application.Hubs;
 using HotBox.Core.Enums;
+using HotBox.Core.Interfaces;
 using HotBox.Infrastructure.Data;
 using HotBox.Infrastructure.Data.Seeding;
 using HotBox.Infrastructure.DependencyInjection;
@@ -35,6 +36,13 @@ try
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HotBoxDbContext>();
         db.Database.Migrate();
+    }
+
+    // Initialize search indexes (FTS tables, GIN indexes, etc.)
+    {
+        using var scope = app.Services.CreateScope();
+        var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
+        searchService.InitializeIndexAsync(CancellationToken.None).GetAwaiter().GetResult();
     }
 
     // Configure the HTTP request pipeline.

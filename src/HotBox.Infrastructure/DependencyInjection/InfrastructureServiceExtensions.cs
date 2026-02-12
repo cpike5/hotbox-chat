@@ -4,6 +4,7 @@ using HotBox.Core.Options;
 using HotBox.Infrastructure.Data;
 using HotBox.Infrastructure.Repositories;
 using HotBox.Infrastructure.Services;
+using HotBox.Infrastructure.Services.Search;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -98,6 +99,28 @@ public static class InfrastructureServiceExtensions
         // Singleton services (in-memory state shared across connections)
         services.AddSingleton<PresenceService>();
         services.AddSingleton<IPresenceService>(sp => sp.GetRequiredService<PresenceService>());
+
+        // Register search service based on database provider
+        services.Configure<SearchOptions>(opts =>
+            configuration.GetSection(SearchOptions.SectionName).Bind(opts));
+
+        switch (dbOptions.Provider.ToLowerInvariant())
+        {
+            case "postgresql":
+            case "postgres":
+                services.AddScoped<ISearchService, PostgresSearchService>();
+                break;
+            case "mysql":
+            case "mariadb":
+                services.AddScoped<ISearchService, MySqlSearchService>();
+                break;
+            case "sqlite":
+                services.AddScoped<ISearchService, SqliteSearchService>();
+                break;
+            default:
+                services.AddScoped<ISearchService, FallbackSearchService>();
+                break;
+        }
 
         return services;
     }

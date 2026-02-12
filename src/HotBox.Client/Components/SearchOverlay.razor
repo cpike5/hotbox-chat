@@ -1,0 +1,289 @@
+@inject SearchState SearchState
+@inject ChannelState ChannelState
+@inject ApiClient ApiClient
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@if (SearchState.IsOpen)
+{
+    <div class="search-overlay-backdrop" @onclick="HandleBackdropClick">
+        <div class="search-overlay" @onclick:stopPropagation="true" @onkeydown="HandleKeyDown">
+            <!-- Search input -->
+            <div class="search-input-wrapper">
+                <svg class="search-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input @ref="_searchInput"
+                       type="text"
+                       class="search-input"
+                       placeholder="Search messages... (Ctrl+K)"
+                       value="@SearchState.Query"
+                       @oninput="HandleInput"
+                       @onkeydown="HandleKeyDown" />
+                @if (SearchState.IsSearching)
+                {
+                    <div class="search-spinner">
+                        <div class="spinner"></div>
+                    </div>
+                }
+                <div class="search-shortcut-hint">
+                    <kbd>ESC</kbd>
+                </div>
+            </div>
+
+            <!-- Channel filter -->
+            <div class="search-filter-bar">
+                <select class="search-channel-filter" @onchange="HandleChannelFilterChange">
+                    <option value="">All channels</option>
+                    @foreach (var channel in ChannelState.Channels.Where(c => c.Type == HotBox.Core.Enums.ChannelType.Text).OrderBy(c => c.SortOrder))
+                    {
+                        <option value="@channel.Id" selected="@(_filterChannelId == channel.Id)"># @channel.Name</option>
+                    }
+                </select>
+                @if (SearchState.TotalEstimate > 0)
+                {
+                    <span class="search-result-count">@SearchState.TotalEstimate results</span>
+                }
+            </div>
+
+            <!-- Results -->
+            <div class="search-results">
+                @if (string.IsNullOrWhiteSpace(SearchState.Query) || SearchState.Query.Length < 2)
+                {
+                    <div class="search-empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <span>Type to search messages</span>
+                    </div>
+                }
+                else if (!SearchState.IsSearching && SearchState.Results.Count == 0 && _hasSearched)
+                {
+                    <div class="search-empty-state">
+                        <span>No results found</span>
+                    </div>
+                }
+                else
+                {
+                    @for (var i = 0; i < SearchState.Results.Count; i++)
+                    {
+                        var index = i;
+                        var item = SearchState.Results[i];
+                        <button class="search-result-item @(index == _selectedIndex ? "selected" : "")"
+                                @onclick="() => JumpToMessage(item)"
+                                @onmouseenter="() => _selectedIndex = index">
+                            <div class="search-result-header">
+                                <span class="search-result-author">@item.AuthorDisplayName</span>
+                                <span class="search-result-channel"># @item.ChannelName</span>
+                                <span class="search-result-time">@FormatRelativeTime(item.CreatedAtUtc)</span>
+                            </div>
+                            <div class="search-result-snippet">@((MarkupString)item.Snippet)</div>
+                        </button>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private ElementReference _searchInput;
+    private DotNetObjectReference<SearchOverlay>? _dotNetRef;
+    private CancellationTokenSource? _debounceCts;
+    private int _selectedIndex;
+    private bool _hasSearched;
+    private Guid? _filterChannelId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        SearchState.OnChange += HandleStateChanged;
+
+        _dotNetRef = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("searchInterop.register", _dotNetRef);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (SearchState.IsOpen)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("searchInterop.focusElement", _searchInput);
+            }
+            catch
+            {
+                // Element may not be in DOM yet on first render
+            }
+        }
+    }
+
+    [JSInvokable]
+    public void OnSearchShortcut()
+    {
+        if (SearchState.IsOpen)
+        {
+            CloseSearch();
+        }
+        else
+        {
+            SearchState.Open();
+        }
+
+        StateHasChanged();
+    }
+
+    private void HandleStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleBackdropClick()
+    {
+        CloseSearch();
+    }
+
+    private async Task HandleInput(ChangeEventArgs e)
+    {
+        var query = e.Value?.ToString() ?? string.Empty;
+        SearchState.SetQuery(query);
+        _selectedIndex = 0;
+
+        // Cancel any pending debounce
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+
+        if (query.Length < 2)
+        {
+            _hasSearched = false;
+            SearchState.SetResults(new(), 0, null);
+            SearchState.SetSearching(false);
+            return;
+        }
+
+        _debounceCts = new CancellationTokenSource();
+        var ct = _debounceCts.Token;
+
+        try
+        {
+            await Task.Delay(300, ct);
+            await PerformSearchAsync(query, ct);
+        }
+        catch (TaskCanceledException)
+        {
+            // Debounce cancelled — expected
+        }
+    }
+
+    private async Task PerformSearchAsync(string query, CancellationToken ct)
+    {
+        SearchState.SetSearching(true);
+
+        var result = await ApiClient.SearchMessagesAsync(query, _filterChannelId, null, 20, ct);
+
+        if (ct.IsCancellationRequested) return;
+
+        _hasSearched = true;
+
+        if (result is not null)
+        {
+            SearchState.SetResults(result.Items, result.TotalEstimate, result.Cursor);
+        }
+        else
+        {
+            SearchState.SetResults(new(), 0, null);
+        }
+
+        SearchState.SetSearching(false);
+    }
+
+    private async Task HandleChannelFilterChange(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        _filterChannelId = string.IsNullOrEmpty(value) ? null : Guid.Parse(value);
+        _selectedIndex = 0;
+
+        if (SearchState.Query.Length >= 2)
+        {
+            _debounceCts?.Cancel();
+            _debounceCts?.Dispose();
+            _debounceCts = new CancellationTokenSource();
+            await PerformSearchAsync(SearchState.Query, _debounceCts.Token);
+        }
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Escape":
+                CloseSearch();
+                break;
+            case "ArrowDown":
+                if (SearchState.Results.Count > 0)
+                {
+                    _selectedIndex = (_selectedIndex + 1) % SearchState.Results.Count;
+                }
+                break;
+            case "ArrowUp":
+                if (SearchState.Results.Count > 0)
+                {
+                    _selectedIndex = (_selectedIndex - 1 + SearchState.Results.Count) % SearchState.Results.Count;
+                }
+                break;
+            case "Enter":
+                if (SearchState.Results.Count > 0 && _selectedIndex >= 0 && _selectedIndex < SearchState.Results.Count)
+                {
+                    JumpToMessage(SearchState.Results[_selectedIndex]);
+                }
+                break;
+        }
+    }
+
+    private void JumpToMessage(SearchResultItemModel item)
+    {
+        CloseSearch();
+        Navigation.NavigateTo($"/channels/{item.ChannelId}");
+    }
+
+    private void CloseSearch()
+    {
+        SearchState.Clear();
+        _hasSearched = false;
+        _selectedIndex = 0;
+        _filterChannelId = null;
+        SearchState.Close();
+    }
+
+    private static string FormatRelativeTime(DateTime utcTime)
+    {
+        var diff = DateTime.UtcNow - utcTime;
+
+        if (diff.TotalMinutes < 1) return "just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 2) return "yesterday";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
+        return utcTime.ToLocalTime().ToString("MMM d, yyyy");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        SearchState.OnChange -= HandleStateChanged;
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+
+        try
+        {
+            await JS.InvokeVoidAsync("searchInterop.unregister");
+        }
+        catch
+        {
+            // JS interop may fail during app teardown
+        }
+
+        _dotNetRef?.Dispose();
+    }
+}

@@ -11,6 +11,7 @@
 @inject NotificationService NotificationService
 @inject VoiceConnectionManager VoiceConnectionManager
 @inject NavigationManager Navigation
+@inject SearchState SearchState
 @inject ILogger<MainLayout> Logger
 @implements IDisposable
 
@@ -95,7 +96,7 @@
             </div>
 
             <!-- Search -->
-            <button class="topbar-icon-btn" aria-label="Search">
+            <button class="topbar-icon-btn" aria-label="Search" @onclick="OpenSearch">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="11" cy="11" r="8"></circle>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -184,6 +185,9 @@
             </div>
         </div>
     }
+
+    <!-- ============ Search Overlay ============ -->
+    <SearchOverlay />
 </div>
 
 @* Click-away overlay for closing dropdowns *@
@@ -284,6 +288,11 @@
         {
             Logger.LogError(ex, "Failed to send heartbeat");
         }
+    }
+
+    private void OpenSearch()
+    {
+        SearchState.Open();
     }
 
     private void NavigateToAdmin()
