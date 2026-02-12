@@ -1,5 +1,7 @@
+using HotBox.Core.Interfaces;
 using HotBox.Infrastructure.Data;
 using HotBox.Infrastructure.Options;
+using HotBox.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,6 +46,12 @@ public static class DependencyInjection
                         $"Unsupported database provider: {dbOptions.Provider}");
             }
         });
+
+        // Register repositories
+        services.AddScoped<IChannelRepository, ChannelRepository>();
+        services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<IDirectMessageRepository, DirectMessageRepository>();
+        services.AddScoped<IInviteRepository, InviteRepository>();
 
         return services;
     }
