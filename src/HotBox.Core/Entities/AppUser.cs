@@ -20,4 +20,10 @@ public class AppUser : IdentityUser<Guid>
     public ICollection<DirectMessage> SentDirectMessages { get; set; } = [];
 
     public ICollection<DirectMessage> ReceivedDirectMessages { get; set; } = [];
+
+    public bool IsAgent { get; set; }
+
+    public Guid? CreatedByApiKeyId { get; set; }
+
+    public ApiKey? CreatedByApiKey { get; set; }
 }
