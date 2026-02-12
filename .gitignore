@@ -419,3 +419,5 @@ FodyWeavers.xsd
 
 # Temporary working files, can be ignored
 temp
+src/HotBox.Application/hotbox.db
+src/HotBox.Application/hotbox.db-*
