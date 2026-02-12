@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using HotBox.Application.Models;
 using HotBox.Core.Entities;
+using HotBox.Core.Enums;
 using HotBox.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -14,19 +15,78 @@ public class ChatHub : Hub
 {
     private readonly IMessageService _messageService;
     private readonly IDirectMessageService _directMessageService;
+    private readonly IChannelService _channelService;
+    private readonly INotificationService _notificationService;
+    private readonly IPresenceService _presenceService;
     private readonly UserManager<AppUser> _userManager;
     private readonly ILogger<ChatHub> _logger;
 
     public ChatHub(
         IMessageService messageService,
         IDirectMessageService directMessageService,
+        IChannelService channelService,
+        INotificationService notificationService,
+        IPresenceService presenceService,
         UserManager<AppUser> userManager,
         ILogger<ChatHub> logger)
     {
         _messageService = messageService;
         _directMessageService = directMessageService;
+        _channelService = channelService;
+        _notificationService = notificationService;
+        _presenceService = presenceService;
         _userManager = userManager;
         _logger = logger;
+    }
+
+    public override async Task OnConnectedAsync()
+    {
+        var userId = GetUserId();
+        var displayName = await GetDisplayNameAsync(userId);
+
+        // Register connection and mark user online
+        await _presenceService.SetOnlineAsync(userId, Context.ConnectionId, displayName);
+
+        // Broadcast status change to all other clients
+        await Clients.Others.SendAsync(
+            "UserStatusChanged", userId, displayName, UserStatus.Online);
+
+        // Send the full list of online users to the connecting client
+        var onlineUsers = _presenceService.GetAllOnlineUsers()
+            .Select(u => new OnlineUserInfo
+            {
+                UserId = u.UserId,
+                DisplayName = u.DisplayName,
+                Status = u.Status,
+            })
+            .ToList();
+
+        await Clients.Caller.SendAsync("OnlineUsers", onlineUsers);
+
+        await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        var userId = GetUserId();
+
+        // Remove this specific connection
+        var noConnectionsLeft = _presenceService.RemoveConnection(userId, Context.ConnectionId);
+
+        if (noConnectionsLeft)
+        {
+            // Grace period timer is started internally by PresenceService.
+            // When it fires (30s later), if no reconnect occurred,
+            // PresenceService raises OnUserStatusChanged which we subscribe to below.
+            // However, since the Hub is short-lived, we handle the broadcast
+            // via the event on PresenceService that we wire up at startup.
+            // For immediate feedback, we do nothing here — the grace timer handles it.
+            _logger.LogDebug(
+                "User {UserId} disconnected, grace period started (connection {ConnectionId})",
+                userId, Context.ConnectionId);
+        }
+
+        await base.OnDisconnectedAsync(exception);
     }
 
     public async Task JoinChannel(Guid channelId)
@@ -67,18 +127,31 @@ public class ChatHub : Hub
 
         var message = await _messageService.SendAsync(channelId, userId, content);
 
+        var authorDisplayName = message.Author?.DisplayName ?? "Unknown";
+
         var response = new MessageResponse
         {
             Id = message.Id,
             Content = message.Content,
             ChannelId = message.ChannelId,
             AuthorId = message.AuthorId,
-            AuthorDisplayName = message.Author?.DisplayName ?? "Unknown",
+            AuthorDisplayName = authorDisplayName,
             CreatedAtUtc = message.CreatedAtUtc,
         };
 
         await Clients.Group(channelId.ToString())
             .SendAsync("ReceiveMessage", response);
+
+        // Process @mention notifications
+        var channel = await _channelService.GetByIdAsync(channelId);
+        var channelName = channel?.Name ?? "Unknown";
+
+        await _notificationService.ProcessMessageNotificationsAsync(
+            userId,
+            authorDisplayName,
+            channelId,
+            channelName,
+            content);
     }
 
     public async Task StartTyping(Guid channelId)
@@ -142,6 +215,45 @@ public class ChatHub : Hub
 
         await Clients.User(recipientId.ToString())
             .SendAsync("DirectMessageStoppedTyping", senderId);
+    }
+
+    /// <summary>
+    /// Client calls this periodically to signal activity, resetting the 5-minute idle timer.
+    /// </summary>
+    public Task Heartbeat()
+    {
+        var userId = GetUserId();
+        _presenceService.RecordHeartbeat(userId);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Client calls this to manually set their status to DoNotDisturb.
+    /// </summary>
+    public async Task SetStatus(UserStatus status)
+    {
+        var userId = GetUserId();
+
+        switch (status)
+        {
+            case UserStatus.Online:
+                var displayName = await GetDisplayNameAsync(userId);
+                await _presenceService.SetOnlineAsync(userId, Context.ConnectionId, displayName);
+                await Clients.Others.SendAsync("UserStatusChanged", userId, displayName, UserStatus.Online);
+                break;
+            case UserStatus.DoNotDisturb:
+                await _presenceService.SetDoNotDisturbAsync(userId);
+                var dndDisplayName = await GetDisplayNameAsync(userId);
+                await Clients.Others.SendAsync("UserStatusChanged", userId, dndDisplayName, UserStatus.DoNotDisturb);
+                break;
+            case UserStatus.Idle:
+                await _presenceService.SetIdleAsync(userId);
+                var idleDisplayName = await GetDisplayNameAsync(userId);
+                await Clients.Others.SendAsync("UserStatusChanged", userId, idleDisplayName, UserStatus.Idle);
+                break;
+            default:
+                throw new HubException("Cannot manually set status to Offline. Disconnect instead.");
+        }
     }
 
     private Guid GetUserId()

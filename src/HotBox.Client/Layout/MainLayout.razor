@@ -5,9 +5,13 @@
 @using HotBox.Core.Enums
 @inject ChannelState ChannelState
 @inject AuthState AuthState
+@inject PresenceState PresenceState
 @inject VoiceState VoiceState
+@inject ChatHubService ChatHubService
+@inject NotificationService NotificationService
 @inject VoiceConnectionManager VoiceConnectionManager
 @inject NavigationManager Navigation
+@inject ILogger<MainLayout> Logger
 @implements IDisposable
 
 <div class="app">
@@ -189,6 +193,7 @@
     private string ActiveSection { get; set; } = "channels";
     private bool MembersVisible { get; set; }
     private bool VoiceDropdownOpen { get; set; }
+    private System.Threading.Timer? _heartbeatTimer;
 
     private IEnumerable<ChannelResponse> VoiceChannels =>
         ChannelState.Channels.Where(c => c.Type == ChannelType.Voice);
@@ -206,10 +211,75 @@
         ChannelState.OnChange += StateHasChanged;
         VoiceState.OnChange += StateHasChanged;
 
+        // Subscribe to presence events from ChatHubService
+        ChatHubService.OnUserStatusChanged += HandleUserStatusChanged;
+        ChatHubService.OnOnlineUsers += HandleOnlineUsers;
+        ChatHubService.OnNotificationReceived += HandleNotificationReceived;
+        ChatHubService.OnConnectionChanged += HandleConnectionChanged;
+
         // Initialize the voice connection manager with the current access token
         if (AuthState.AccessToken is not null)
         {
             await VoiceConnectionManager.InitializeAsync(AuthState.AccessToken);
+        }
+
+        // Heartbeat timer is started/stopped via HandleConnectionChanged
+        // based on actual connection state rather than running unconditionally.
+    }
+
+    private void HandleUserStatusChanged(Guid userId, string displayName, string status)
+    {
+        PresenceState.UpdateUserStatus(userId, displayName, status);
+    }
+
+    private void HandleOnlineUsers(List<HotBox.Client.Models.OnlineUserInfoModel> users)
+    {
+        PresenceState.SetOnlineUsers(users);
+    }
+
+    private async void HandleNotificationReceived(HotBox.Client.Models.NotificationPayloadModel payload)
+    {
+        await NotificationService.ShowNotificationIfHiddenAsync(
+            payload.SenderDisplayName,
+            payload.MessagePreview);
+    }
+
+    private void HandleConnectionChanged(bool connected)
+    {
+        if (connected)
+        {
+            // Start heartbeat timer when connected (fires every 60 seconds)
+            _heartbeatTimer?.Dispose();
+            _heartbeatTimer = new System.Threading.Timer(
+                async _ => await SendHeartbeatAsync(),
+                null,
+                TimeSpan.FromSeconds(60),
+                TimeSpan.FromSeconds(60));
+        }
+        else
+        {
+            // Stop heartbeat timer and clear presence data when disconnected
+            _heartbeatTimer?.Dispose();
+            _heartbeatTimer = null;
+            PresenceState.Clear();
+        }
+    }
+
+    private async Task SendHeartbeatAsync()
+    {
+        if (_heartbeatTimer is null)
+            return;
+
+        try
+        {
+            if (ChatHubService.IsConnected)
+            {
+                await ChatHubService.SendHeartbeatAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to send heartbeat");
         }
     }
 
@@ -273,5 +343,10 @@
     {
         ChannelState.OnChange -= StateHasChanged;
         VoiceState.OnChange -= StateHasChanged;
+        ChatHubService.OnUserStatusChanged -= HandleUserStatusChanged;
+        ChatHubService.OnOnlineUsers -= HandleOnlineUsers;
+        ChatHubService.OnNotificationReceived -= HandleNotificationReceived;
+        ChatHubService.OnConnectionChanged -= HandleConnectionChanged;
+        _heartbeatTimer?.Dispose();
     }
 }

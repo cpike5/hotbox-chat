@@ -1,4 +1,6 @@
 using System.Text;
+using HotBox.Application.Services;
+using HotBox.Core.Interfaces;
 using HotBox.Core.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
@@ -103,6 +105,9 @@ public static class ApplicationServiceExtensions
         // OpenAPI / Swagger
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
+
+        // Application-layer services (depend on IHubContext, so cannot live in Infrastructure)
+        services.AddScoped<INotificationService, NotificationService>();
 
         return services;
     }
