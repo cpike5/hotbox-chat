@@ -1,0 +1,261 @@
+@page "/login"
+@layout AuthLayout
+@inject ApiClient ApiClient
+@inject AuthState AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>HotBox - Sign In</PageTitle>
+
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-card-header">
+            <span class="auth-card-brand">HotBox</span>
+            <h1>Welcome back</h1>
+            <p>Sign in to your account</p>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="auth-alert">
+                <span>@_errorMessage</span>
+            </div>
+        }
+
+        <form @onsubmit="HandleSubmitAsync" novalidate>
+            <div class="form-group @(_emailError is not null ? "has-error" : "")">
+                <label class="form-label" for="loginEmail">Email</label>
+                <input class="form-input"
+                       id="loginEmail"
+                       type="email"
+                       placeholder="you@example.com"
+                       autocomplete="email"
+                       @bind="_email"
+                       @oninput="OnEmailInput"
+                       disabled="@_isSubmitting" />
+                <div class="form-error">@_emailError</div>
+            </div>
+
+            <div class="form-group @(_passwordError is not null ? "has-error" : "")">
+                <label class="form-label" for="loginPassword">Password</label>
+                <div class="input-wrapper">
+                    <input class="form-input"
+                           id="loginPassword"
+                           type="@(_showPassword ? "text" : "password")"
+                           placeholder="Enter your password"
+                           autocomplete="current-password"
+                           @bind="_password"
+                           @oninput="OnPasswordInput"
+                           disabled="@_isSubmitting" />
+                    <button type="button" class="toggle-password" @onclick="TogglePasswordVisibility">
+                        @if (_showPassword)
+                        {
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        }
+                    </button>
+                </div>
+                <div class="form-error">@_passwordError</div>
+            </div>
+
+            <div class="form-row">
+                <label class="form-check">
+                    <input type="checkbox" @bind="_rememberMe" />
+                    <span>Remember me</span>
+                </label>
+                <a class="form-link" href="/forgot-password">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="btn-submit" disabled="@_isSubmitting">
+                @if (_isSubmitting)
+                {
+                    <span class="btn-loading">
+                        <span class="spinner"></span>
+                        Signing in...
+                    </span>
+                }
+                else
+                {
+                    <span>Sign In</span>
+                }
+            </button>
+        </form>
+
+        @if (_providers.Count > 0)
+        {
+            <div class="auth-divider">
+                <span>or continue with</span>
+            </div>
+
+            <div class="oauth-buttons">
+                @foreach (var provider in _providers)
+                {
+                    <button type="button"
+                            class="btn-oauth"
+                            @onclick="() => StartOAuthLogin(provider.Name)"
+                            disabled="@_isSubmitting">
+                        @if (string.Equals(provider.Name, "Google", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                            </svg>
+                            <span>Continue with Google</span>
+                        }
+                        else if (string.Equals(provider.Name, "Microsoft", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="1" y="1" width="10" height="10" fill="#F25022"/>
+                                <rect x="13" y="1" width="10" height="10" fill="#7FBA00"/>
+                                <rect x="1" y="13" width="10" height="10" fill="#00A4EF"/>
+                                <rect x="13" y="13" width="10" height="10" fill="#FFB900"/>
+                            </svg>
+                            <span>Continue with Microsoft</span>
+                        }
+                        else
+                        {
+                            <span>Continue with @provider.Name</span>
+                        }
+                    </button>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="auth-footer">
+        Don't have an account? <a href="/register">Create one</a>
+    </div>
+</div>
+
+@code {
+    private string _email = string.Empty;
+    private string _password = string.Empty;
+    private bool _rememberMe;
+    private bool _isSubmitting;
+    private bool _showPassword;
+    private string? _errorMessage;
+    private string? _emailError;
+    private string? _passwordError;
+    private List<ProviderInfo> _providers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Redirect authenticated users away from login page
+        if (AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/", replace: true);
+            return;
+        }
+
+        // Fetch available OAuth providers
+        try
+        {
+            _providers = await ApiClient.GetProvidersAsync();
+        }
+        catch
+        {
+            // Silently ignore — OAuth buttons simply won't render
+        }
+    }
+
+    private async Task HandleSubmitAsync()
+    {
+        // Clear previous errors
+        _errorMessage = null;
+        _emailError = null;
+        _passwordError = null;
+
+        // Validate fields
+        bool isValid = true;
+
+        if (string.IsNullOrWhiteSpace(_email) || !IsValidEmail(_email))
+        {
+            _emailError = "Please enter a valid email address";
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(_password))
+        {
+            _passwordError = "Password is required";
+            isValid = false;
+        }
+
+        if (!isValid)
+        {
+            return;
+        }
+
+        // Submit login request
+        _isSubmitting = true;
+
+        try
+        {
+            var response = await ApiClient.LoginAsync(_email.Trim(), _password);
+
+            if (response is null)
+            {
+                _errorMessage = "Invalid email or password. Please try again.";
+                return;
+            }
+
+            // Build a placeholder UserInfo from the email
+            var userInfo = new UserInfo
+            {
+                Id = Guid.Empty,
+                DisplayName = _email.Trim().Split('@')[0],
+            };
+
+            AuthState.SetAuthenticated(response.AccessToken, userInfo);
+
+            var returnUrl = AuthState.ConsumeReturnUrl() ?? "/";
+            Navigation.NavigateTo(returnUrl, replace: true);
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Unable to connect to the server. Please try again later.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void OnEmailInput(ChangeEventArgs e)
+    {
+        _email = e.Value?.ToString() ?? string.Empty;
+        _emailError = null;
+        _errorMessage = null;
+    }
+
+    private void OnPasswordInput(ChangeEventArgs e)
+    {
+        _password = e.Value?.ToString() ?? string.Empty;
+        _passwordError = null;
+        _errorMessage = null;
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        _showPassword = !_showPassword;
+    }
+
+    private void StartOAuthLogin(string provider)
+    {
+        // Navigate to the server-side OAuth challenge endpoint
+        Navigation.NavigateTo($"api/auth/external/{provider}", forceLoad: true);
+    }
+
+    private static bool IsValidEmail(string email)
+    {
+        // Simple email validation: must contain @ with text on both sides
+        var trimmed = email.Trim();
+        var atIndex = trimmed.IndexOf('@');
+        return atIndex > 0
+            && atIndex < trimmed.Length - 1
+            && trimmed.LastIndexOf('.') > atIndex;
+    }
+}

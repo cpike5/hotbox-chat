@@ -10,6 +10,8 @@ public class AuthState
 
     public string? AccessToken { get; private set; }
 
+    public string? ReturnUrl { get; private set; }
+
     public event Action? OnChange;
 
     public void SetAuthenticated(string accessToken, UserInfo user)
@@ -24,6 +26,21 @@ public class AuthState
         AccessToken = null;
         CurrentUser = null;
         NotifyStateChanged();
+    }
+
+    public void SetReturnUrl(string url)
+    {
+        ReturnUrl = url;
+    }
+
+    /// <summary>
+    /// Returns the stored return URL and clears it so it is only used once.
+    /// </summary>
+    public string? ConsumeReturnUrl()
+    {
+        var url = ReturnUrl;
+        ReturnUrl = null;
+        return url;
     }
 
     private void NotifyStateChanged() => OnChange?.Invoke();

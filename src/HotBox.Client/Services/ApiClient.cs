@@ -48,6 +48,44 @@ public class ApiClient
         return response;
     }
 
+    public async Task<List<ProviderInfo>> GetProvidersAsync(CancellationToken ct = default)
+    {
+        return await GetAsync<List<ProviderInfo>>("api/auth/providers", ct) ?? new List<ProviderInfo>();
+    }
+
+    public async Task<RegistrationModeResponse?> GetRegistrationModeAsync(CancellationToken ct = default)
+    {
+        return await GetAsync<RegistrationModeResponse>("api/auth/registration-mode", ct);
+    }
+
+    public async Task<AuthResponse?> RefreshTokenAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            // The refresh token is in an HttpOnly cookie — no Authorization header needed
+            var response = await _http.PostAsync("api/auth/refresh", null, ct);
+            if (!response.IsSuccessStatusCode) return null;
+            return await response.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken: ct);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task LogoutAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            SetAuthHeader();
+            await _http.PostAsync("api/auth/logout", null, ct);
+        }
+        catch
+        {
+            // Best-effort logout — server cookie will eventually expire
+        }
+    }
+
     // ── Channels ────────────────────────────────────────────────────────
 
     public async Task<List<ChannelResponse>> GetChannelsAsync(CancellationToken ct = default)
@@ -119,10 +157,21 @@ public class ApiClient
         }
     }
 
-    private void HandleUnauthorized()
+    private async Task<bool> HandleUnauthorizedAsync()
     {
-        _logger.LogWarning("Received 401 Unauthorized response, clearing auth state");
+        _logger.LogWarning("Received 401, attempting token refresh");
+        var refreshResponse = await RefreshTokenAsync();
+        if (refreshResponse is not null)
+        {
+            _authState.SetAuthenticated(
+                refreshResponse.AccessToken,
+                _authState.CurrentUser ?? new UserInfo { DisplayName = "User" });
+            return true;
+        }
+
+        _logger.LogWarning("Token refresh failed, logging out");
         _authState.SetLoggedOut();
+        return false;
     }
 
     private async Task<T?> GetAsync<T>(string url, CancellationToken ct) where T : class
@@ -134,7 +183,7 @@ public class ApiClient
 
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                HandleUnauthorized();
+                await HandleUnauthorizedAsync();
                 return default;
             }
 
@@ -171,7 +220,7 @@ public class ApiClient
 
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                HandleUnauthorized();
+                await HandleUnauthorizedAsync();
                 return default;
             }
 
@@ -206,7 +255,7 @@ public class ApiClient
 
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                HandleUnauthorized();
+                await HandleUnauthorizedAsync();
                 return false;
             }
 
@@ -241,7 +290,7 @@ public class ApiClient
 
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                HandleUnauthorized();
+                await HandleUnauthorizedAsync();
                 return false;
             }
 

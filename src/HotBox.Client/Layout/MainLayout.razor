@@ -1,6 +1,8 @@
 @inherits LayoutComponentBase
 @using HotBox.Client.State
 @inject ChannelState ChannelState
+@inject AuthState AuthState
+@inject NavigationManager Navigation
 @implements IDisposable
 
 <div class="app">
@@ -165,6 +167,14 @@
 
     protected override void OnInitialized()
     {
+        // Route guard: redirect unauthenticated users to login
+        if (!AuthState.IsAuthenticated)
+        {
+            AuthState.SetReturnUrl(Navigation.Uri);
+            Navigation.NavigateTo("/login", replace: true);
+            return;
+        }
+
         ChannelState.OnChange += StateHasChanged;
     }
 

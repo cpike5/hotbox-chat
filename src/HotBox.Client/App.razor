@@ -1,12 +1,44 @@
-﻿<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-    </Found>
-    <NotFound>
-        <PageTitle>Not found</PageTitle>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <p role="alert">Sorry, there's nothing at this address.</p>
-        </LayoutView>
-    </NotFound>
-</Router>
+﻿@inject ApiClient ApiClient
+@inject AuthState AuthState
+
+@if (_isInitializing)
+{
+    <div class="app-loading">
+        <span class="spinner"></span>
+    </div>
+}
+else
+{
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p role="alert">Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+}
+
+@code {
+    private bool _isInitializing = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Attempt to restore session via refresh token cookie
+        if (!AuthState.IsAuthenticated)
+        {
+            var response = await ApiClient.RefreshTokenAsync();
+            if (response is not null)
+            {
+                var userInfo = new UserInfo { DisplayName = "User" };
+                AuthState.SetAuthenticated(response.AccessToken, userInfo);
+            }
+        }
+
+        _isInitializing = false;
+    }
+}
