@@ -13,6 +13,7 @@ public static class ClientServiceExtensions
         services.AddScoped<DirectMessageState>();
         services.AddScoped<PresenceState>();
         services.AddScoped<VoiceState>();
+        services.AddScoped<SearchState>();
         services.AddScoped<AppState>();
         services.AddScoped<ChatHubService>();
         services.AddScoped<NotificationService>();

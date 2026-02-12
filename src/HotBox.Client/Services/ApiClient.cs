@@ -240,6 +240,21 @@ public class ApiClient
         return await PutAsync("api/admin/channels/reorder", request, ct);
     }
 
+    // ── Search ────────────────────────────────────────────────────────────
+
+    public async Task<SearchResultModel?> SearchMessagesAsync(
+        string query,
+        Guid? channelId = null,
+        string? cursor = null,
+        int limit = 20,
+        CancellationToken ct = default)
+    {
+        var url = $"api/search/messages?q={Uri.EscapeDataString(query)}&limit={limit}";
+        if (channelId.HasValue) url += $"&channelId={channelId.Value}";
+        if (cursor is not null) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+        return await GetAsync<SearchResultModel>(url, ct);
+    }
+
     // ── HTTP Helpers ────────────────────────────────────────────────────
 
     private void SetAuthHeader()
