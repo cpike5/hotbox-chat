@@ -16,6 +16,7 @@
             </div>
         }
 
+        <div class="messages-list">
         @if (ChannelState.IsLoadingMessages)
         {
             @for (var i = 0; i < _skeletonMessages.Length; i++)
@@ -93,6 +94,7 @@
                 lastTime = msg.CreatedAtUtc;
             }
         }
+        </div>
     </div>
 </div>
 

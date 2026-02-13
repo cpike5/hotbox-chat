@@ -337,6 +337,9 @@
 
         if (section == "dms")
         {
+            // Clear active channel when switching to DMs
+            ChannelState.ClearActiveChannel();
+
             if (DirectMessageState.ActiveConversationUserId.HasValue)
                 Navigation.NavigateTo($"/dm/{DirectMessageState.ActiveConversationUserId.Value}");
             else
@@ -344,6 +347,9 @@
         }
         else
         {
+            // Clear active DM conversation when switching to channels
+            DirectMessageState.ClearActiveConversation();
+
             if (ChannelState.ActiveChannel is not null)
                 Navigation.NavigateTo($"/channels/{ChannelState.ActiveChannel.Id}");
             else
