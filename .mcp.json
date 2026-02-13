@@ -6,7 +6,7 @@
       "args": ["run", "--project", "src/HotBox.Mcp"],
       "env": {
         "HotBox__BaseUrl": "http://localhost:8080",
-        "HotBox__ApiKey": "IfHmt0vYaj4dm73d1BTuQectquQUSP/GQos68hi4VD4="
+        "HotBox__ApiKey": ""
       }
     }
   }
