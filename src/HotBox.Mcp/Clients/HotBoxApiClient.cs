@@ -114,6 +114,26 @@ public class HotBoxApiClient
     }
 
     /// <summary>
+    /// Lists all channels (requires bearer token auth).
+    /// </summary>
+    public async Task<JsonElement> ListChannelsAsync(string bearerToken, CancellationToken cancellationToken = default)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/channels");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}). Body: {errorBody}",
+                null,
+                response.StatusCode);
+        }
+        return await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
+    }
+
+    /// <summary>
     /// Reads direct messages with a user (requires bearer token auth).
     /// </summary>
     public async Task<JsonElement> ReadDirectMessagesAsync(Guid userId, int limit, string bearerToken, CancellationToken cancellationToken = default)
