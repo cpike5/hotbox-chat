@@ -45,4 +45,10 @@ public interface IPresenceService
     /// Records a heartbeat from the client, resetting the idle timer.
     /// </summary>
     void RecordHeartbeat(Guid userId);
+
+    /// <summary>
+    /// Marks an agent as active based on API activity and keeps it online
+    /// until agent inactivity timeout expires.
+    /// </summary>
+    Task TouchAgentActivityAsync(Guid userId, string displayName);
 }

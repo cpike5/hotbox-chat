@@ -43,6 +43,7 @@ public class TokenService : ITokenService
             new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new("display_name", user.DisplayName),
+            new("is_agent", user.IsAgent.ToString().ToLowerInvariant()),
         };
 
         foreach (var role in roles)

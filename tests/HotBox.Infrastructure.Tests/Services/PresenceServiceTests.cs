@@ -1,7 +1,9 @@
 using FluentAssertions;
 using HotBox.Core.Enums;
+using HotBox.Core.Options;
 using HotBox.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 
 namespace HotBox.Infrastructure.Tests.Services;
@@ -310,6 +312,55 @@ public class PresenceServiceTests : IDisposable
         // Assert - should still be online, grace period cancelled
         var status = _sut.GetStatus(userId);
         status.Should().Be(UserStatus.Online);
+    }
+
+    [Fact]
+    public async Task TouchAgentActivityAsync_MarksAgentOnline()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var displayName = "Agent One";
+
+        // Act
+        await _sut.TouchAgentActivityAsync(userId, displayName);
+
+        // Assert
+        _sut.GetStatus(userId).Should().Be(UserStatus.Online);
+        _sut.GetAllOnlineUsers().Should().Contain(u =>
+            u.UserId == userId
+            && u.DisplayName == displayName
+            && u.Status == UserStatus.Online
+            && u.IsAgent);
+    }
+
+    [Fact]
+    public async Task TouchAgentActivityAsync_TransitionsToOfflineAfterInactivityTimeout()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var local = new PresenceService(
+            _logger,
+            Options.Create(new PresenceOptions
+            {
+                GracePeriod = TimeSpan.FromMilliseconds(50),
+                IdleTimeout = TimeSpan.FromMinutes(5),
+                AgentInactivityTimeout = TimeSpan.FromMilliseconds(100),
+            }));
+
+        try
+        {
+            await local.TouchAgentActivityAsync(userId, "Agent Timeout Test");
+
+            // Act
+            await Task.Delay(250);
+
+            // Assert
+            local.GetStatus(userId).Should().Be(UserStatus.Offline);
+        }
+        finally
+        {
+            local.Dispose();
+        }
     }
 
     public void Dispose()
