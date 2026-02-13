@@ -3739,3 +3739,270 @@ input, textarea {
   0%, 60%, 100% { transform: translateY(0); }
   30% { transform: translateY(-4px); }
 }
+
+/* ========================================
+   Component Showcase
+   ======================================== */
+.showcase-layout {
+  height: 100vh;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(93, 228, 199, 0.03) 0%, transparent 50%),
+    var(--bg-deepest);
+  color: var(--text-primary);
+  overflow-y: auto;
+}
+
+.showcase-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+.showcase-header {
+  margin-bottom: 48px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  position: relative;
+}
+
+.showcase-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 120px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.showcase-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  position: relative;
+  display: inline-block;
+}
+
+.showcase-title::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 48px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  border-radius: 2px;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.showcase-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 20px 0 48px;
+  line-height: 1.5;
+}
+
+.showcase-section {
+  background: var(--bg-base);
+  border: 1px solid var(--border-light);
+  border-top: 2px solid rgba(93, 228, 199, 0.2);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  margin-bottom: 28px;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  transition:
+    border-color var(--transition-base),
+    box-shadow var(--transition-base),
+    transform var(--transition-base);
+  position: relative;
+}
+
+.showcase-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(93, 228, 199, 0.15), transparent);
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.showcase-section:hover {
+  border-top-color: rgba(93, 228, 199, 0.35);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 0 24px rgba(93, 228, 199, 0.06);
+  transform: translateY(-1px);
+}
+
+.showcase-section:hover::before {
+  opacity: 1;
+}
+
+.showcase-section h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.showcase-section > p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 24px;
+  line-height: 1.6;
+}
+
+.showcase-section h4 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 20px 0 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.showcase-section h4:first-child {
+  margin-top: 0;
+}
+
+.showcase-demo {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent),
+    var(--bg-deep);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 18px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.1) inset,
+    0 0 0 1px rgba(0, 0, 0, 0.05) inset;
+}
+
+.showcase-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.showcase-params {
+  background:
+    linear-gradient(135deg, var(--bg-raised) 0%, var(--bg-base) 100%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) inset;
+}
+
+.showcase-params h4 {
+  margin: 0 0 12px;
+  border-bottom: none;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.showcase-params table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.showcase-params thead {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.showcase-params th {
+  text-align: left;
+  color: var(--text-secondary);
+  font-weight: 600;
+  padding: 8px 12px 8px 0;
+  border-bottom: 2px solid var(--border-light);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.showcase-params td {
+  padding: 8px 12px 8px 0;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  line-height: 1.5;
+}
+
+.showcase-params tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.showcase-params tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.showcase-params td:first-child {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.showcase-params code {
+  font-family: var(--font-mono);
+  background: var(--bg-surface);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-hover);
+}
+
+.showcase-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  background:
+    linear-gradient(135deg, var(--accent-muted), rgba(93, 228, 199, 0.06));
+  border: 1px solid rgba(93, 228, 199, 0.15);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  box-shadow: 0 2px 8px rgba(93, 228, 199, 0.04);
+}
+
+.showcase-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+
+.showcase-note code {
+  font-family: var(--font-mono);
+  background: var(--bg-surface);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-hover);
+}
+
+.showcase-section .showcase-demo code {
+  font-family: var(--font-mono);
+  background: var(--bg-surface);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-hover);
+}

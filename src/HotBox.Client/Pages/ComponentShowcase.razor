@@ -1,0 +1,509 @@
+@page "/components"
+@layout ShowcaseLayout
+@inject ToastService ToastService
+
+<div class="showcase-page">
+    <header class="showcase-header">
+        <h1 class="showcase-title">Component Showcase</h1>
+        <p class="showcase-subtitle">Interactive reference for all shared UI components</p>
+    </header>
+
+    @* ── Badge ── *@
+    <section class="showcase-section">
+        <h2>Badge</h2>
+        <p>Status indicators, role labels, counts, and custom badges.</p>
+
+        <div class="showcase-demo">
+            <h4>Status variants</h4>
+            <div class="showcase-row">
+                <Badge Variant="Badge.BadgeVariant.Status" StatusType="online" Text="Online" />
+                <Badge Variant="Badge.BadgeVariant.Status" StatusType="idle" Text="Idle" />
+                <Badge Variant="Badge.BadgeVariant.Status" StatusType="dnd" Text="Do Not Disturb" />
+                <Badge Variant="Badge.BadgeVariant.Status" StatusType="offline" Text="Offline" />
+            </div>
+
+            <h4>Role</h4>
+            <div class="showcase-row">
+                <Badge Variant="Badge.BadgeVariant.Role" Text="Admin" />
+                <Badge Variant="Badge.BadgeVariant.Role" Text="Moderator" />
+            </div>
+
+            <h4>Count</h4>
+            <div class="showcase-row">
+                <Badge Variant="Badge.BadgeVariant.Count" Count="3" />
+                <Badge Variant="Badge.BadgeVariant.Count" Count="99" />
+            </div>
+
+            <h4>Custom</h4>
+            <div class="showcase-row">
+                <Badge Variant="Badge.BadgeVariant.Custom" Text="Custom" Color="var(--accent)" />
+                <Badge Variant="Badge.BadgeVariant.Custom" Text="Warning" Color="var(--status-idle)" />
+            </div>
+
+            <h4>Small size</h4>
+            <div class="showcase-row">
+                <Badge Variant="Badge.BadgeVariant.Status" StatusType="online" Text="Online" Size="Badge.BadgeSize.Sm" />
+                <Badge Variant="Badge.BadgeVariant.Role" Text="Admin" Size="Badge.BadgeSize.Sm" />
+                <Badge Variant="Badge.BadgeVariant.Count" Count="5" Size="Badge.BadgeSize.Sm" />
+            </div>
+        </div>
+
+        <div class="showcase-params">
+            <h4>Parameters</h4>
+            <table>
+                <thead><tr><th>Name</th><th>Type</th><th>Default</th></tr></thead>
+                <tbody>
+                    <tr><td>Variant</td><td>BadgeVariant</td><td>Custom</td></tr>
+                    <tr><td>Size</td><td>BadgeSize</td><td>Md</td></tr>
+                    <tr><td>Text</td><td>string?</td><td>null</td></tr>
+                    <tr><td>StatusType</td><td>string?</td><td>null</td></tr>
+                    <tr><td>Count</td><td>int?</td><td>null</td></tr>
+                    <tr><td>Color</td><td>string?</td><td>null</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    @* ── ToggleSwitch ── *@
+    <section class="showcase-section">
+        <h2>ToggleSwitch</h2>
+        <p>Binary toggle with optional label. Supports two-way binding and disabled state.</p>
+
+        <div class="showcase-demo">
+            <div class="showcase-row" style="flex-direction: column; gap: 12px; align-items: flex-start;">
+                <ToggleSwitch @bind-IsChecked="_toggle1" Label="Notifications" />
+                <ToggleSwitch @bind-IsChecked="_toggle2" Label="Dark mode (on by default)" />
+                <ToggleSwitch IsChecked="false" Label="Disabled off" Disabled="true" />
+                <ToggleSwitch IsChecked="true" Label="Disabled on" Disabled="true" />
+                <ToggleSwitch @bind-IsChecked="_toggle3" />
+            </div>
+            <p style="margin-top: 12px; color: var(--text-secondary); font-size: 13px;">
+                Toggle 1: @(_toggle1 ? "ON" : "OFF") &nbsp;|&nbsp; Toggle 2: @(_toggle2 ? "ON" : "OFF") &nbsp;|&nbsp; Toggle 3: @(_toggle3 ? "ON" : "OFF")
+            </p>
+        </div>
+
+        <div class="showcase-params">
+            <h4>Parameters</h4>
+            <table>
+                <thead><tr><th>Name</th><th>Type</th><th>Default</th></tr></thead>
+                <tbody>
+                    <tr><td>IsChecked</td><td>bool</td><td>false</td></tr>
+                    <tr><td>Label</td><td>string?</td><td>null</td></tr>
+                    <tr><td>Disabled</td><td>bool</td><td>false</td></tr>
+                    <tr><td>OnToggle</td><td>EventCallback&lt;bool&gt;</td><td>—</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    @* ── Tooltip ── *@
+    <section class="showcase-section">
+        <h2>Tooltip</h2>
+        <p>Hover tooltip with configurable position and delay.</p>
+
+        <div class="showcase-demo">
+            <div class="showcase-row" style="gap: 32px;">
+                <Tooltip Text="Tooltip on top" Position="top" DelayMs="200">
+                    <button class="btn btn-secondary">Top</button>
+                </Tooltip>
+                <Tooltip Text="Tooltip on bottom" Position="bottom" DelayMs="200">
+                    <button class="btn btn-secondary">Bottom</button>
+                </Tooltip>
+                <Tooltip Text="Tooltip on left" Position="left" DelayMs="200">
+                    <button class="btn btn-secondary">Left</button>
+                </Tooltip>
+                <Tooltip Text="Tooltip on right" Position="right" DelayMs="200">
+                    <button class="btn btn-secondary">Right</button>
+                </Tooltip>
+                <Tooltip Position="top" DelayMs="200">
+                    <ChildContent>
+                        <button class="btn btn-secondary">Rich</button>
+                    </ChildContent>
+                    <TooltipContent>
+                        <strong>Rich content</strong><br/>Supports RenderFragment
+                    </TooltipContent>
+                </Tooltip>
+            </div>
+        </div>
+
+        <div class="showcase-params">
+            <h4>Parameters</h4>
+            <table>
+                <thead><tr><th>Name</th><th>Type</th><th>Default</th></tr></thead>
+                <tbody>
+                    <tr><td>Text</td><td>string?</td><td>null</td></tr>
+                    <tr><td>TooltipContent</td><td>RenderFragment?</td><td>null</td></tr>
+                    <tr><td>Position</td><td>string</td><td>"top"</td></tr>
+                    <tr><td>DelayMs</td><td>int</td><td>500</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    @* ── EmptyState ── *@
+    <section class="showcase-section">
+        <h2>EmptyState</h2>
+        <p>Placeholder for empty content areas with optional icon and action button.</p>
+
+        <div class="showcase-demo">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                <EmptyState Title="No messages yet" Description="Be the first to say something!">
+                    <Icon>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                    </Icon>
+                </EmptyState>
+
+                <EmptyState Title="No results" Description="Try adjusting your search query." />
+
+                <EmptyState Title="No channels" Description="Create your first channel to get started."
+                            ActionText="Create Channel" OnAction="HandleEmptyStateAction">
+                    <Icon>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                    </Icon>
+                </EmptyState>
+            </div>
+        </div>
+
+        <div class="showcase-params">
+            <h4>Parameters</h4>
+            <table>
+                <thead><tr><th>Name</th><th>Type</th><th>Default</th></tr></thead>
+                <tbody>
+                    <tr><td>Icon</td><td>RenderFragment?</td><td>null</td></tr>
+                    <tr><td>Title</td><td>string</td><td>""</td></tr>
+                    <tr><td>Description</td><td>string?</td><td>null</td></tr>
+                    <tr><td>ActionText</td><td>string?</td><td>null</td></tr>
+                    <tr><td>OnAction</td><td>EventCallback</td><td>—</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    @* ── SkeletonLoader ── *@
+    <section class="showcase-section">
+        <h2>SkeletonLoader</h2>
+        <p>Animated loading placeholders with primitive shapes and composite presets.</p>
+
+        <div class="showcase-demo">
+            <h4>Shapes</h4>
+            <div style="display: flex; flex-direction: column; gap: 12px; max-width: 400px;">
+                <SkeletonLoader Shape="SkeletonLoader.SkeletonShape.Line" />
+                <SkeletonLoader Shape="SkeletonLoader.SkeletonShape.Line" Width="60%" />
+                <div class="showcase-row">
+                    <SkeletonLoader Shape="SkeletonLoader.SkeletonShape.Circle" Width="32px" />
+                    <SkeletonLoader Shape="SkeletonLoader.SkeletonShape.Circle" Width="48px" />
+                </div>
+                <SkeletonLoader Shape="SkeletonLoader.SkeletonShape.Rectangle" Height="80px" />
+            </div>
+
+            <h4 style="margin-top: 20px;">Presets</h4>
+            <div style="display: flex; flex-direction: column; gap: 16px; max-width: 500px;">
+                <div>
+                    <span style="color: var(--text-secondary); font-size: 12px; margin-bottom: 4px; display: block;">Message (x2)</span>
+                    <SkeletonLoader Preset="SkeletonLoader.SkeletonPreset.Message" Count="2" />
+                </div>
+                <div>
+                    <span style="color: var(--text-secondary); font-size: 12px; margin-bottom: 4px; display: block;">User list item (x3)</span>
+                    <SkeletonLoader Preset="SkeletonLoader.SkeletonPreset.UserListItem" Count="3" />
+                </div>
+                <div>
+                    <span style="color: var(--text-secondary); font-size: 12px; margin-bottom: 4px; display: block;">Channel list item (x3)</span>
+                    <SkeletonLoader Preset="SkeletonLoader.SkeletonPreset.ChannelListItem" Count="3" />
+                </div>
+            </div>
+        </div>
+
+        <div class="showcase-params">
+            <h4>Parameters</h4>
+            <table>
+                <thead><tr><th>Name</th><th>Type</th><th>Default</th></tr></thead>
+                <tbody>
+                    <tr><td>Shape</td><td>SkeletonShape</td><td>Line</td></tr>
+                    <tr><td>Preset</td><td>SkeletonPreset?</td><td>null</td></tr>
+                    <tr><td>Width</td><td>string?</td><td>null</td></tr>
+                    <tr><td>Height</td><td>string?</td><td>null</td></tr>
+                    <tr><td>Count</td><td>int</td><td>1</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    @* ── TypingIndicator ── *@
+    <section class="showcase-section">
+        <h2>TypingIndicator</h2>
+        <p>Shows animated dots when other users are typing in a channel.</p>
+
+        <div class="showcase-demo">
+            <div class="showcase-note">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <span>TypingIndicator requires <code>ChannelState</code> injection and is used within the chat view.
+                It cannot be demoed standalone. Below is a static preview of the animation.</span>
+            </div>
+            <div style="margin-top: 12px;">
+                <div class="typing-indicator">
+                    <span class="typing-dots">
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                    </span>
+                    <span style="margin-left: 6px;">Someone is typing...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="showcase-params">
+            <h4>Parameters</h4>
+            <table>
+                <thead><tr><th>Name</th><th>Type</th><th>Default</th></tr></thead>
+                <tbody>
+                    <tr><td>ChannelId</td><td>Guid</td><td>(required)</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    @* ── Dropdown ── *@
+    <section class="showcase-section">
+        <h2>Dropdown</h2>
+        <p>Click-triggered dropdown menu with keyboard support and click-away dismiss.</p>
+
+        <div class="showcase-demo">
+            <div class="showcase-row" style="gap: 32px;">
+                <Dropdown @bind-IsOpen="_dropdown1Open" Position="bottom-start">
+                    <Trigger>
+                        <button class="btn btn-secondary">Options</button>
+                    </Trigger>
+                    <Menu>
+                        <DropdownItem OnClick="HandleDropdownEdit">Edit</DropdownItem>
+                        <DropdownItem OnClick="HandleDropdownDuplicate">Duplicate</DropdownItem>
+                        <DropdownItem IsDisabled="true">Disabled item</DropdownItem>
+                        <DropdownItem OnClick="HandleDropdownDelete">
+                            <span style="color: var(--status-dnd);">Delete</span>
+                        </DropdownItem>
+                    </Menu>
+                </Dropdown>
+
+                <Dropdown @bind-IsOpen="_dropdown2Open" Position="bottom-end">
+                    <Trigger>
+                        <button class="btn btn-secondary">Bottom End</button>
+                    </Trigger>
+                    <Menu>
+                        <DropdownItem OnClick="() => _dropdown2Open = false">Item A</DropdownItem>
+                        <DropdownItem OnClick="() => _dropdown2Open = false">Item B</DropdownItem>
+                        <DropdownItem OnClick="() => _dropdown2Open = false">Item C</DropdownItem>
+                    </Menu>
+                </Dropdown>
+            </div>
+        </div>
+
+        <div class="showcase-params">
+            <h4>Parameters</h4>
+            <table>
+                <thead><tr><th>Name</th><th>Type</th><th>Default</th></tr></thead>
+                <tbody>
+                    <tr><td>Trigger</td><td>RenderFragment</td><td>(required)</td></tr>
+                    <tr><td>Menu</td><td>RenderFragment</td><td>(required)</td></tr>
+                    <tr><td>IsOpen</td><td>bool</td><td>false</td></tr>
+                    <tr><td>Position</td><td>string</td><td>"bottom-start"</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    @* ── TabControl ── *@
+    <section class="showcase-section">
+        <h2>TabControl / TabPanel</h2>
+        <p>Tabbed content panels with keyboard navigation (arrow keys).</p>
+
+        <div class="showcase-demo">
+            <TabControl @bind-ActiveIndex="_activeTab">
+                <TabPanel Title="General">
+                    <div style="padding: 16px;">
+                        <p>General settings content goes here. This is the first tab panel.</p>
+                    </div>
+                </TabPanel>
+                <TabPanel Title="Appearance">
+                    <div style="padding: 16px;">
+                        <p>Theme and appearance settings. Customize colors, fonts, and layout.</p>
+                        <ToggleSwitch @bind-IsChecked="_tabDemoToggle" Label="Enable animations" />
+                    </div>
+                </TabPanel>
+                <TabPanel Title="Notifications">
+                    <div style="padding: 16px;">
+                        <p>Notification preferences. Choose what alerts you want to receive.</p>
+                        <div class="showcase-row" style="margin-top: 8px;">
+                            <Badge Variant="Badge.BadgeVariant.Count" Count="12" />
+                            <span style="color: var(--text-secondary); font-size: 13px;">unread notifications</span>
+                        </div>
+                    </div>
+                </TabPanel>
+            </TabControl>
+        </div>
+
+        <div class="showcase-params">
+            <h4>Parameters</h4>
+            <table>
+                <thead><tr><th>Component</th><th>Name</th><th>Type</th><th>Default</th></tr></thead>
+                <tbody>
+                    <tr><td>TabControl</td><td>ActiveIndex</td><td>int</td><td>0</td></tr>
+                    <tr><td>TabControl</td><td>CssClass</td><td>string?</td><td>null</td></tr>
+                    <tr><td>TabPanel</td><td>Title</td><td>string</td><td>""</td></tr>
+                    <tr><td>TabPanel</td><td>Icon</td><td>RenderFragment?</td><td>null</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    @* ── Toast ── *@
+    <section class="showcase-section">
+        <h2>Toast</h2>
+        <p>Auto-dismissing notification toasts. Inject <code>ToastService</code> and call Show methods.</p>
+
+        <div class="showcase-demo">
+            <div class="showcase-row">
+                <button class="btn btn-primary" @onclick='() => ToastService.ShowSuccess("Operation completed successfully!")'>Success</button>
+                <button class="btn btn-secondary" style="color: var(--status-dnd);" @onclick='() => ToastService.ShowError("Something went wrong.")'>Error</button>
+                <button class="btn btn-secondary" style="color: var(--status-idle);" @onclick='() => ToastService.ShowWarning("Careful — this action is irreversible.")'>Warning</button>
+                <button class="btn btn-secondary" @onclick='() => ToastService.ShowInfo("Here is some useful information.")'>Info</button>
+            </div>
+        </div>
+
+        <div class="showcase-params">
+            <h4>ToastService Methods</h4>
+            <table>
+                <thead><tr><th>Method</th><th>Parameters</th></tr></thead>
+                <tbody>
+                    <tr><td>ShowSuccess</td><td>message, durationMs?</td></tr>
+                    <tr><td>ShowError</td><td>message, durationMs?</td></tr>
+                    <tr><td>ShowWarning</td><td>message, durationMs?</td></tr>
+                    <tr><td>ShowInfo</td><td>message, durationMs?</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    @* ── Modal ── *@
+    <section class="showcase-section">
+        <h2>Modal</h2>
+        <p>Overlay dialog with title, body, and footer. Closes on overlay click or Escape key.</p>
+
+        <div class="showcase-demo">
+            <button class="btn btn-primary" @onclick="() => _modalOpen = true">Open Modal</button>
+
+            <Modal IsOpen="_modalOpen" OnClose="() => _modalOpen = false">
+                <Title>Example Modal</Title>
+                <Body>
+                    <p>This is the modal body. You can put any content here — forms, text, components.</p>
+                    <p style="color: var(--text-secondary); margin-top: 8px;">Click the overlay or press Escape to close.</p>
+                </Body>
+                <Footer>
+                    <button class="btn btn-secondary" @onclick="() => _modalOpen = false">Cancel</button>
+                    <button class="btn btn-primary" @onclick="HandleModalConfirm">Confirm</button>
+                </Footer>
+            </Modal>
+        </div>
+
+        <div class="showcase-params">
+            <h4>Parameters</h4>
+            <table>
+                <thead><tr><th>Name</th><th>Type</th><th>Default</th></tr></thead>
+                <tbody>
+                    <tr><td>IsOpen</td><td>bool</td><td>false</td></tr>
+                    <tr><td>Title</td><td>RenderFragment?</td><td>null</td></tr>
+                    <tr><td>Body</td><td>RenderFragment?</td><td>null</td></tr>
+                    <tr><td>Footer</td><td>RenderFragment?</td><td>null</td></tr>
+                    <tr><td>OnClose</td><td>EventCallback</td><td>—</td></tr>
+                    <tr><td>CssClass</td><td>string?</td><td>null</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    @* ── ConfirmationDialog ── *@
+    <section class="showcase-section">
+        <h2>ConfirmationDialog</h2>
+        <p>Pre-built modal for confirm/cancel actions. Supports danger variant and loading state.</p>
+
+        <div class="showcase-demo">
+            <div class="showcase-row">
+                <button class="btn btn-primary" @onclick="() => _confirmOpen = true">Default Confirm</button>
+                <button class="btn btn-secondary" style="color: var(--status-dnd);" @onclick="() => _confirmDangerOpen = true">Danger Confirm</button>
+            </div>
+
+            <ConfirmationDialog IsOpen="_confirmOpen"
+                                OnClose="() => _confirmOpen = false"
+                                Title="Save Changes?"
+                                Message="Are you sure you want to save these changes? This will update your settings."
+                                ConfirmText="Save"
+                                OnConfirm="HandleConfirmSave"
+                                OnCancel="() => _confirmOpen = false" />
+
+            <ConfirmationDialog IsOpen="_confirmDangerOpen"
+                                OnClose="() => _confirmDangerOpen = false"
+                                Title="Delete Channel?"
+                                Message="This action cannot be undone. All messages in this channel will be permanently deleted."
+                                ConfirmText="Delete"
+                                IsDanger="true"
+                                OnConfirm="HandleConfirmDelete"
+                                OnCancel="() => _confirmDangerOpen = false" />
+        </div>
+
+        <div class="showcase-params">
+            <h4>Parameters</h4>
+            <table>
+                <thead><tr><th>Name</th><th>Type</th><th>Default</th></tr></thead>
+                <tbody>
+                    <tr><td>IsOpen</td><td>bool</td><td>false</td></tr>
+                    <tr><td>Title</td><td>string</td><td>"Confirm"</td></tr>
+                    <tr><td>Message</td><td>string?</td><td>null</td></tr>
+                    <tr><td>ConfirmText</td><td>string</td><td>"Confirm"</td></tr>
+                    <tr><td>CancelText</td><td>string</td><td>"Cancel"</td></tr>
+                    <tr><td>IsDanger</td><td>bool</td><td>false</td></tr>
+                    <tr><td>IsLoading</td><td>bool</td><td>false</td></tr>
+                    <tr><td>OnConfirm</td><td>EventCallback</td><td>—</td></tr>
+                    <tr><td>OnCancel</td><td>EventCallback</td><td>—</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+@code {
+    // ToggleSwitch state
+    private bool _toggle1;
+    private bool _toggle2 = true;
+    private bool _toggle3;
+
+    // Dropdown state
+    private bool _dropdown1Open;
+    private bool _dropdown2Open;
+
+    // Tab state
+    private int _activeTab;
+    private bool _tabDemoToggle = true;
+
+    // Modal state
+    private bool _modalOpen;
+
+    // ConfirmationDialog state
+    private bool _confirmOpen;
+    private bool _confirmDangerOpen;
+
+    // Handlers (avoid nested quotes in Razor attributes)
+    private void HandleEmptyStateAction() => ToastService.ShowInfo("Action button clicked!");
+
+    private void HandleDropdownEdit() { _dropdown1Open = false; ToastService.ShowInfo("Edit clicked"); }
+    private void HandleDropdownDuplicate() { _dropdown1Open = false; ToastService.ShowInfo("Duplicate clicked"); }
+    private void HandleDropdownDelete() { _dropdown1Open = false; ToastService.ShowWarning("Delete clicked"); }
+
+    private void HandleModalConfirm() { _modalOpen = false; ToastService.ShowSuccess("Modal confirmed!"); }
+
+    private void HandleConfirmSave() { _confirmOpen = false; ToastService.ShowSuccess("Changes saved!"); }
+    private void HandleConfirmDelete() { _confirmDangerOpen = false; ToastService.ShowError("Channel deleted."); }
+}
