@@ -312,6 +312,28 @@ public class ApiClient
         return await GetAsync<SearchResultModel>(url, ct);
     }
 
+    // ── Unread Counts ─────────────────────────────────────────────────────
+
+    public async Task<Dictionary<Guid, int>?> GetChannelUnreadCountsAsync(CancellationToken ct = default)
+    {
+        return await GetAsync<Dictionary<Guid, int>>("api/channels/unread", ct);
+    }
+
+    public async Task<Dictionary<Guid, int>?> GetDmUnreadCountsAsync(CancellationToken ct = default)
+    {
+        return await GetAsync<Dictionary<Guid, int>>("api/dm/unread", ct);
+    }
+
+    public async Task MarkChannelAsReadAsync(Guid channelId, CancellationToken ct = default)
+    {
+        await PostNoContentAsync($"api/channels/{channelId}/read", ct);
+    }
+
+    public async Task MarkDmAsReadAsync(Guid userId, CancellationToken ct = default)
+    {
+        await PostNoContentAsync($"api/dm/{userId}/read", ct);
+    }
+
     // ── HTTP Helpers ────────────────────────────────────────────────────
 
     private void SetAuthHeader()
@@ -519,6 +541,27 @@ public class ApiClient
         catch (TaskCanceledException)
         {
             return false;
+        }
+    }
+
+    private async Task PostNoContentAsync(string url, CancellationToken ct)
+    {
+        try
+        {
+            SetAuthHeader();
+            var response = await _http.PostAsync(url, null, ct);
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                await HandleUnauthorizedAsync();
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP request failed for POST {Url}", url);
+        }
+        catch (TaskCanceledException)
+        {
+            // cancelled
         }
     }
 }

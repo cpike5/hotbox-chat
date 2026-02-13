@@ -12,13 +12,16 @@ namespace HotBox.Application.Controllers;
 public class ChannelsController : ControllerBase
 {
     private readonly IChannelService _channelService;
+    private readonly IReadStateService _readStateService;
     private readonly ILogger<ChannelsController> _logger;
 
     public ChannelsController(
         IChannelService channelService,
+        IReadStateService readStateService,
         ILogger<ChannelsController> logger)
     {
         _channelService = channelService;
+        _readStateService = readStateService;
         _logger = logger;
     }
 
@@ -158,6 +161,32 @@ public class ChannelsController : ControllerBase
             _logger.LogWarning("Channel deletion failed — channel {ChannelId} not found", id);
             return NotFound(new { error = ex.Message });
         }
+    }
+
+    [HttpPost("{channelId:guid}/read")]
+    public async Task<IActionResult> MarkAsRead(Guid channelId, CancellationToken ct)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized(new { error = "Unable to determine user identity." });
+        }
+
+        await _readStateService.MarkAsReadAsync(userId.Value, channelId, ct);
+        return NoContent();
+    }
+
+    [HttpGet("unread")]
+    public async Task<IActionResult> GetUnreadCounts(CancellationToken ct)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized(new { error = "Unable to determine user identity." });
+        }
+
+        var unreadCounts = await _readStateService.GetAllUnreadCountsAsync(userId.Value, ct);
+        return Ok(unreadCounts);
     }
 
     private Guid? GetUserId()

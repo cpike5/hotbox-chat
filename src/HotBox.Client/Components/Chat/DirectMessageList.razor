@@ -2,6 +2,7 @@
 @using HotBox.Client.Models
 @using HotBox.Client.Services
 @inject DirectMessageState DirectMessageState
+@inject UnreadStateService UnreadState
 @inject ApiClient Api
 @inject NavigationManager Navigation
 @implements IDisposable
@@ -14,9 +15,12 @@
                 @onclick="() => SelectConversation(conversation)">
             <span class="tab-hash">@@</span>
             <span>@conversation.DisplayName</span>
-            @if (conversation.UnreadCount > 0)
+            @{
+                var dmUnread = UnreadState.GetDmUnreadCount(conversation.UserId);
+            }
+            @if (dmUnread > 0)
             {
-                <span class="unread-badge">@conversation.UnreadCount</span>
+                <span class="unread-badge">@dmUnread</span>
             }
         </button>
     }
@@ -47,6 +51,7 @@
     protected override async Task OnInitializedAsync()
     {
         DirectMessageState.OnChange += StateHasChanged;
+        UnreadState.OnChange += StateHasChanged;
 
         if (!_loaded)
         {
@@ -75,5 +80,6 @@
     public void Dispose()
     {
         DirectMessageState.OnChange -= StateHasChanged;
+        UnreadState.OnChange -= StateHasChanged;
     }
 }

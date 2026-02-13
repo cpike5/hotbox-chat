@@ -5,6 +5,7 @@
 @inject DirectMessageState DirectMessageState
 @inject ApiClient Api
 @inject NavigationManager Navigation
+@inject UnreadStateService UnreadState
 @inject ILogger<DmsPage> Logger
 @implements IDisposable
 
@@ -36,9 +37,12 @@ else
                     </div>
                     <div class="dms-page-item-meta">
                         <div class="dms-page-item-time">@FormatTimestamp(conversation.LastMessageAtUtc)</div>
-                        @if (conversation.UnreadCount > 0)
+                        @{
+                            var dmUnread = UnreadState.GetDmUnreadCount(conversation.UserId);
+                        }
+                        @if (dmUnread > 0)
                         {
-                            <span class="unread-badge">@conversation.UnreadCount</span>
+                            <span class="unread-badge">@dmUnread</span>
                         }
                     </div>
                 </button>

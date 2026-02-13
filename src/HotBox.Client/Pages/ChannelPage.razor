@@ -5,6 +5,7 @@
 @inject ChannelState ChannelState
 @inject ApiClient Api
 @inject ChatHubService ChatHub
+@inject UnreadStateService UnreadState
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -20,6 +21,7 @@
     private Guid _currentChannelId;
     private double _previousScrollHeight;
     private bool _pendingScrollRestore;
+    private readonly Dictionary<Guid, Timer> _typingExpiryTimers = new();
 
     protected override void OnInitialized()
     {
@@ -77,6 +79,9 @@
         {
             await ChatHub.JoinChannelAsync(Id);
         }
+
+        // Mark channel as read
+        await UnreadState.MarkChannelAsReadAsync(Id);
     }
 
     private void HandleMessageReceived(MessageResponse message)
@@ -103,6 +108,22 @@
         {
             ChannelState.AddTypingUser(userId, displayName);
             InvokeAsync(StateHasChanged);
+
+            // Start or reset a 5s expiry timer for this user
+            if (_typingExpiryTimers.TryGetValue(userId, out var existing))
+            {
+                existing.Change(5000, Timeout.Infinite);
+            }
+            else
+            {
+                var timer = new Timer(_ =>
+                {
+                    ChannelState.RemoveTypingUser(userId);
+                    InvokeAsync(StateHasChanged);
+                    _typingExpiryTimers.Remove(userId);
+                }, null, 5000, Timeout.Infinite);
+                _typingExpiryTimers[userId] = timer;
+            }
         }
     }
 
@@ -112,6 +133,12 @@
         {
             ChannelState.RemoveTypingUser(userId);
             InvokeAsync(StateHasChanged);
+
+            // Cancel and remove the expiry timer
+            if (_typingExpiryTimers.Remove(userId, out var timer))
+            {
+                timer.Dispose();
+            }
         }
     }
 
@@ -190,6 +217,13 @@
         ChatHub.OnMessageReceived -= HandleMessageReceived;
         ChatHub.OnUserTyping -= HandleUserTyping;
         ChatHub.OnUserStoppedTyping -= HandleUserStoppedTyping;
+
+        // Dispose all typing expiry timers
+        foreach (var timer in _typingExpiryTimers.Values)
+        {
+            timer.Dispose();
+        }
+        _typingExpiryTimers.Clear();
 
         // Leave the SignalR channel group when navigating away
         if (ChatHub.IsConnected && _currentChannelId != Guid.Empty)
