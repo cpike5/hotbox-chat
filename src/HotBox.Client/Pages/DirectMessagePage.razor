@@ -6,11 +6,12 @@
 @inject AuthState AuthState
 @inject ApiClient Api
 @inject ChatHubService ChatHub
+@inject IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>HotBox - DM with @(DirectMessageState.ActiveConversationDisplayName ?? "User")</PageTitle>
 
-<DirectMessageMessageList />
+<DirectMessageMessageList OnScrollNearTop="LoadOlderMessages" />
 <DirectMessageInput />
 
 @code {
@@ -18,6 +19,8 @@
     public Guid UserId { get; set; }
 
     private Guid _currentUserId;
+    private double _previousScrollHeight;
+    private bool _pendingScrollRestore;
 
     protected override void OnInitialized()
     {
@@ -55,10 +58,17 @@
 
         // Load messages for this conversation
         DirectMessageState.SetLoadingMessages(true);
+        DirectMessageState.SetHasMoreMessages(true);
         try
         {
             var messages = await Api.GetDirectMessagesAsync(UserId);
             DirectMessageState.SetMessages(messages);
+
+            // If we got less than the default limit (50), we've loaded all messages
+            if (messages.Count < 50)
+            {
+                DirectMessageState.SetHasMoreMessages(false);
+            }
         }
         finally
         {
@@ -74,6 +84,13 @@
              message.RecipientId == DirectMessageState.ActiveConversationUserId.Value))
         {
             DirectMessageState.AddMessage(message);
+
+            // Purge oldest messages if beyond window (user is near bottom receiving new messages)
+            if (DirectMessageState.Messages.Count > DirectMessageState.MessageWindowSize)
+            {
+                DirectMessageState.PurgeOldMessages(DirectMessageState.MessageWindowSize);
+            }
+
             InvokeAsync(StateHasChanged);
         }
     }
@@ -97,6 +114,75 @@
             InvokeAsync(StateHasChanged);
         }
     }
+
+    private async Task LoadOlderMessages()
+    {
+        // Guard: don't load if already loading, no more messages, or no messages yet
+        if (DirectMessageState.IsLoadingOlderMessages || !DirectMessageState.HasMoreMessages || DirectMessageState.Messages.Count == 0)
+            return;
+
+        DirectMessageState.SetLoadingOlderMessages(true);
+        try
+        {
+            // Get the oldest message timestamp
+            var oldestMessage = DirectMessageState.Messages[0];
+            var before = oldestMessage.CreatedAtUtc;
+
+            // Save scroll position before prepending
+            var scrollInfo = await JS.InvokeAsync<ScrollPosition>("chatInterop.getScrollPosition", ".messages-area");
+            _previousScrollHeight = scrollInfo.ScrollHeight;
+
+            // Fetch older messages
+            var olderMessages = await Api.GetDirectMessagesAsync(UserId, before: before, limit: 50);
+
+            if (olderMessages.Count > 0)
+            {
+                // Prepend messages to state
+                DirectMessageState.PrependMessages(olderMessages);
+
+                // If we got less than requested, we've reached the beginning
+                if (olderMessages.Count < 50)
+                {
+                    DirectMessageState.SetHasMoreMessages(false);
+                }
+
+                // Schedule scroll position restoration for next render
+                _pendingScrollRestore = true;
+                StateHasChanged();
+
+                // User is scrolled up (loaded older messages) — purge newest messages from end if beyond window
+                if (DirectMessageState.Messages.Count > DirectMessageState.MessageWindowSize)
+                {
+                    DirectMessageState.PurgeNewMessages(DirectMessageState.MessageWindowSize);
+                }
+            }
+            else
+            {
+                DirectMessageState.SetHasMoreMessages(false);
+            }
+        }
+        finally
+        {
+            DirectMessageState.SetLoadingOlderMessages(false);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_pendingScrollRestore)
+        {
+            _pendingScrollRestore = false;
+
+            // Restore scroll position after prepend
+            var newScrollInfo = await JS.InvokeAsync<ScrollPosition>("chatInterop.getScrollPosition", ".messages-area");
+            var scrollDelta = newScrollInfo.ScrollHeight - _previousScrollHeight;
+            var newScrollTop = newScrollInfo.ScrollTop + scrollDelta;
+
+            await JS.InvokeVoidAsync("chatInterop.setScrollTop", ".messages-area", newScrollTop);
+        }
+    }
+
+    private record ScrollPosition(double ScrollTop, double ScrollHeight, double ClientHeight);
 
     public void Dispose()
     {

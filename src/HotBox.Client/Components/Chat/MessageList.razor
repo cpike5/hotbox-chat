@@ -6,7 +6,7 @@
 
 <div class="messages-area">
     <div class="messages-container">
-        @if (ChannelState.ActiveChannel is not null)
+        @if (ChannelState.ActiveChannel is not null && !ChannelState.HasMoreMessages)
         {
             <div class="channel-welcome">
                 <h2># @ChannelState.ActiveChannel.Name</h2>
@@ -104,6 +104,9 @@
 }
 
 @code {
+    [Parameter]
+    public EventCallback OnScrollNearTop { get; set; }
+
     private record SkeletonMessageDef(int AuthorWidth, int Line1Width, int Line2Width);
 
     private static readonly SkeletonMessageDef[] _skeletonMessages =
@@ -118,6 +121,7 @@
 
     private bool _forceScroll;
     private bool _wasLoading;
+    private DateTime _lastScrollCheck = DateTime.MinValue;
     private Guid? _selectedAuthorId;
     private double _anchorX;
     private double _anchorY;
@@ -140,14 +144,33 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_forceScroll)
+        // Skip auto-scroll during older messages loading to preserve scroll position
+        if (!ChannelState.IsLoadingOlderMessages)
         {
-            _forceScroll = false;
-            await JS.InvokeVoidAsync("chatInterop.scrollToBottom", ".messages-area");
+            if (_forceScroll)
+            {
+                _forceScroll = false;
+                await JS.InvokeVoidAsync("chatInterop.scrollToBottom", ".messages-area");
+            }
+            else if (ChannelState.Messages.Count > 0)
+            {
+                await JS.InvokeVoidAsync("chatInterop.scrollToBottomIfNearEnd", ".messages-area", 150);
+            }
         }
-        else if (ChannelState.Messages.Count > 0)
+
+        // Check if user has scrolled near top (debounced)
+        if (!ChannelState.IsLoadingMessages && !ChannelState.IsLoadingOlderMessages)
         {
-            await JS.InvokeVoidAsync("chatInterop.scrollToBottomIfNearEnd", ".messages-area", 150);
+            var now = DateTime.UtcNow;
+            if ((now - _lastScrollCheck).TotalMilliseconds >= 500)
+            {
+                _lastScrollCheck = now;
+                var isNearTop = await JS.InvokeAsync<bool>("chatInterop.isNearTop", ".messages-area", 100);
+                if (isNearTop)
+                {
+                    await OnScrollNearTop.InvokeAsync();
+                }
+            }
         }
     }
 
