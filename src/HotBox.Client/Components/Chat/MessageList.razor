@@ -1,6 +1,7 @@
 @using HotBox.Client.State
 @using HotBox.Client.Models
 @inject ChannelState ChannelState
+@inject IJSRuntime JS
 @implements IDisposable
 
 <div class="messages-area">
@@ -100,9 +101,36 @@
         new(80, 65, 40)
     };
 
+    private bool _forceScroll;
+    private bool _wasLoading;
+
     protected override void OnInitialized()
     {
-        ChannelState.OnChange += StateHasChanged;
+        ChannelState.OnChange += HandleStateChanged;
+    }
+
+    private void HandleStateChanged()
+    {
+        // When loading transitions from true → false, messages just arrived — force scroll to bottom
+        if (_wasLoading && !ChannelState.IsLoadingMessages)
+        {
+            _forceScroll = true;
+        }
+        _wasLoading = ChannelState.IsLoadingMessages;
+        InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_forceScroll)
+        {
+            _forceScroll = false;
+            await JS.InvokeVoidAsync("chatInterop.scrollToBottom", ".messages-area");
+        }
+        else if (ChannelState.Messages.Count > 0)
+        {
+            await JS.InvokeVoidAsync("chatInterop.scrollToBottomIfNearEnd", ".messages-area", 150);
+        }
     }
 
     private static string FormatTime(DateTime utc)
@@ -134,6 +162,6 @@
 
     public void Dispose()
     {
-        ChannelState.OnChange -= StateHasChanged;
+        ChannelState.OnChange -= HandleStateChanged;
     }
 }
