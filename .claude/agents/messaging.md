@@ -21,7 +21,6 @@ src/HotBox.Infrastructure/Repositories/ChannelRepository.cs
 src/HotBox.Infrastructure/Repositories/MessageRepository.cs
 src/HotBox.Infrastructure/Repositories/DirectMessageRepository.cs
 src/HotBox.Infrastructure/Repositories/InviteRepository.cs
-src/HotBox.Infrastructure/Repositories/UserRepository.cs
 
 # Controllers
 src/HotBox.Application/Controllers/ChannelsController.cs
@@ -33,29 +32,31 @@ src/HotBox.Application/Hubs/ChatHub.cs
 
 # Search
 src/HotBox.Application/Controllers/SearchController.cs
-src/HotBox.Application/Services/ISearchService.cs
-src/HotBox.Application/Services/SearchService.cs
-src/HotBox.Infrastructure/Search/PostgresSearchService.cs
-src/HotBox.Infrastructure/Search/MySqlSearchService.cs
-src/HotBox.Infrastructure/Search/SqliteSearchService.cs
-src/HotBox.Infrastructure/Search/FallbackSearchService.cs
+src/HotBox.Core/Interfaces/ISearchService.cs
+src/HotBox.Infrastructure/Services/Search/SearchService.cs
+src/HotBox.Infrastructure/Services/Search/PostgresSearchService.cs
+src/HotBox.Infrastructure/Services/Search/MySqlSearchService.cs
+src/HotBox.Infrastructure/Services/Search/SqliteSearchService.cs
+src/HotBox.Infrastructure/Services/Search/FallbackSearchService.cs
 
 # Services
-src/HotBox.Application/Services/IChannelService.cs
-src/HotBox.Application/Services/ChannelService.cs
-src/HotBox.Application/Services/IMessageService.cs
-src/HotBox.Application/Services/MessageService.cs
-src/HotBox.Application/Services/IDirectMessageService.cs
-src/HotBox.Application/Services/DirectMessageService.cs
+src/HotBox.Core/Interfaces/IChannelService.cs
+src/HotBox.Infrastructure/Services/ChannelService.cs
+src/HotBox.Core/Interfaces/IMessageService.cs
+src/HotBox.Infrastructure/Services/MessageService.cs
+src/HotBox.Core/Interfaces/IDirectMessageService.cs
+src/HotBox.Infrastructure/Services/DirectMessageService.cs
+src/HotBox.Application/Services/NotificationService.cs
 ```
 
 ## Code You Influence But Don't Own
 
 - Core entities (`Channel.cs`, `Message.cs`, `DirectMessage.cs`) — owned by Platform, you propose changes
-- EF Core entity configurations — owned by Platform, you specify indexing and relationship requirements
+- EF Core entity configurations in `Infrastructure/Data/Configuration/` — owned by Platform, you specify indexing and relationship requirements
+- `Infrastructure/DependencyInjection/InfrastructureServiceExtensions.cs` — owned by Platform, you specify which services to register
 - Chat UI components (`ChatView.razor`, `MessageList.razor`, etc.) — owned by Client Experience
 - `ChatHubService.cs` (client-side SignalR service) — owned by Client Experience
-- `ChannelState.cs` (client-side state) — owned by Client Experience
+- `ChannelState.cs`, `DirectMessageState.cs` (client-side state) — owned by Client Experience
 
 ## Documentation You Maintain
 

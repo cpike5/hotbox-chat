@@ -4,6 +4,8 @@
 **Date**: 2026-02-11
 **Companion Document**: `docs/technical-spec.md`
 
+> **Implementation Status (Feb 2026)**: Phases 1-4 are substantially complete. Additional features implemented outside the original plan: API key management, MCP agent accounts, user profiles (bio, pronouns, custom status). Phases 5+ remain pending.
+
 ---
 
 ## 1. Solution and Project Structure
@@ -14,9 +16,9 @@
 HotBox.sln
 |
 +-- src/
-|   +-- HotBox.Core/                  # .NET 9 Class Library
-|   +-- HotBox.Infrastructure/        # .NET 9 Class Library
-|   +-- HotBox.Application/           # ASP.NET Core 9 Web Application
+|   +-- HotBox.Core/                  # .NET 8 Class Library
+|   +-- HotBox.Infrastructure/        # .NET 8 Class Library
+|   +-- HotBox.Application/           # ASP.NET Core 8 Web Application
 |   +-- HotBox.Client/                # Blazor WebAssembly Standalone App
 |
 +-- tests/
@@ -60,7 +62,7 @@ dotnet add src/HotBox.Application reference src/HotBox.Infrastructure
 
 | Decision | Rationale |
 |----------|-----------|
-| .NET 9 | Latest LTS-adjacent release with best Blazor WASM + SignalR support |
+| .NET 8 | Current LTS release with stable Blazor WASM + SignalR support |
 | Separate Blazor WASM project | Deployed as static files, served by the ASP.NET Core host. Keeps client and server cleanly separated. |
 | P2P WebRTC for voice | No external SFU dependency. Aligns with privacy goals and <10 user voice channels. See technical spec Section 6.1 for full analysis. |
 | JWT (access) + HttpOnly cookie (refresh) | Secure token management for Blazor WASM. Access token in memory avoids XSS exposure; refresh in HttpOnly cookie avoids CSRF with SameSite. |
@@ -99,9 +101,14 @@ dotnet add src/HotBox.Application reference src/HotBox.Infrastructure
 - `src/HotBox.Core/Interfaces/IChannelRepository.cs`
 - `src/HotBox.Core/Interfaces/IMessageRepository.cs`
 - `src/HotBox.Core/Interfaces/IDirectMessageRepository.cs`
-- `src/HotBox.Core/Interfaces/IUserRepository.cs`
 - `src/HotBox.Core/Interfaces/IInviteRepository.cs`
-- `src/HotBox.Core/Interfaces/IUnitOfWork.cs`
+- `src/HotBox.Core/Options/HotBoxOptions.cs`
+- `src/HotBox.Core/Options/AuthOptions.cs`
+- `src/HotBox.Core/Options/JwtOptions.cs`
+- `src/HotBox.Core/Options/OAuthProviderOptions.cs`
+- `src/HotBox.Core/Options/DatabaseOptions.cs`
+- `src/HotBox.Core/Options/VoiceOptions.cs`
+- `src/HotBox.Core/Options/ObservabilityOptions.cs`
 
 **Infrastructure layer:**
 - `src/HotBox.Infrastructure/Identity/AppUser.cs`
@@ -113,20 +120,12 @@ dotnet add src/HotBox.Application reference src/HotBox.Infrastructure
 - `src/HotBox.Infrastructure/Repositories/ChannelRepository.cs`
 - `src/HotBox.Infrastructure/Repositories/MessageRepository.cs`
 - `src/HotBox.Infrastructure/Repositories/DirectMessageRepository.cs`
-- `src/HotBox.Infrastructure/Repositories/UserRepository.cs`
 - `src/HotBox.Infrastructure/Repositories/InviteRepository.cs`
-- `src/HotBox.Infrastructure/Extensions/InfrastructureServiceExtensions.cs`
+- `src/HotBox.Infrastructure/DependencyInjection/InfrastructureServiceExtensions.cs`
 
 **Application layer:**
-- `src/HotBox.Application/Configuration/HotBoxOptions.cs`
-- `src/HotBox.Application/Configuration/AuthOptions.cs`
-- `src/HotBox.Application/Configuration/JwtOptions.cs`
-- `src/HotBox.Application/Configuration/OAuthProviderOptions.cs`
-- `src/HotBox.Application/Configuration/DatabaseOptions.cs`
-- `src/HotBox.Application/Configuration/VoiceOptions.cs`
-- `src/HotBox.Application/Configuration/ObservabilityOptions.cs`
-- `src/HotBox.Application/Extensions/ApplicationServiceExtensions.cs`
-- `src/HotBox.Application/Extensions/ObservabilityExtensions.cs`
+- `src/HotBox.Application/DependencyInjection/ApplicationServiceExtensions.cs`
+- `src/HotBox.Application/DependencyInjection/ObservabilityExtensions.cs`
 - `src/HotBox.Application/Program.cs`
 - `src/HotBox.Application/appsettings.json`
 - `src/HotBox.Application/appsettings.Development.json`
@@ -204,14 +203,18 @@ dotnet add src/HotBox.Application reference src/HotBox.Infrastructure
 
 #### Files created:
 
+**Core layer:**
+- `src/HotBox.Core/Interfaces/IChannelService.cs`
+- `src/HotBox.Core/Interfaces/IMessageService.cs`
+
+**Infrastructure layer:**
+- `src/HotBox.Infrastructure/Services/ChannelService.cs`
+- `src/HotBox.Infrastructure/Services/MessageService.cs`
+
 **Application layer:**
 - `src/HotBox.Application/Controllers/ChannelsController.cs`
 - `src/HotBox.Application/Controllers/MessagesController.cs`
 - `src/HotBox.Application/Hubs/ChatHub.cs`
-- `src/HotBox.Application/Services/IChannelService.cs`
-- `src/HotBox.Application/Services/ChannelService.cs`
-- `src/HotBox.Application/Services/IMessageService.cs`
-- `src/HotBox.Application/Services/MessageService.cs`
 
 **Client:**
 - `src/HotBox.Client/Layout/MainLayout.razor`
@@ -269,10 +272,14 @@ dotnet add src/HotBox.Application reference src/HotBox.Infrastructure
 
 #### Files created:
 
+**Core layer:**
+- `src/HotBox.Core/Interfaces/IDirectMessageService.cs`
+
+**Infrastructure layer:**
+- `src/HotBox.Infrastructure/Services/DirectMessageService.cs`
+
 **Application layer:**
 - `src/HotBox.Application/Controllers/DirectMessagesController.cs`
-- `src/HotBox.Application/Services/IDirectMessageService.cs`
-- `src/HotBox.Application/Services/DirectMessageService.cs`
 
 **Client:**
 - `src/HotBox.Client/Components/Sidebar/DirectMessageList.razor`
@@ -312,11 +319,11 @@ dotnet add src/HotBox.Application reference src/HotBox.Infrastructure
 - `src/HotBox.Infrastructure/Search/SqliteSearchService.cs`
 - `src/HotBox.Infrastructure/Search/FallbackSearchService.cs`
 
+**Core layer:**
+- `src/HotBox.Core/Options/SearchOptions.cs`
+
 **Application layer:**
 - `src/HotBox.Application/Controllers/SearchController.cs`
-- `src/HotBox.Application/Services/ISearchService.cs`
-- `src/HotBox.Application/Services/SearchService.cs`
-- `src/HotBox.Application/Configuration/SearchOptions.cs`
 
 **Client:**
 - `src/HotBox.Client/Components/Search/SearchOverlay.razor`
@@ -331,8 +338,8 @@ dotnet add src/HotBox.Application reference src/HotBox.Infrastructure
 
 #### Files modified:
 - `src/HotBox.Application/appsettings.json` -- Add `Search` config section
-- `src/HotBox.Infrastructure/Extensions/InfrastructureServiceExtensions.cs` -- Register provider-specific search service
-- `src/HotBox.Application/Extensions/ApplicationServiceExtensions.cs` -- Register SearchOptions
+- `src/HotBox.Infrastructure/DependencyInjection/InfrastructureServiceExtensions.cs` -- Register provider-specific search service
+- `src/HotBox.Application/DependencyInjection/ApplicationServiceExtensions.cs` -- Register SearchOptions
 - `src/HotBox.Client/Layout/MainLayout.razor` -- Add SearchOverlay, Ctrl+K handler
 - `src/HotBox.Client/Services/IApiClient.cs` -- Add `SearchMessagesAsync`, `SearchDirectMessagesAsync`
 - `src/HotBox.Client/Services/ApiClient.cs` -- Implement search API calls
@@ -351,7 +358,7 @@ dotnet add src/HotBox.Application reference src/HotBox.Infrastructure
 - MySQL/MariaDB uses `FULLTEXT` index with `MATCH...AGAINST`
 - SQLite uses FTS5 virtual tables with BM25 ranking
 - If FTS is unavailable, search degrades to SQL `LIKE` with `IsDegraded` flag in the response
-- Admin can trigger reindex via `POST /api/v1/admin/search/reindex`
+- Admin can trigger reindex via `POST /api/admin/search/reindex`
 - Empty state, loading state, and error state are handled in the UI
 
 #### Risk areas:
@@ -375,11 +382,13 @@ dotnet add src/HotBox.Application reference src/HotBox.Infrastructure
 
 #### Files created:
 
-**Application layer:**
-- `src/HotBox.Application/Services/IPresenceService.cs`
-- `src/HotBox.Application/Services/PresenceService.cs`
-- `src/HotBox.Application/Services/INotificationService.cs`
-- `src/HotBox.Application/Services/NotificationService.cs`
+**Core layer:**
+- `src/HotBox.Core/Interfaces/IPresenceService.cs`
+- `src/HotBox.Core/Interfaces/INotificationService.cs`
+
+**Infrastructure layer:**
+- `src/HotBox.Infrastructure/Services/PresenceService.cs`
+- `src/HotBox.Infrastructure/Services/NotificationService.cs`
 
 **Client:**
 - `src/HotBox.Client/wwwroot/js/notification-interop.js`
@@ -625,7 +634,7 @@ Once the MVP is stable, the following features from the requirements can be plan
 ## 7. Development Environment Setup
 
 ### Prerequisites
-- .NET 9 SDK
+- .NET 8 SDK
 - Docker Desktop
 - IDE: Visual Studio 2022 / Rider / VS Code with C# Dev Kit
 

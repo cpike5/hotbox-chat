@@ -19,20 +19,23 @@ You own everything related to identity, authentication, authorization, and acces
 ## Code You Own
 
 ```
-src/HotBox.Infrastructure/Identity/       # AppUser.cs, identity configuration
+src/HotBox.Core/Entities/AppUser.cs       # User entity with profile fields
+src/HotBox.Core/Entities/ApiKey.cs        # API key entity for agents
+src/HotBox.Core/Options/AdminSeedOptions.cs
+src/HotBox.Core/Interfaces/ITokenService.cs
 src/HotBox.Infrastructure/Data/Seeding/   # DatabaseSeeder.cs
+src/HotBox.Infrastructure/Services/TokenService.cs
 src/HotBox.Application/Controllers/AuthController.cs
 src/HotBox.Application/Controllers/AdminController.cs
-src/HotBox.Application/Extensions/AuthenticationExtensions.cs
-src/HotBox.Application/Services/ITokenService.cs
-src/HotBox.Application/Services/TokenService.cs
+src/HotBox.Application/Controllers/AgentsController.cs
+src/HotBox.Application/Authentication/ApiKeyAuthenticationHandler.cs
 ```
 
 ## Code You Influence But Don't Own
 
-- `HotBox.Application/Configuration/AuthOptions.cs`, `JwtOptions.cs`, `OAuthProviderOptions.cs` — owned by Platform, you define what goes in them
+- `HotBox.Core/Options/JwtOptions.cs`, `OAuthOptions.cs` — owned by Platform, you define what goes in them
 - `ChatHub.cs`, `VoiceSignalingHub.cs` — owned by Messaging / Real-time, but you define the authorization rules applied to them
-- `HotBox.Client/Components/Auth/` — owned by Client Experience, but you define the auth flow they implement
+- `HotBox.Client/Pages/Login.razor`, `Register.razor` — owned by Client Experience, but you define the auth flow they implement
 - `HotBox.Client/Services/AuthService.cs`, `AuthState.cs` — owned by Client Experience, but you define the token management behavior
 
 ## Documentation You Maintain
@@ -81,12 +84,10 @@ The `/api/v1/auth/providers` endpoint returns enabled providers. The login UI re
 On first run (no admin exists), create admin from config:
 ```json
 {
-  "Auth": {
-    "Seed": {
-      "AdminEmail": "admin@hotbox.local",
-      "AdminPassword": "ChangeMe123!",
-      "AdminDisplayName": "Admin"
-    }
+  "AdminSeed": {
+    "Email": "admin@hotbox.local",
+    "Password": "ChangeMe123!",
+    "DisplayName": "Admin"
   }
 }
 ```
@@ -123,7 +124,7 @@ On first run (no admin exists), create admin from config:
 - Access tokens: short-lived (15 min), never in localStorage
 - Refresh tokens: HttpOnly + Secure + SameSite=Strict cookie
 - All auth endpoints rate-limited
-- JWT secret must be at least 64 characters in production
+- JWT secret must be at least 32 characters in production
 - OAuth client secrets stored in environment variables, never in committed config
 
 ## Coordination Points

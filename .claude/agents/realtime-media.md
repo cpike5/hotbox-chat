@@ -22,18 +22,19 @@ You own everything related to voice communication and real-time media:
 src/HotBox.Application/Hubs/VoiceSignalingHub.cs
 
 # Client services
-src/HotBox.Client/Services/IVoiceHubService.cs
 src/HotBox.Client/Services/VoiceHubService.cs
-src/HotBox.Client/Services/IWebRtcService.cs
-src/HotBox.Client/Services/WebRtcService.cs
+src/HotBox.Client/Services/VoiceConnectionManager.cs
 
-# Client UI
-src/HotBox.Client/Components/Sidebar/VoiceChannelItem.razor
-src/HotBox.Client/Components/Sidebar/VoiceUserList.razor
-src/HotBox.Client/Components/Sidebar/VoiceConnectedPanel.razor
+# Client models
+src/HotBox.Client/Models/VoiceUserInfo.cs
+src/HotBox.Client/Models/IceServerConfig.cs
+src/HotBox.Client/Models/IceServerInfo.cs
 
 # Client state
 src/HotBox.Client/State/VoiceState.cs
+
+# Configuration
+src/HotBox.Core/Options/IceServerOptions.cs
 
 # JSInterop (the ONLY JavaScript in the project — exists because browser WebRTC APIs require it)
 src/HotBox.Client/wwwroot/js/webrtc-interop.js
@@ -42,9 +43,10 @@ src/HotBox.Client/wwwroot/js/audio-interop.js
 
 ## Code You Influence But Don't Own
 
-- `HotBox.Application/Configuration/VoiceOptions.cs` — owned by Platform, you define what goes in it
+- `HotBox.Core/Options/IceServerOptions.cs` — owned by Platform, you define what goes in it
 - `Channel` entity (shared with text channels) — owned by Platform, voice channels use `ChannelType.Voice`
 - Sidebar layout where voice components live — owned by Client Experience
+- Voice UI components (VoiceChannelItem, VoiceUserList, VoiceConnectedPanel) — owned by Client Experience, you define behavior
 
 ## Documentation You Maintain
 
@@ -78,6 +80,7 @@ HotBox uses **peer-to-peer WebRTC** for voice. Audio never touches the server �
 | `SendIceCandidate` | `targetUserId: Guid, candidate: string` | Send ICE candidate |
 | `ToggleMute` | `channelId: Guid, isMuted: bool` | Broadcast mute status |
 | `ToggleDeafen` | `channelId: Guid, isDeafened: bool` | Broadcast deafen status |
+| `GetIceServers` | — | Get ICE/STUN/TURN server configuration |
 
 **Client methods:**
 | Method | Parameters | Description |
@@ -87,9 +90,9 @@ HotBox uses **peer-to-peer WebRTC** for voice. Audio never touches the server �
 | `ReceiveOffer` | `fromUserId, sdp` | Receive SDP offer |
 | `ReceiveAnswer` | `fromUserId, sdp` | Receive SDP answer |
 | `ReceiveIceCandidate` | `fromUserId, candidate` | Receive ICE candidate |
-| `UserMuteChanged` | `userId, isMuted` | Peer mute state |
-| `UserDeafenChanged` | `userId, isDeafened` | Peer deafen state |
-| `VoiceChannelState` | `VoiceUserDto[]` | Full state on join |
+| `UserMuteChanged` | `channelId, userId, isMuted` | Peer mute state |
+| `UserDeafenChanged` | `channelId, userId, isDeafened` | Peer deafen state |
+| `VoiceChannelUsers` | `VoiceUserDto[]` | Full state on join |
 
 ### WebRTC Connection Flow
 
@@ -133,16 +136,20 @@ Keep the JavaScript layer **as thin as possible**. It only wraps browser APIs th
 
 ### ICE/STUN/TURN Configuration
 
+Configuration lives in `IceServers` section with flat structure:
+
 ```json
 {
-  "Voice": {
-    "IceServers": [
-      { "Urls": ["stun:stun.l.google.com:19302"] },
-      { "Urls": ["turn:turn.hotbox.local:3478"], "Username": "hotbox", "Credential": "changeme" }
-    ]
+  "IceServers": {
+    "StunUrls": ["stun:stun.l.google.com:19302"],
+    "TurnUrl": "turn:turn.hotbox.local:3478",
+    "TurnUsername": "hotbox",
+    "TurnCredential": "changeme"
   }
 }
 ```
+
+Maps to `IceServerOptions` class in `src/HotBox.Core/Options/IceServerOptions.cs`.
 
 - STUN: Google's public server as default. Free and sufficient for most NAT types.
 - TURN: Optional `coturn` container in docker-compose for restrictive NATs.

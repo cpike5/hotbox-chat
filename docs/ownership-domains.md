@@ -1,7 +1,7 @@
 # Ownership Domains
 
-**Version**: 1.0
-**Date**: 2026-02-11
+**Version**: 1.1
+**Date**: 2026-02-13
 
 This document defines the five ownership domains for HotBox development. Each domain is owned by a dedicated agent (defined in `.claude/agents/`) responsible for implementation, maintenance, bug fixes, and documentation within their area.
 
@@ -44,15 +44,18 @@ This document defines the five ownership domains for HotBox development. Each do
 
 **Code paths**:
 ```
-src/HotBox.Core/                          # All entities, enums, interfaces
+src/HotBox.Core/Entities/                 # AppUser.cs, Channel.cs, Message.cs, DirectMessage.cs, Invite.cs, ApiKey.cs, RefreshToken.cs, ServerSettings.cs
+src/HotBox.Core/Enums/                    # All enums
+src/HotBox.Core/Interfaces/               # All repository and service interfaces
+src/HotBox.Core/Options/                  # ServerOptions.cs, DatabaseOptions.cs, JwtOptions.cs, OAuthOptions.cs, IceServerOptions.cs, ObservabilityOptions.cs, AdminSeedOptions.cs, SearchOptions.cs
 src/HotBox.Infrastructure/Data/           # DbContext, configurations, migrations
-src/HotBox.Infrastructure/Extensions/     # DI registration
-src/HotBox.Application/Configuration/     # All Options classes
-src/HotBox.Application/Extensions/        # ApplicationServiceExtensions, ObservabilityExtensions
+src/HotBox.Infrastructure/DependencyInjection/ # InfrastructureServiceExtensions.cs
+src/HotBox.Application/DependencyInjection/    # ApplicationServiceExtensions.cs, ObservabilityExtensions.cs
 src/HotBox.Application/Middleware/         # Request logging, etc.
 src/HotBox.Application/Program.cs
 src/HotBox.Application/appsettings*.json
-docker/                                    # All Docker files
+Dockerfile                                 # Multi-stage build
+docker-compose*.yml                        # Compose files at repo root
 tests/HotBox.Core.Tests/
 tests/HotBox.Infrastructure.Tests/
 ```
@@ -85,16 +88,22 @@ tests/HotBox.Infrastructure.Tests/
 
 **Code paths**:
 ```
-src/HotBox.Infrastructure/Identity/       # AppUser, identity config
+src/HotBox.Core/Entities/AppUser.cs       # User entity
+src/HotBox.Core/Entities/Invite.cs        # Invite entity
+src/HotBox.Core/Entities/ApiKey.cs        # API key entity
+src/HotBox.Core/Entities/RefreshToken.cs  # Refresh token entity
+src/HotBox.Core/Interfaces/ITokenService.cs
+src/HotBox.Core/Interfaces/IInviteService.cs
+src/HotBox.Core/Options/JwtOptions.cs
+src/HotBox.Core/Options/OAuthOptions.cs
+src/HotBox.Core/Options/AdminSeedOptions.cs
+src/HotBox.Infrastructure/Identity/       # Identity configuration
 src/HotBox.Infrastructure/Data/Seeding/   # DatabaseSeeder
+src/HotBox.Infrastructure/Services/TokenService.cs
+src/HotBox.Infrastructure/Services/InviteService.cs
 src/HotBox.Application/Controllers/AuthController.cs
 src/HotBox.Application/Controllers/AdminController.cs
-src/HotBox.Application/Extensions/AuthenticationExtensions.cs
-src/HotBox.Application/Services/ITokenService.cs
-src/HotBox.Application/Services/TokenService.cs
-src/HotBox.Application/Configuration/AuthOptions.cs
-src/HotBox.Application/Configuration/JwtOptions.cs
-src/HotBox.Application/Configuration/OAuthProviderOptions.cs
+src/HotBox.Application/DependencyInjection/AuthenticationExtensions.cs
 tests/HotBox.Application.Tests/           # Auth-related tests
 ```
 
@@ -125,27 +134,32 @@ tests/HotBox.Application.Tests/           # Auth-related tests
 
 **Code paths**:
 ```
+src/HotBox.Core/Entities/Channel.cs
+src/HotBox.Core/Entities/Message.cs
+src/HotBox.Core/Entities/DirectMessage.cs
+src/HotBox.Core/Interfaces/IChannelRepository.cs
+src/HotBox.Core/Interfaces/IMessageRepository.cs
+src/HotBox.Core/Interfaces/IDirectMessageRepository.cs
+src/HotBox.Core/Interfaces/IChannelService.cs
+src/HotBox.Core/Interfaces/IMessageService.cs
+src/HotBox.Core/Interfaces/IDirectMessageService.cs
+src/HotBox.Core/Interfaces/ISearchService.cs
+src/HotBox.Core/Options/SearchOptions.cs
 src/HotBox.Infrastructure/Repositories/ChannelRepository.cs
 src/HotBox.Infrastructure/Repositories/MessageRepository.cs
 src/HotBox.Infrastructure/Repositories/DirectMessageRepository.cs
-src/HotBox.Infrastructure/Repositories/InviteRepository.cs
-src/HotBox.Infrastructure/Search/PostgresSearchService.cs
-src/HotBox.Infrastructure/Search/MySqlSearchService.cs
-src/HotBox.Infrastructure/Search/SqliteSearchService.cs
-src/HotBox.Infrastructure/Search/FallbackSearchService.cs
+src/HotBox.Infrastructure/Services/ChannelService.cs
+src/HotBox.Infrastructure/Services/MessageService.cs
+src/HotBox.Infrastructure/Services/DirectMessageService.cs
+src/HotBox.Infrastructure/Services/Search/PostgresSearchService.cs
+src/HotBox.Infrastructure/Services/Search/MySqlSearchService.cs
+src/HotBox.Infrastructure/Services/Search/SqliteSearchService.cs
+src/HotBox.Infrastructure/Services/Search/FallbackSearchService.cs
 src/HotBox.Application/Controllers/ChannelsController.cs
 src/HotBox.Application/Controllers/MessagesController.cs
 src/HotBox.Application/Controllers/DirectMessagesController.cs
 src/HotBox.Application/Controllers/SearchController.cs
 src/HotBox.Application/Hubs/ChatHub.cs
-src/HotBox.Application/Services/IChannelService.cs
-src/HotBox.Application/Services/ChannelService.cs
-src/HotBox.Application/Services/IMessageService.cs
-src/HotBox.Application/Services/MessageService.cs
-src/HotBox.Application/Services/IDirectMessageService.cs
-src/HotBox.Application/Services/DirectMessageService.cs
-src/HotBox.Application/Services/ISearchService.cs
-src/HotBox.Application/Services/SearchService.cs
 ```
 
 **Future ownership**:
@@ -180,18 +194,15 @@ src/HotBox.Application/Services/SearchService.cs
 
 **Code paths**:
 ```
+src/HotBox.Core/Options/IceServerOptions.cs
 src/HotBox.Application/Hubs/VoiceSignalingHub.cs
-src/HotBox.Application/Configuration/VoiceOptions.cs
 src/HotBox.Client/wwwroot/js/webrtc-interop.js
 src/HotBox.Client/wwwroot/js/audio-interop.js
-src/HotBox.Client/Services/IVoiceHubService.cs
 src/HotBox.Client/Services/VoiceHubService.cs
-src/HotBox.Client/Services/IWebRtcService.cs
 src/HotBox.Client/Services/WebRtcService.cs
-src/HotBox.Client/Components/Sidebar/VoiceChannelItem.razor
-src/HotBox.Client/Components/Sidebar/VoiceUserList.razor
-src/HotBox.Client/Components/Sidebar/VoiceConnectedPanel.razor
+src/HotBox.Client/Services/VoiceConnectionManager.cs
 src/HotBox.Client/State/VoiceState.cs
+# Voice UI components TBD (not yet implemented in sidebar)
 ```
 
 **Future ownership**:
@@ -203,7 +214,7 @@ src/HotBox.Client/State/VoiceState.cs
 **Coordinates with**:
 - Platform (STUN/TURN config in appsettings, Docker coturn service)
 - Messaging (voice channels share the Channel entity with text channels)
-- Client Experience (voice UI components integrate into sidebar layout)
+- Client Experience (voice UI components will integrate into channel list and top-bar layout)
 
 ---
 
@@ -212,18 +223,19 @@ src/HotBox.Client/State/VoiceState.cs
 **Agent**: `.claude/agents/client-experience.md`
 
 **Owns**:
-- Blazor WASM project shell (`MainLayout`, routing, `Program.cs`)
+- Blazor WASM project shell (`MainLayout`, `AuthLayout`, `AdminLayout`, routing, `Program.cs`)
 - Design system (CSS custom properties/tokens, `app.css`)
-- Sidebar layout and navigation
-- Members panel
-- Shared components (`Avatar`, `StatusDot`, `UnreadBadge`, `LoadingSpinner`, `ErrorBoundary`)
-- Auth UI (login/register pages, OAuth buttons, route guards)
-- Admin panel UI
-- Search UI (Ctrl+K overlay, search input, results, highlighting, jump-to-message)
+- Top-bar navigation and layout
+- Channel list, DM list, members panel
+- Chat components (message list, message input, channel header)
+- User profile UI (popover, edit modal)
+- Auth UI (login/register pages, OAuth callback, route guards)
+- Admin panel UI (user/channel/invite/settings management)
+- Search UI (Ctrl+K overlay, search results)
 - Notification display (browser notification JSInterop)
-- Presence UI (status dots, member list updates)
-- Client-side state management framework (`AppState`, `PresenceState`, `SearchState`)
-- `ApiClient` HTTP wrapper
+- Presence UI (status dots, connection status)
+- Client-side state management (`AppState`, `ChannelState`, `DirectMessageState`, `AuthState`, `PresenceState`, `SearchState`)
+- `ApiClient` HTTP wrapper and `ChatHubService`
 - Theming (dark mode, future light mode)
 - Accessibility
 
@@ -234,33 +246,47 @@ src/HotBox.Client/State/VoiceState.cs
 
 **Code paths**:
 ```
-src/HotBox.Client/Layout/                 # MainLayout
-src/HotBox.Client/Components/Sidebar/Sidebar.razor
-src/HotBox.Client/Components/Sidebar/ServerHeader.razor
-src/HotBox.Client/Components/Sidebar/ChannelList.razor
-src/HotBox.Client/Components/Sidebar/ChannelItem.razor
-src/HotBox.Client/Components/Sidebar/DirectMessageList.razor
-src/HotBox.Client/Components/Sidebar/DirectMessageItem.razor
-src/HotBox.Client/Components/Sidebar/UserPanel.razor
-src/HotBox.Client/Components/Chat/        # All chat view components
-src/HotBox.Client/Components/Search/      # Search overlay, input, results, highlighting
-src/HotBox.Client/Components/Members/     # Members panel
-src/HotBox.Client/Components/Auth/        # Login, register, OAuth buttons
-src/HotBox.Client/Components/Admin/       # Admin panel
-src/HotBox.Client/Components/Shared/      # Reusable components
-src/HotBox.Client/Services/IApiClient.cs
+src/HotBox.Client/Layout/MainLayout.razor
+src/HotBox.Client/Layout/AuthLayout.razor
+src/HotBox.Client/Layout/AdminLayout.razor
+src/HotBox.Client/Pages/ChannelPage.razor
+src/HotBox.Client/Pages/DirectMessagePage.razor
+src/HotBox.Client/Pages/DmsPage.razor
+src/HotBox.Client/Pages/LoginPage.razor
+src/HotBox.Client/Pages/RegisterPage.razor
+src/HotBox.Client/Pages/OAuthCallbackPage.razor
+src/HotBox.Client/Pages/AdminPage.razor
+src/HotBox.Client/Components/Chat/ChannelList.razor
+src/HotBox.Client/Components/Chat/ChannelHeader.razor
+src/HotBox.Client/Components/Chat/MessageList.razor
+src/HotBox.Client/Components/Chat/MessageInput.razor
+src/HotBox.Client/Components/Chat/DirectMessageList.razor
+src/HotBox.Client/Components/Chat/DirectMessageMessageList.razor
+src/HotBox.Client/Components/Chat/DirectMessageInput.razor
+src/HotBox.Client/Components/Chat/MembersPanel.razor
+src/HotBox.Client/Components/Chat/TypingIndicator.razor
+src/HotBox.Client/Components/Admin/AdminUserManagement.razor
+src/HotBox.Client/Components/Admin/AdminChannelManagement.razor
+src/HotBox.Client/Components/Admin/AdminInviteManagement.razor
+src/HotBox.Client/Components/Admin/AdminServerSettings.razor
+src/HotBox.Client/Components/Admin/AdminApiKeyManagement.razor
+src/HotBox.Client/Components/Profile/UserProfilePopover.razor
+src/HotBox.Client/Components/Profile/EditProfileModal.razor
+src/HotBox.Client/Components/SearchOverlay.razor
+src/HotBox.Client/Components/ConnectionStatus.razor
+src/HotBox.Client/Components/NewDmPicker.razor
+src/HotBox.Client/Components/GlobalErrorBoundary.razor
 src/HotBox.Client/Services/ApiClient.cs
-src/HotBox.Client/Services/IAuthService.cs
-src/HotBox.Client/Services/AuthService.cs
-src/HotBox.Client/Services/INotificationService.cs
+src/HotBox.Client/Services/ChatHubService.cs
 src/HotBox.Client/Services/NotificationService.cs
+src/HotBox.Client/Services/JwtParser.cs
 src/HotBox.Client/State/AppState.cs
 src/HotBox.Client/State/ChannelState.cs
+src/HotBox.Client/State/DirectMessageState.cs
 src/HotBox.Client/State/AuthState.cs
 src/HotBox.Client/State/PresenceState.cs
 src/HotBox.Client/State/SearchState.cs
-src/HotBox.Client/Models/SearchResultDto.cs
-src/HotBox.Client/Models/SearchResponse.cs
+src/HotBox.Client/DependencyInjection/ClientServiceExtensions.cs
 src/HotBox.Client/wwwroot/css/            # All stylesheets
 src/HotBox.Client/wwwroot/js/notification-interop.js
 src/HotBox.Client/Program.cs
@@ -319,7 +345,7 @@ Some code is touched by multiple domains. Rules of engagement:
 |------|--------------|------------|
 | Core entities/interfaces | Platform | Propose changes via Platform |
 | `ChatHub.cs` | Messaging | Real-time & Media adds voice signaling patterns |
-| Sidebar components | Client Experience | Messaging and Real-time add their specific items |
+| Channel list components | Client Experience | Messaging and Real-time add their specific items |
 | `appsettings.json` | Platform | Each domain adds their config sections |
 | `Program.cs` (Application) | Platform | Each domain adds their DI registrations |
 | `Program.cs` (Client) | Client Experience | Each domain adds their client services |

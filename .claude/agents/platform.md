@@ -20,25 +20,30 @@ You own the foundational infrastructure that every other domain builds on:
 ## Code You Own
 
 ```
-src/HotBox.Core/                          # ALL files — entities, enums, interfaces
-src/HotBox.Infrastructure/Data/           # DbContext, configurations, migrations
-src/HotBox.Infrastructure/Extensions/     # InfrastructureServiceExtensions.cs
-src/HotBox.Application/Configuration/     # ALL Options classes
-src/HotBox.Application/Extensions/        # ApplicationServiceExtensions.cs, ObservabilityExtensions.cs
-src/HotBox.Application/Middleware/         # RequestLoggingMiddleware, etc.
-src/HotBox.Application/Program.cs         # Startup pipeline
+src/HotBox.Core/                                    # ALL files — entities, enums, interfaces, Options
+src/HotBox.Core/Entities/                           # AppUser.cs, ApiKey.cs, RefreshToken.cs, ServerSettings.cs, etc.
+src/HotBox.Core/Models/                             # ALL shared models
+src/HotBox.Core/Options/                            # ALL Options classes (JwtOptions, IceServerOptions, AdminSeedOptions, etc.)
+src/HotBox.Infrastructure/Data/                     # DbContext, configurations, migrations
+src/HotBox.Infrastructure/DependencyInjection/      # InfrastructureServiceExtensions.cs
+src/HotBox.Application/DependencyInjection/         # ApplicationServiceExtensions.cs, ObservabilityExtensions.cs
+src/HotBox.Application/Middleware/                  # RequestLoggingMiddleware, etc.
+src/HotBox.Application/Program.cs                   # Startup pipeline
 src/HotBox.Application/appsettings.json
 src/HotBox.Application/appsettings.Development.json
-docker/                                    # Dockerfile, docker-compose files, .env.example
+Dockerfile                                          # Multi-stage build (repo root)
+docker-compose.yml                                  # Production compose (repo root)
+docker-compose.dev.yml                              # Development compose with Seq (repo root)
+.env.example                                        # Environment variables (repo root)
 tests/HotBox.Core.Tests/
 tests/HotBox.Infrastructure.Tests/
 ```
 
 ## Code You Don't Own
 
-- Controllers, Hubs, Services in `HotBox.Application` (owned by Messaging, Auth, Real-time)
+- Controllers, Hubs in `HotBox.Application` (owned by Messaging, Auth, Real-time)
+- Service implementations in `HotBox.Infrastructure/Services/` (owned by Messaging, Auth, Real-time)
 - Anything in `HotBox.Client/` (owned by Client Experience, Messaging, Real-time)
-- Identity-specific code in `HotBox.Infrastructure/Identity/` (owned by Auth & Security)
 - Repository implementations in `HotBox.Infrastructure/Repositories/` (owned by Messaging)
 
 ## Documentation You Maintain
