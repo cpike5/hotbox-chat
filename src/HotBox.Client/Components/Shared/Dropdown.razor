@@ -1,0 +1,57 @@
+@implements IDisposable
+
+@if (IsOpen)
+{
+    <div class="click-away-overlay active" @onclick="Close"></div>
+}
+
+<div class="dropdown @(IsOpen ? "open" : "") @CssClass" @onkeydown="HandleKeyDown">
+    <div class="dropdown-trigger" @onclick="Toggle" aria-haspopup="true" aria-expanded="@IsOpen" aria-controls="@_menuId">
+        @Trigger
+    </div>
+    @if (IsOpen)
+    {
+        <div id="@_menuId" class="dropdown-menu dropdown-@Position" role="menu">
+            @Menu
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public RenderFragment? Trigger { get; set; }
+    [Parameter] public RenderFragment? Menu { get; set; }
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public EventCallback OnToggle { get; set; }
+    [Parameter] public string Position { get; set; } = "bottom-start";
+    [Parameter] public string? CssClass { get; set; }
+
+    private readonly string _menuId = $"dropdown-menu-{Guid.NewGuid().ToString("N")[..8]}";
+
+    private async Task Toggle()
+    {
+        IsOpen = !IsOpen;
+        await IsOpenChanged.InvokeAsync(IsOpen);
+        await OnToggle.InvokeAsync();
+    }
+
+    private async Task Close()
+    {
+        if (!IsOpen) return;
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(IsOpen);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && IsOpen)
+        {
+            await Close();
+        }
+    }
+
+    public void Dispose()
+    {
+        // No unmanaged resources, but interface satisfies potential future cleanup
+    }
+}

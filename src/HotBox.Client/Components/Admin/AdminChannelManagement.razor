@@ -4,6 +4,7 @@
 @using HotBox.Core.Enums
 @inject ApiClient Api
 @inject ChannelState ChannelState
+@inject ToastService ToastService
 @inject ILogger<AdminChannelManagement> Logger
 @implements IDisposable
 
@@ -130,134 +131,87 @@ else
     </div>
 }
 
-@* Toast messages *@
-@if (_toastMessage is not null)
-{
-    <div class="toast-container">
-        <div class="toast @(_toastType == "error" ? "toast-error" : "toast-success") show">
-            @if (_toastType == "success")
-            {
-                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            }
-            else
-            {
-                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-            }
-            <span>@_toastMessage</span>
-        </div>
-    </div>
-}
-
 @* Create Channel Modal *@
-@if (_showCreateModal)
-{
-    <div class="modal-overlay open" @onclick="CloseModals">
-        <div class="modal" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3>Create Channel</h3>
-                <button class="modal-close" @onclick="CloseModals">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label admin-form-label">Channel Name</label>
-                    <input type="text" class="form-input admin-form-input @(_createNameError is not null ? "error" : "")"
-                           @bind="_createName" @bind:event="oninput" placeholder="e.g. off-topic" />
-                    @if (_createNameError is not null)
-                    {
-                        <div class="form-error visible">@_createNameError</div>
-                    }
-                </div>
-                <div class="form-group">
-                    <label class="form-label admin-form-label">Type</label>
-                    <div class="segmented-control">
-                        <button class="segmented-option @(_createType == ChannelType.Text ? "active" : "")"
-                                @onclick="() => _createType = ChannelType.Text">Text</button>
-                        <button class="segmented-option @(_createType == ChannelType.Voice ? "active" : "")"
-                                @onclick="() => _createType = ChannelType.Voice">Voice</button>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label admin-form-label">Topic <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span></label>
-                    <input type="text" class="form-input admin-form-input"
-                           @bind="_createTopic" @bind:event="oninput" placeholder="What's this channel about?" />
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
-                <button class="btn btn-primary" @onclick="CreateChannel" disabled="@_isSubmitting">
-                    @(_isSubmitting ? "Creating..." : "Create Channel")
-                </button>
+<Modal IsOpen="@_showCreateModal" OnClose="CloseModals">
+    <Title>Create Channel</Title>
+    <Body>
+        <div class="form-group">
+            <label class="form-label admin-form-label">Channel Name</label>
+            <input type="text" class="form-input admin-form-input @(_createNameError is not null ? "error" : "")"
+                   @bind="_createName" @bind:event="oninput" placeholder="e.g. off-topic" />
+            @if (_createNameError is not null)
+            {
+                <div class="form-error visible">@_createNameError</div>
+            }
+        </div>
+        <div class="form-group">
+            <label class="form-label admin-form-label">Type</label>
+            <div class="segmented-control">
+                <button class="segmented-option @(_createType == ChannelType.Text ? "active" : "")"
+                        @onclick="() => _createType = ChannelType.Text">Text</button>
+                <button class="segmented-option @(_createType == ChannelType.Voice ? "active" : "")"
+                        @onclick="() => _createType = ChannelType.Voice">Voice</button>
             </div>
         </div>
-    </div>
-}
+        <div class="form-group">
+            <label class="form-label admin-form-label">Topic <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span></label>
+            <input type="text" class="form-input admin-form-input"
+                   @bind="_createTopic" @bind:event="oninput" placeholder="What's this channel about?" />
+        </div>
+    </Body>
+    <Footer>
+        <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+        <button class="btn btn-primary" @onclick="CreateChannel" disabled="@_isSubmitting">
+            @(_isSubmitting ? "Creating..." : "Create Channel")
+        </button>
+    </Footer>
+</Modal>
 
 @* Edit Channel Modal *@
-@if (_showEditModal && _editChannel is not null)
-{
-    <div class="modal-overlay open" @onclick="CloseModals">
-        <div class="modal" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3>Edit Channel</h3>
-                <button class="modal-close" @onclick="CloseModals">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label admin-form-label">Channel Name</label>
-                    <input type="text" class="form-input admin-form-input @(_editNameError is not null ? "error" : "")"
-                           @bind="_editName" @bind:event="oninput" />
-                    @if (_editNameError is not null)
-                    {
-                        <div class="form-error visible">@_editNameError</div>
-                    }
-                </div>
-                <div class="form-group">
-                    <label class="form-label admin-form-label">Topic <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span></label>
-                    <input type="text" class="form-input admin-form-input"
-                           @bind="_editTopic" @bind:event="oninput" />
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
-                <button class="btn btn-primary" @onclick="SaveEditChannel" disabled="@_isSubmitting">
-                    @(_isSubmitting ? "Saving..." : "Save Changes")
-                </button>
-            </div>
+<Modal IsOpen="@(_showEditModal && _editChannel is not null)" OnClose="CloseModals">
+    <Title>Edit Channel</Title>
+    <Body>
+        <div class="form-group">
+            <label class="form-label admin-form-label">Channel Name</label>
+            <input type="text" class="form-input admin-form-input @(_editNameError is not null ? "error" : "")"
+                   @bind="_editName" @bind:event="oninput" />
+            @if (_editNameError is not null)
+            {
+                <div class="form-error visible">@_editNameError</div>
+            }
         </div>
-    </div>
-}
+        <div class="form-group">
+            <label class="form-label admin-form-label">Topic <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span></label>
+            <input type="text" class="form-input admin-form-input"
+                   @bind="_editTopic" @bind:event="oninput" />
+        </div>
+    </Body>
+    <Footer>
+        <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+        <button class="btn btn-primary" @onclick="SaveEditChannel" disabled="@_isSubmitting">
+            @(_isSubmitting ? "Saving..." : "Save Changes")
+        </button>
+    </Footer>
+</Modal>
 
-@* Delete Confirmation Modal *@
-@if (_showDeleteConfirm && _deleteChannel is not null)
-{
-    <div class="modal-overlay open" @onclick="CloseModals">
-        <div class="modal modal-confirm" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3>Delete Channel</h3>
-                <button class="modal-close" @onclick="CloseModals">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p class="confirm-message">
-                    Are you sure you want to delete
-                    <strong>@(_deleteChannel.Type == ChannelType.Text ? "#" : "")@_deleteChannel.Name</strong>?
-                    This action cannot be undone and all messages in this channel will be permanently lost.
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
-                <button class="btn btn-danger" @onclick="ConfirmDeleteChannel" disabled="@_isSubmitting">
-                    @(_isSubmitting ? "Deleting..." : "Delete Channel")
-                </button>
-            </div>
-        </div>
-    </div>
-}
+@* Delete Confirmation *@
+<ConfirmationDialog IsOpen="@(_showDeleteConfirm && _deleteChannel is not null)"
+                    OnClose="CloseModals"
+                    OnCancel="CloseModals"
+                    OnConfirm="ConfirmDeleteChannel"
+                    Title="Delete Channel"
+                    ConfirmText="Delete Channel"
+                    LoadingText="Deleting..."
+                    IsDanger="true"
+                    IsLoading="@_isSubmitting">
+    <MessageContent>
+        <p class="confirm-message">
+            Are you sure you want to delete
+            <strong>@(_deleteChannel?.Type == ChannelType.Text ? "#" : "")@_deleteChannel?.Name</strong>?
+            This action cannot be undone and all messages in this channel will be permanently lost.
+        </p>
+    </MessageContent>
+</ConfirmationDialog>
 
 @code {
     private List<ChannelResponse> _channels = new();
@@ -282,8 +236,6 @@ else
 
     // Shared
     private bool _isSubmitting;
-    private string? _toastMessage;
-    private string _toastType = "success";
 
     protected override void OnInitialized()
     {
@@ -351,17 +303,17 @@ else
                 var channels = await Api.GetChannelsAsync();
                 ChannelState.SetChannels(channels);
                 CloseModals();
-                ShowToast($"Channel \"{_createName.Trim()}\" created", "success");
+                ToastService.ShowSuccess($"Channel \"{_createName.Trim()}\" created");
             }
             else
             {
-                ShowToast("Failed to create channel.", "error");
+                ToastService.ShowError("Failed to create channel.");
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to create channel");
-            ShowToast("Failed to create channel.", "error");
+            ToastService.ShowError("Failed to create channel.");
         }
         finally
         {
@@ -393,17 +345,17 @@ else
                 var channels = await Api.GetChannelsAsync();
                 ChannelState.SetChannels(channels);
                 CloseModals();
-                ShowToast("Channel updated", "success");
+                ToastService.ShowSuccess("Channel updated");
             }
             else
             {
-                ShowToast("Failed to update channel.", "error");
+                ToastService.ShowError("Failed to update channel.");
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to update channel {ChannelId}", _editChannel.Id);
-            ShowToast("Failed to update channel.", "error");
+            ToastService.ShowError("Failed to update channel.");
         }
         finally
         {
@@ -425,17 +377,17 @@ else
                 var channels = await Api.GetChannelsAsync();
                 ChannelState.SetChannels(channels);
                 CloseModals();
-                ShowToast($"Channel \"{channelName}\" deleted", "success");
+                ToastService.ShowSuccess($"Channel \"{channelName}\" deleted");
             }
             else
             {
-                ShowToast("Failed to delete channel.", "error");
+                ToastService.ShowError("Failed to delete channel.");
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to delete channel {ChannelId}", _deleteChannel.Id);
-            ShowToast("Failed to delete channel.", "error");
+            ToastService.ShowError("Failed to delete channel.");
         }
         finally
         {
@@ -469,23 +421,8 @@ else
             // Revert local change
             sorted[targetIdx].SortOrder = sorted[currentIdx].SortOrder;
             sorted[currentIdx].SortOrder = temp;
-            ShowToast("Failed to reorder channels.", "error");
+            ToastService.ShowError("Failed to reorder channels.");
         }
-    }
-
-    private void ShowToast(string message, string type)
-    {
-        _toastMessage = message;
-        _toastType = type;
-        StateHasChanged();
-        _ = HideToastAfterDelay();
-    }
-
-    private async Task HideToastAfterDelay()
-    {
-        await Task.Delay(3000);
-        _toastMessage = null;
-        await InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()

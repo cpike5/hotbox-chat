@@ -1,0 +1,86 @@
+@if (IsOpen)
+{
+    <div class="modal-overlay open"
+         @ref="_overlayRef"
+         @onclick="HandleOverlayClick"
+         @onkeydown="HandleKeyDown"
+         tabindex="-1"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="modal-title-@_titleId">
+        <div class="modal @CssClass" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3 id="modal-title-@_titleId">@Title</h3>
+                <button class="modal-close" @onclick="HandleClose">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            @if (Body is not null)
+            {
+                <div class="modal-body">
+                    @Body
+                </div>
+            }
+            @if (Footer is not null)
+            {
+                <div class="modal-footer">
+                    @Footer
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public RenderFragment? Title { get; set; }
+    [Parameter] public RenderFragment? Body { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+    [Parameter] public string? CssClass { get; set; }
+
+    private readonly string _titleId = Guid.NewGuid().ToString("N")[..8];
+    private ElementReference _overlayRef;
+    private bool _shouldFocus;
+
+    public override async Task SetParametersAsync(ParameterView parameters)
+    {
+        var wasOpen = IsOpen;
+        await base.SetParametersAsync(parameters);
+
+        if (!wasOpen && IsOpen)
+        {
+            _shouldFocus = true;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_shouldFocus && IsOpen)
+        {
+            _shouldFocus = false;
+            await _overlayRef.FocusAsync();
+        }
+    }
+
+    private async Task HandleOverlayClick()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private async Task HandleClose()
+    {
+        await OnClose.InvokeAsync();
+    }
+}

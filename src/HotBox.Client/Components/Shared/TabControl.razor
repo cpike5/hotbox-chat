@@ -1,0 +1,85 @@
+<CascadingValue Value="this">
+    <div class="tab-control @CssClass">
+        <div class="tab-headers" role="tablist" @onkeydown="HandleKeyDown">
+            @for (var i = 0; i < _panels.Count; i++)
+            {
+                var index = i;
+                var panel = _panels[i];
+                <button class="tab-header @(index == ActiveIndex ? "active" : "")"
+                        role="tab"
+                        aria-selected="@(index == ActiveIndex)"
+                        tabindex="@(index == ActiveIndex ? 0 : -1)"
+                        @onclick="() => SetActiveIndex(index)">
+                    @if (panel.Icon is not null)
+                    {
+                        @panel.Icon
+                    }
+                    @panel.Title
+                </button>
+            }
+        </div>
+        <div class="tab-content" role="tabpanel">
+            @ChildContent
+        </div>
+    </div>
+</CascadingValue>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public int ActiveIndex { get; set; }
+    [Parameter] public EventCallback<int> ActiveIndexChanged { get; set; }
+    [Parameter] public string? CssClass { get; set; }
+
+    private readonly List<TabPanel> _panels = new();
+
+    internal void RegisterPanel(TabPanel panel)
+    {
+        if (!_panels.Contains(panel))
+        {
+            _panels.Add(panel);
+            StateHasChanged();
+        }
+    }
+
+    internal void UnregisterPanel(TabPanel panel)
+    {
+        if (_panels.Remove(panel))
+        {
+            StateHasChanged();
+        }
+    }
+
+    internal bool IsPanelActive(TabPanel panel)
+    {
+        var index = _panels.IndexOf(panel);
+        return index == ActiveIndex;
+    }
+
+    private async Task SetActiveIndex(int index)
+    {
+        if (index == ActiveIndex) return;
+        ActiveIndex = index;
+        await ActiveIndexChanged.InvokeAsync(ActiveIndex);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (_panels.Count == 0) return;
+
+        var newIndex = ActiveIndex;
+
+        switch (e.Key)
+        {
+            case "ArrowRight":
+                newIndex = (ActiveIndex + 1) % _panels.Count;
+                break;
+            case "ArrowLeft":
+                newIndex = (ActiveIndex - 1 + _panels.Count) % _panels.Count;
+                break;
+            default:
+                return;
+        }
+
+        await SetActiveIndex(newIndex);
+    }
+}

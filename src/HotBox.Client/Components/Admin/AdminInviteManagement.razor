@@ -2,6 +2,7 @@
 @using HotBox.Client.Services
 @inject ApiClient Api
 @inject IJSRuntime JS
+@inject ToastService ToastService
 @inject ILogger<AdminInviteManagement> Logger
 
 <div class="section-header">
@@ -107,89 +108,52 @@ else
     </div>
 }
 
-@* Toast *@
-@if (_toastMessage is not null)
-{
-    <div class="toast-container">
-        <div class="toast @(_toastType == "error" ? "toast-error" : "toast-success") show">
-            @if (_toastType == "success")
-            {
-                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            }
-            else
-            {
-                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-            }
-            <span>@_toastMessage</span>
-        </div>
-    </div>
-}
-
 @* Generate Invite Modal *@
-@if (_showGenerateModal)
-{
-    <div class="modal-overlay open" @onclick="CloseModals">
-        <div class="modal" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3>Generate Invite</h3>
-                <button class="modal-close" @onclick="CloseModals">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label admin-form-label">
-                        Expires On
-                        <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span>
-                    </label>
-                    <input type="date" class="form-input admin-form-input"
-                           @bind="_generateExpiry" style="color-scheme:dark;" />
-                </div>
-                <div class="form-group">
-                    <label class="form-label admin-form-label">
-                        Max Uses
-                        <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional, leave blank for unlimited)</span>
-                    </label>
-                    <input type="number" class="form-input admin-form-input"
-                           @bind="_generateMaxUses" @bind:event="oninput" placeholder="e.g. 10" min="1" />
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
-                <button class="btn btn-primary" @onclick="GenerateInvite" disabled="@_isSubmitting">
-                    @(_isSubmitting ? "Generating..." : "Generate")
-                </button>
-            </div>
+<Modal IsOpen="@_showGenerateModal" OnClose="CloseModals">
+    <Title>Generate Invite</Title>
+    <Body>
+        <div class="form-group">
+            <label class="form-label admin-form-label">
+                Expires On
+                <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span>
+            </label>
+            <input type="date" class="form-input admin-form-input"
+                   @bind="_generateExpiry" style="color-scheme:dark;" />
         </div>
-    </div>
-}
+        <div class="form-group">
+            <label class="form-label admin-form-label">
+                Max Uses
+                <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional, leave blank for unlimited)</span>
+            </label>
+            <input type="number" class="form-input admin-form-input"
+                   @bind="_generateMaxUses" @bind:event="oninput" placeholder="e.g. 10" min="1" />
+        </div>
+    </Body>
+    <Footer>
+        <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+        <button class="btn btn-primary" @onclick="GenerateInvite" disabled="@_isSubmitting">
+            @(_isSubmitting ? "Generating..." : "Generate")
+        </button>
+    </Footer>
+</Modal>
 
-@* Revoke Confirmation Modal *@
-@if (_showRevokeConfirm && _revokeInvite is not null)
-{
-    <div class="modal-overlay open" @onclick="CloseModals">
-        <div class="modal modal-confirm" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3>Revoke Invite</h3>
-                <button class="modal-close" @onclick="CloseModals">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p class="confirm-message">
-                    Are you sure you want to revoke invite <strong>@_revokeInvite.Code</strong>?
-                    Anyone with this code will no longer be able to join.
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
-                <button class="btn btn-danger" @onclick="ConfirmRevokeInvite" disabled="@_isSubmitting">
-                    @(_isSubmitting ? "Revoking..." : "Revoke Invite")
-                </button>
-            </div>
-        </div>
-    </div>
-}
+@* Revoke Confirmation *@
+<ConfirmationDialog IsOpen="@(_showRevokeConfirm && _revokeInvite is not null)"
+                    OnClose="CloseModals"
+                    OnCancel="CloseModals"
+                    OnConfirm="ConfirmRevokeInvite"
+                    Title="Revoke Invite"
+                    ConfirmText="Revoke Invite"
+                    LoadingText="Revoking..."
+                    IsDanger="true"
+                    IsLoading="@_isSubmitting">
+    <MessageContent>
+        <p class="confirm-message">
+            Are you sure you want to revoke invite <strong>@_revokeInvite?.Code</strong>?
+            Anyone with this code will no longer be able to join.
+        </p>
+    </MessageContent>
+</ConfirmationDialog>
 
 @code {
     private List<AdminInviteResponse> _invites = new();
@@ -207,10 +171,6 @@ else
 
     // Copy state
     private string? _copiedCode;
-
-    // Toast
-    private string? _toastMessage;
-    private string _toastType = "success";
 
     [Parameter]
     public bool IsActive { get; set; }
@@ -236,7 +196,7 @@ else
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to load admin invites");
-            ShowToast("Failed to load invites.", "error");
+            ToastService.ShowError("Failed to load invites.");
         }
         finally
         {
@@ -277,17 +237,17 @@ else
             {
                 _invites.Insert(0, result);
                 CloseModals();
-                ShowToast($"Invite {result.Code} generated", "success");
+                ToastService.ShowSuccess($"Invite {result.Code} generated");
             }
             else
             {
-                ShowToast("Failed to generate invite.", "error");
+                ToastService.ShowError("Failed to generate invite.");
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to generate invite");
-            ShowToast("Failed to generate invite.", "error");
+            ToastService.ShowError("Failed to generate invite.");
         }
         finally
         {
@@ -308,17 +268,17 @@ else
                 var code = _revokeInvite.Code;
                 _revokeInvite.IsRevoked = true;
                 CloseModals();
-                ShowToast($"Invite {code} revoked", "success");
+                ToastService.ShowSuccess($"Invite {code} revoked");
             }
             else
             {
-                ShowToast("Failed to revoke invite.", "error");
+                ToastService.ShowError("Failed to revoke invite.");
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to revoke invite {InviteCode}", _revokeInvite.Code);
-            ShowToast("Failed to revoke invite.", "error");
+            ToastService.ShowError("Failed to revoke invite.");
         }
         finally
         {
@@ -343,7 +303,7 @@ else
         }
         catch
         {
-            ShowToast("Failed to copy to clipboard", "error");
+            ToastService.ShowError("Failed to copy to clipboard");
         }
     }
 
@@ -365,20 +325,5 @@ else
     {
         if (!utcDate.HasValue || utcDate.Value == default) return "--";
         return utcDate.Value.ToLocalTime().ToString("MMM d, yyyy");
-    }
-
-    private void ShowToast(string message, string type)
-    {
-        _toastMessage = message;
-        _toastType = type;
-        StateHasChanged();
-        _ = HideToastAfterDelay();
-    }
-
-    private async Task HideToastAfterDelay()
-    {
-        await Task.Delay(3000);
-        _toastMessage = null;
-        await InvokeAsync(StateHasChanged);
     }
 }
