@@ -56,7 +56,7 @@ public class HotBoxApiClient
     /// </summary>
     public async Task<JsonElement> SendDirectMessageAsync(Guid userId, string content, string bearerToken, CancellationToken cancellationToken = default)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/dm/{userId}/messages");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/dm/{userId}");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
         request.Content = JsonContent.Create(new { content });
 
