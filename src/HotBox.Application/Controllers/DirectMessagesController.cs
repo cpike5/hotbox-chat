@@ -12,13 +12,16 @@ namespace HotBox.Application.Controllers;
 public class DirectMessagesController : ControllerBase
 {
     private readonly IDirectMessageService _directMessageService;
+    private readonly IReadStateService _readStateService;
     private readonly ILogger<DirectMessagesController> _logger;
 
     public DirectMessagesController(
         IDirectMessageService directMessageService,
+        IReadStateService readStateService,
         ILogger<DirectMessagesController> logger)
     {
         _directMessageService = directMessageService;
+        _readStateService = readStateService;
         _logger = logger;
     }
 
@@ -34,6 +37,7 @@ public class DirectMessagesController : ControllerBase
         _logger.LogDebug("Listing DM conversations for user {UserId}", userId.Value);
 
         var conversations = await _directMessageService.GetConversationsAsync(userId.Value, ct);
+        var unreadCounts = await _readStateService.GetDmUnreadCountsAsync(userId.Value, ct);
 
         var response = conversations.Select(c => new ConversationSummaryResponse
         {
@@ -41,7 +45,7 @@ public class DirectMessagesController : ControllerBase
             DisplayName = c.DisplayName,
             LastMessageContent = string.Empty,
             LastMessageAtUtc = c.LastMessageAtUtc,
-            UnreadCount = 0,
+            UnreadCount = unreadCounts.GetValueOrDefault(c.UserId, 0),
         }).ToList();
 
         return Ok(response);
@@ -133,6 +137,32 @@ public class DirectMessagesController : ControllerBase
         {
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    [HttpPost("{userId:guid}/read")]
+    public async Task<IActionResult> MarkAsRead(Guid userId, CancellationToken ct)
+    {
+        var currentUserId = GetUserId();
+        if (currentUserId is null)
+        {
+            return Unauthorized();
+        }
+
+        await _readStateService.MarkDmAsReadAsync(currentUserId.Value, userId, ct);
+        return NoContent();
+    }
+
+    [HttpGet("unread")]
+    public async Task<IActionResult> GetUnreadCounts(CancellationToken ct)
+    {
+        var currentUserId = GetUserId();
+        if (currentUserId is null)
+        {
+            return Unauthorized();
+        }
+
+        var unreadCounts = await _readStateService.GetDmUnreadCountsAsync(currentUserId.Value, ct);
+        return Ok(unreadCounts);
     }
 
     private Guid? GetUserId()

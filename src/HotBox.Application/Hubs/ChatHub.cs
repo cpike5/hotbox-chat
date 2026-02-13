@@ -156,6 +156,10 @@ public class ChatHub : Hub
             channelId,
             channelName,
             content);
+
+        // Notify all other connected clients that this channel has a new message.
+        // The client increments its local unread count — avoids N+1 per-user DB queries.
+        await Clients.Others.SendAsync("UnreadCountUpdated", channelId);
     }
 
     public async Task StartTyping(Guid channelId)
@@ -202,6 +206,11 @@ public class ChatHub : Hub
 
         await Clients.User(senderId.ToString())
             .SendAsync("ReceiveDirectMessage", response);
+
+        // Notify the recipient that they have a new unread DM from this sender.
+        // The client increments its local count — avoids unnecessary DB query.
+        await Clients.User(recipientId.ToString())
+            .SendAsync("DmUnreadCountUpdated", senderId);
     }
 
     public async Task DirectMessageTyping(Guid recipientId)

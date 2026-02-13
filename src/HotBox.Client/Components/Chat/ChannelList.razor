@@ -1,7 +1,9 @@
 @using HotBox.Client.State
 @using HotBox.Client.Models
+@using HotBox.Client.Services
 @using HotBox.Core.Enums
 @inject ChannelState ChannelState
+@inject UnreadStateService UnreadState
 @inject NavigationManager Navigation
 @implements IDisposable
 
@@ -20,10 +22,15 @@ else
     @foreach (var channel in TextChannels)
     {
         var isActive = ChannelState.ActiveChannel?.Id == channel.Id;
-        <button class="channel-tab @(isActive ? "active" : "")"
+        var unreadCount = UnreadState.GetChannelUnreadCount(channel.Id);
+        <button class="channel-tab @(isActive ? "active" : "") @(unreadCount > 0 ? "has-unread" : "")"
                 @onclick="() => SelectChannel(channel)">
             <span class="tab-hash">#</span>
             <span>@channel.Name</span>
+            @if (unreadCount > 0)
+            {
+                <span class="unread-badge">@unreadCount</span>
+            }
         </button>
     }
 }
@@ -39,6 +46,7 @@ else
     protected override void OnInitialized()
     {
         ChannelState.OnChange += StateHasChanged;
+        UnreadState.OnChange += StateHasChanged;
     }
 
     private void SelectChannel(ChannelResponse channel)
@@ -50,5 +58,6 @@ else
     public void Dispose()
     {
         ChannelState.OnChange -= StateHasChanged;
+        UnreadState.OnChange -= StateHasChanged;
     }
 }

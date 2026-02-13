@@ -6,6 +6,7 @@
 @inject AuthState AuthState
 @inject ApiClient Api
 @inject ChatHubService ChatHub
+@inject UnreadStateService UnreadState
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -21,6 +22,7 @@
     private Guid _currentUserId;
     private double _previousScrollHeight;
     private bool _pendingScrollRestore;
+    private readonly Dictionary<Guid, Timer> _typingExpiryTimers = new();
 
     protected override void OnInitialized()
     {
@@ -74,6 +76,9 @@
         {
             DirectMessageState.SetLoadingMessages(false);
         }
+
+        // Mark DM conversation as read
+        await UnreadState.MarkDmAsReadAsync(UserId);
     }
 
     private void HandleDirectMessageReceived(DirectMessageResponse message)
@@ -102,6 +107,22 @@
         {
             DirectMessageState.AddTypingUser(senderId, displayName);
             InvokeAsync(StateHasChanged);
+
+            // Start or reset a 5s expiry timer for this sender
+            if (_typingExpiryTimers.TryGetValue(senderId, out var existing))
+            {
+                existing.Change(5000, Timeout.Infinite);
+            }
+            else
+            {
+                var timer = new Timer(_ =>
+                {
+                    DirectMessageState.RemoveTypingUser(senderId);
+                    InvokeAsync(StateHasChanged);
+                    _typingExpiryTimers.Remove(senderId);
+                }, null, 5000, Timeout.Infinite);
+                _typingExpiryTimers[senderId] = timer;
+            }
         }
     }
 
@@ -112,6 +133,12 @@
         {
             DirectMessageState.RemoveTypingUser(senderId);
             InvokeAsync(StateHasChanged);
+
+            // Cancel and remove the expiry timer
+            if (_typingExpiryTimers.Remove(senderId, out var timer))
+            {
+                timer.Dispose();
+            }
         }
     }
 
@@ -190,6 +217,13 @@
         ChatHub.OnDirectMessageReceived -= HandleDirectMessageReceived;
         ChatHub.OnDirectMessageTyping -= HandleDirectMessageTyping;
         ChatHub.OnDirectMessageStoppedTyping -= HandleDirectMessageStoppedTyping;
+
+        // Dispose all typing expiry timers
+        foreach (var timer in _typingExpiryTimers.Values)
+        {
+            timer.Dispose();
+        }
+        _typingExpiryTimers.Clear();
 
         // Clear active conversation when navigating away
         DirectMessageState.ClearActiveConversation();

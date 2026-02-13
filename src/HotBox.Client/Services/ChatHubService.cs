@@ -65,6 +65,12 @@ public class ChatHubService : IAsyncDisposable
     /// <summary>Raised when a notification payload is received from the server.</summary>
     public event Action<NotificationPayloadModel>? OnNotificationReceived;
 
+    /// <summary>Raised when a channel has a new unread message. Parameter: channelId.</summary>
+    public event Action<Guid>? OnUnreadCountUpdated;
+
+    /// <summary>Raised when a DM conversation has a new unread message. Parameter: senderId.</summary>
+    public event Action<Guid>? OnDmUnreadCountUpdated;
+
     // ----- Connection lifecycle -----
 
     /// <summary>
@@ -276,6 +282,16 @@ public class ChatHubService : IAsyncDisposable
         connection.On<NotificationPayloadModel>("ReceiveNotification", payload =>
         {
             OnNotificationReceived?.Invoke(payload);
+        });
+
+        connection.On<Guid>("UnreadCountUpdated", channelId =>
+        {
+            OnUnreadCountUpdated?.Invoke(channelId);
+        });
+
+        connection.On<Guid>("DmUnreadCountUpdated", senderId =>
+        {
+            OnDmUnreadCountUpdated?.Invoke(senderId);
         });
     }
 

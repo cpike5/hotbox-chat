@@ -14,6 +14,7 @@
 @inject DirectMessageState DirectMessageState
 @inject SearchState SearchState
 @inject ApiClient Api
+@inject UnreadStateService UnreadState
 @inject ILogger<MainLayout> Logger
 @implements IDisposable
 
@@ -256,6 +257,9 @@
 
             // Initialize the voice connection manager with the current access token
             await VoiceConnectionManager.InitializeAsync(AuthState.AccessToken);
+
+            // Load initial unread counts
+            await UnreadState.InitializeAsync();
         }
 
         // Heartbeat timer is started/stopped via HandleConnectionChanged

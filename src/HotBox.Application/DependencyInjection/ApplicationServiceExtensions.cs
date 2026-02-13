@@ -155,6 +155,7 @@ public static class ApplicationServiceExtensions
 
         // Application-layer services (depend on IHubContext, so cannot live in Infrastructure)
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IReadStateService, ReadStateService>();
 
         return services;
     }

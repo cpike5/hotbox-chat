@@ -26,6 +26,8 @@ public class HotBoxDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Gu
 
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 
+    public DbSet<UserChannelRead> UserChannelReads => Set<UserChannelRead>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
