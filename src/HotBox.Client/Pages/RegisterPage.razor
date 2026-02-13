@@ -21,7 +21,7 @@
                 <span>Registration is currently open</span>
             </div>
         }
-        else if (_registrationMode == RegistrationMode.InviteOnly)
+        else if (_registrationMode == RegistrationMode.InviteOnly && _step == 1)
         {
             <div class="reg-banner invite">
                 <svg class="reg-banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
@@ -43,12 +43,37 @@
             </div>
         }
 
-        @if (_registrationMode != RegistrationMode.Closed)
+        @if (_registrationMode == RegistrationMode.InviteOnly && _step == 1)
         {
+            @* Step 1: Invite Code Entry (InviteOnly mode only) *@
+            <div class="form-group @(_inviteCodeError is not null ? "has-error" : "")">
+                <label class="form-label" for="inviteCode">Invite Code</label>
+                <input class="form-input form-input-code"
+                       id="inviteCode"
+                       type="text"
+                       placeholder="Enter your invite code"
+                       autocomplete="off"
+                       @bind="_inviteCode"
+                       @bind:event="oninput"
+                       @bind:after="ClearInviteCodeError" />
+                @if (_inviteCodeError is not null)
+                {
+                    <div class="form-error">@_inviteCodeError</div>
+                }
+            </div>
+
+            <button type="button" class="btn-submit" @onclick="HandleContinue">
+                <span>Continue</span>
+            </button>
+        }
+        else if (_registrationMode != RegistrationMode.Closed && _step == 2)
+        {
+            @* Step 2: Full Registration Form *@
             <form @onsubmit="HandleSubmitAsync" novalidate>
                 <div class="form-group @(_usernameError is not null ? "has-error" : "")">
-                    <label class="form-label">Username</label>
+                    <label class="form-label" for="username">Username</label>
                     <input class="form-input"
+                           id="username"
                            type="text"
                            placeholder="Choose a username"
                            autocomplete="username"
@@ -63,8 +88,9 @@
                 </div>
 
                 <div class="form-group @(_emailError is not null ? "has-error" : "")">
-                    <label class="form-label">Email</label>
+                    <label class="form-label" for="email">Email</label>
                     <input class="form-input"
+                           id="email"
                            type="email"
                            placeholder="you@example.com"
                            autocomplete="email"
@@ -79,9 +105,10 @@
                 </div>
 
                 <div class="form-group @(_passwordError is not null ? "has-error" : "")">
-                    <label class="form-label">Password</label>
+                    <label class="form-label" for="password">Password</label>
                     <div class="input-wrapper">
                         <input class="form-input"
+                               id="password"
                                type="@(_showPassword ? "text" : "password")"
                                placeholder="Create a password"
                                autocomplete="new-password"
@@ -107,9 +134,10 @@
                 </div>
 
                 <div class="form-group @(_confirmPasswordError is not null ? "has-error" : "")">
-                    <label class="form-label">Confirm Password</label>
+                    <label class="form-label" for="confirmPassword">Confirm Password</label>
                     <div class="input-wrapper">
                         <input class="form-input"
+                               id="confirmPassword"
                                type="@(_showConfirmPassword ? "text" : "password")"
                                placeholder="Confirm your password"
                                autocomplete="new-password"
@@ -133,26 +161,6 @@
                         <div class="form-error">@_confirmPasswordError</div>
                     }
                 </div>
-
-                @if (_registrationMode == RegistrationMode.InviteOnly)
-                {
-                    <div class="form-group @(_inviteCodeError is not null ? "has-error" : "")">
-                        <label class="form-label">Invite Code</label>
-                        <input class="form-input"
-                               type="text"
-                               placeholder="Enter your invite code"
-                               autocomplete="off"
-                               style="font-family: var(--font-mono); letter-spacing: 0.08em;"
-                               @bind="_inviteCode"
-                               @bind:event="oninput"
-                               @bind:after="ClearInviteCodeError"
-                               disabled="@_isSubmitting" />
-                        @if (_inviteCodeError is not null)
-                        {
-                            <div class="form-error">@_inviteCodeError</div>
-                        }
-                    </div>
-                }
 
                 <button type="submit" class="btn-submit" disabled="@_isSubmitting">
                     @if (_isSubmitting)
@@ -200,6 +208,15 @@
                     }
                 </div>
             }
+
+            @if (_registrationMode == RegistrationMode.InviteOnly)
+            {
+                <div class="auth-back-link">
+                    <a href="#" @onclick="HandleBack" @onclick:preventDefault="true">
+                        &larr; Back to invite code
+                    </a>
+                </div>
+            }
         }
     </div>
 
@@ -227,6 +244,7 @@
     private bool _showConfirmPassword;
     private RegistrationMode _registrationMode = RegistrationMode.Open;
     private List<ProviderInfo> _providers = new();
+    private int _step = 1;
 
     protected override async Task OnInitializedAsync()
     {
@@ -249,6 +267,37 @@
         }
 
         _providers = await providersTask;
+
+        // Initialize step based on registration mode
+        if (_registrationMode == RegistrationMode.Open)
+        {
+            _step = 2; // Skip invite code step
+        }
+        else if (_registrationMode == RegistrationMode.InviteOnly)
+        {
+            _step = 1; // Start at invite code step
+        }
+
+        // Parse query string for error parameter
+        var uri = new Uri(Navigation.Uri);
+        var query = uri.Query.TrimStart('?');
+        if (!string.IsNullOrEmpty(query))
+        {
+            var parameters = query.Split('&')
+                .Select(p => p.Split('=', 2))
+                .Where(p => p.Length == 2)
+                .ToDictionary(p => p[0], p => Uri.UnescapeDataString(p[1]));
+
+            if (parameters.TryGetValue("error", out var error) && !string.IsNullOrEmpty(error))
+            {
+                _errorMessage = error;
+                // Reset to step 1 if in InviteOnly mode (error from OAuth flow)
+                if (_registrationMode == RegistrationMode.InviteOnly)
+                {
+                    _step = 1;
+                }
+            }
+        }
     }
 
     private bool Validate()
@@ -393,6 +442,39 @@
 
     private void StartOAuth(string provider)
     {
-        Navigation.NavigateTo($"api/auth/external/{provider}", forceLoad: true);
+        var url = $"api/auth/external/{provider}";
+
+        // Append invite code for InviteOnly mode
+        if (_registrationMode == RegistrationMode.InviteOnly && !string.IsNullOrWhiteSpace(_inviteCode))
+        {
+            url += $"?inviteCode={Uri.EscapeDataString(_inviteCode.Trim())}";
+        }
+
+        Navigation.NavigateTo(url, forceLoad: true);
+    }
+
+    private void HandleContinue()
+    {
+        _errorMessage = null;
+        _inviteCodeError = null;
+
+        // Trim invite code
+        _inviteCode = _inviteCode.Trim();
+
+        // Validate invite code is non-empty
+        if (string.IsNullOrWhiteSpace(_inviteCode))
+        {
+            _inviteCodeError = "A valid invite code is required";
+            return;
+        }
+
+        // Advance to step 2
+        _step = 2;
+    }
+
+    private void HandleBack()
+    {
+        _step = 1;
+        _errorMessage = null;
     }
 }
