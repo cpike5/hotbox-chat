@@ -34,6 +34,10 @@
   --voice-active: #6bc76b;
   --voice-muted: #5c5c72;
 
+  /* Bot Badge */
+  --bot-badge-bg: rgba(93, 228, 199, 0.12);
+  --bot-badge-color: var(--accent);
+
   /* Borders */
   --border-subtle: rgba(255, 255, 255, 0.04);
   --border-light: rgba(255, 255, 255, 0.07);
@@ -3233,4 +3237,39 @@ input, textarea {
 
 .connection-status-retry:hover {
   opacity: 0.8;
+}
+
+/* ========================================
+   Bot Badge
+   ======================================== */
+.bot-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 8px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 5px;
+  border-radius: var(--radius-xs);
+  background: var(--bot-badge-bg);
+  color: var(--bot-badge-color);
+  vertical-align: middle;
+  margin-left: 6px;
+  line-height: 1;
+}
+
+/* ========================================
+   Accessibility Utilities
+   ======================================== */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

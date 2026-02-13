@@ -246,9 +246,9 @@
         // based on actual connection state rather than running unconditionally.
     }
 
-    private void HandleUserStatusChanged(Guid userId, string displayName, string status)
+    private void HandleUserStatusChanged(Guid userId, string displayName, string status, bool isAgent)
     {
-        PresenceState.UpdateUserStatus(userId, displayName, status);
+        PresenceState.UpdateUserStatus(userId, displayName, status, isAgent);
     }
 
     private void HandleOnlineUsers(List<HotBox.Client.Models.OnlineUserInfoModel> users)

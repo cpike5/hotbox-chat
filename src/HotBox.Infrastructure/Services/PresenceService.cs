@@ -26,6 +26,11 @@ public class PresenceService : IPresenceService, IDisposable
     private readonly ConcurrentDictionary<Guid, string> _userDisplayNames = new();
 
     /// <summary>
+    /// Tracks whether each user is an agent (bot).
+    /// </summary>
+    private readonly ConcurrentDictionary<Guid, bool> _userIsAgent = new();
+
+    /// <summary>
     /// Tracks the last heartbeat time for each user (for idle detection).
     /// </summary>
     private readonly ConcurrentDictionary<Guid, DateTime> _lastHeartbeat = new();
@@ -52,7 +57,7 @@ public class PresenceService : IPresenceService, IDisposable
     /// Event raised when a user's status changes. The ChatHub subscribes to this
     /// to broadcast status updates.
     /// </summary>
-    public event Action<Guid, string, UserStatus>? OnUserStatusChanged;
+    public event Action<Guid, string, UserStatus, bool>? OnUserStatusChanged;
 
     private bool _disposed;
 
@@ -61,7 +66,7 @@ public class PresenceService : IPresenceService, IDisposable
         _logger = logger;
     }
 
-    public Task SetOnlineAsync(Guid userId, string connectionId, string displayName)
+    public Task SetOnlineAsync(Guid userId, string connectionId, string displayName, bool isAgent = false)
     {
         // Cancel any pending grace timer for this user
         CancelGraceTimer(userId);
@@ -78,6 +83,7 @@ public class PresenceService : IPresenceService, IDisposable
         }
 
         _userDisplayNames[userId] = displayName;
+        _userIsAgent[userId] = isAgent;
         _lastHeartbeat[userId] = DateTime.UtcNow;
 
         var previousStatus = GetStatus(userId);
@@ -88,7 +94,7 @@ public class PresenceService : IPresenceService, IDisposable
         if (previousStatus != UserStatus.Online)
         {
             _logger.LogInformation("User {UserId} ({DisplayName}) is now online", userId, displayName);
-            OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Online);
+            OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Online, isAgent);
         }
 
         return Task.CompletedTask;
@@ -105,9 +111,10 @@ public class PresenceService : IPresenceService, IDisposable
 
         _userStatuses[userId] = UserStatus.Idle;
         var displayName = GetDisplayName(userId);
+        var isAgent = GetIsAgent(userId);
 
         _logger.LogInformation("User {UserId} ({DisplayName}) is now idle", userId, displayName);
-        OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Idle);
+        OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Idle, isAgent);
 
         return Task.CompletedTask;
     }
@@ -123,13 +130,15 @@ public class PresenceService : IPresenceService, IDisposable
         }
 
         var displayName = GetDisplayName(userId);
+        var isAgent = GetIsAgent(userId);
 
         _userStatuses.TryRemove(userId, out _);
         _userDisplayNames.TryRemove(userId, out _);
+        _userIsAgent.TryRemove(userId, out _);
         _lastHeartbeat.TryRemove(userId, out _);
 
         _logger.LogInformation("User {UserId} ({DisplayName}) is now offline", userId, displayName);
-        OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Offline);
+        OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Offline, isAgent);
 
         return Task.CompletedTask;
     }
@@ -143,9 +152,10 @@ public class PresenceService : IPresenceService, IDisposable
         CancelIdleTimer(userId);
 
         var displayName = GetDisplayName(userId);
+        var isAgent = GetIsAgent(userId);
 
         _logger.LogInformation("User {UserId} ({DisplayName}) set status to DoNotDisturb", userId, displayName);
-        OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.DoNotDisturb);
+        OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.DoNotDisturb, isAgent);
 
         return Task.CompletedTask;
     }
@@ -155,13 +165,14 @@ public class PresenceService : IPresenceService, IDisposable
         return _userStatuses.TryGetValue(userId, out var status) ? status : UserStatus.Offline;
     }
 
-    public IReadOnlyList<(Guid UserId, string DisplayName, UserStatus Status)> GetAllOnlineUsers()
+    public IReadOnlyList<(Guid UserId, string DisplayName, UserStatus Status, bool IsAgent)> GetAllOnlineUsers()
     {
         return _userStatuses
             .Select(kvp => (
                 UserId: kvp.Key,
                 DisplayName: GetDisplayName(kvp.Key),
-                Status: kvp.Value))
+                Status: kvp.Value,
+                IsAgent: GetIsAgent(kvp.Key)))
             .ToList()
             .AsReadOnly();
     }
@@ -200,7 +211,8 @@ public class PresenceService : IPresenceService, IDisposable
         {
             _userStatuses[userId] = UserStatus.Online;
             var displayName = GetDisplayName(userId);
-            OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Online);
+            var isAgent = GetIsAgent(userId);
+            OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Online, isAgent);
         }
 
         ResetIdleTimer(userId);
@@ -209,6 +221,11 @@ public class PresenceService : IPresenceService, IDisposable
     private string GetDisplayName(Guid userId)
     {
         return _userDisplayNames.TryGetValue(userId, out var name) ? name : "Unknown";
+    }
+
+    private bool GetIsAgent(Guid userId)
+    {
+        return _userIsAgent.TryGetValue(userId, out var isAgent) && isAgent;
     }
 
     private void StartGraceTimer(Guid userId)
@@ -255,13 +272,15 @@ public class PresenceService : IPresenceService, IDisposable
             CancelIdleTimer(userId);
 
             var displayName = GetDisplayName(userId);
+            var isAgent = GetIsAgent(userId);
 
             _userStatuses.TryRemove(userId, out _);
             _userDisplayNames.TryRemove(userId, out _);
+            _userIsAgent.TryRemove(userId, out _);
             _lastHeartbeat.TryRemove(userId, out _);
 
             _logger.LogInformation("User {UserId} ({DisplayName}) is now offline", userId, displayName);
-            OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Offline);
+            OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Offline, isAgent);
         }
 
         return Task.CompletedTask;

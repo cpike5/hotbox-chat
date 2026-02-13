@@ -48,6 +48,7 @@ public class MessagesController : ControllerBase
             ChannelId = m.ChannelId,
             AuthorId = m.AuthorId,
             AuthorDisplayName = m.Author?.DisplayName ?? "Unknown",
+            IsAgent = m.Author?.IsAgent ?? false,
             CreatedAtUtc = m.CreatedAtUtc,
             EditedAtUtc = m.EditedAtUtc,
         }).ToList();
@@ -71,6 +72,7 @@ public class MessagesController : ControllerBase
             ChannelId = message.ChannelId,
             AuthorId = message.AuthorId,
             AuthorDisplayName = message.Author?.DisplayName ?? "Unknown",
+            IsAgent = message.Author?.IsAgent ?? false,
             CreatedAtUtc = message.CreatedAtUtc,
             EditedAtUtc = message.EditedAtUtc,
         };
@@ -101,6 +103,7 @@ public class MessagesController : ControllerBase
                 ChannelId = message.ChannelId,
                 AuthorId = message.AuthorId,
                 AuthorDisplayName = message.Author?.DisplayName ?? "Unknown",
+                IsAgent = message.Author?.IsAgent ?? false,
                 CreatedAtUtc = message.CreatedAtUtc,
                 EditedAtUtc = message.EditedAtUtc,
             };

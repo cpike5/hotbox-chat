@@ -37,12 +37,16 @@ else
             {
                 <div class="member-item @(user.Status == "Offline" ? "offline" : "")"
                      role="listitem"
-                     aria-label="@user.DisplayName, @GetStatusLabel(user.Status)">
+                     aria-label="@GetMemberAriaLabel(user)">
                     <div class="member-avatar" style="background: @GetAvatarColor(user.DisplayName);" aria-hidden="true">
                         @GetInitials(user.DisplayName)
                         <span class="status-dot @GetStatusCssClass(user.Status)" aria-hidden="true"></span>
                     </div>
                     <span class="member-name">@user.DisplayName</span>
+                    @if (user.IsAgent)
+                    {
+                        <span class="bot-badge" aria-hidden="true">BOT</span>
+                    }
                 </div>
             }
         </div>
@@ -104,6 +108,14 @@ else
     private static string GetStatusLabel(string status)
     {
         return _statusLabels.GetValueOrDefault(status, status);
+    }
+
+    private static string GetMemberAriaLabel(UserPresenceInfo user)
+    {
+        var label = user.DisplayName;
+        if (user.IsAgent) label += ", Bot";
+        label += ", " + GetStatusLabel(user.Status);
+        return label;
     }
 
     private static string GetAvatarColor(string name)

@@ -74,9 +74,9 @@ try
     // that fire outside of a Hub method invocation.
     var presenceService = app.Services.GetRequiredService<PresenceService>();
     var hubContext = app.Services.GetRequiredService<IHubContext<ChatHub>>();
-    presenceService.OnUserStatusChanged += (userId, displayName, status) =>
+    presenceService.OnUserStatusChanged += (userId, displayName, status, isAgent) =>
     {
-        _ = hubContext.Clients.All.SendAsync("UserStatusChanged", userId, displayName, status);
+        _ = hubContext.Clients.All.SendAsync("UserStatusChanged", userId, displayName, status, isAgent);
     };
 
     app.Run();
