@@ -58,6 +58,7 @@ public static class ApplicationServiceExtensions
             ApiKeyAuthenticationHandler.SchemeName, null)
         .AddJwtBearer(options =>
         {
+            options.MapInboundClaims = true;
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,

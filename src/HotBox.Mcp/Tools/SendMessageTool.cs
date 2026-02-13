@@ -40,7 +40,7 @@ public static class SendMessageTool
         catch (HttpRequestException ex)
         {
             var statusCode = ex.StatusCode != null ? $"HTTP {(int)ex.StatusCode}" : "HTTP error";
-            return $"Error: {statusCode} - Request failed";
+            return $"Error: {statusCode} - {ex.Message}";
         }
     }
 }
