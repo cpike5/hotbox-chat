@@ -215,6 +215,17 @@ public class ApiClient
         return await DeleteAsync($"api/admin/users/{userId}", ct);
     }
 
+    public async Task<AdminUserDetailResponse?> GetAdminUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        return await GetAsync<AdminUserDetailResponse>($"api/admin/users/{userId}", ct);
+    }
+
+    public async Task<bool> ToggleUserLockoutAsync(Guid userId, bool disabled, CancellationToken ct = default)
+    {
+        var request = new { Disabled = disabled };
+        return await PutAsync($"api/admin/users/{userId}/lockout", request, ct);
+    }
+
     public async Task<List<AdminInviteResponse>> GetAdminInvitesAsync(CancellationToken ct = default)
     {
         return await GetAsync<List<AdminInviteResponse>>("api/admin/invites", ct) ?? new List<AdminInviteResponse>();

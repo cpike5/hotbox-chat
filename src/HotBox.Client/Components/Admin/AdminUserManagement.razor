@@ -6,52 +6,58 @@
 @inject ToastService ToastService
 @inject ILogger<AdminUserManagement> Logger
 
-<div class="section-header">
-    <div>
-        <h2>Users</h2>
-        <div class="section-header-subtitle">Manage user accounts and roles</div>
-    </div>
-    <button class="btn btn-primary" @onclick="OpenCreateModal">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        Create User
-    </button>
-</div>
-
-<div class="filter-bar">
-    <div class="filter-input-wrap">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <input type="text" class="filter-input" placeholder="Search users by name or email..."
-               @bind="_searchFilter" @bind:event="oninput" />
-    </div>
-</div>
-
-@if (_isLoading)
+@if (_selectedUserId.HasValue)
 {
-    <div class="admin-empty-state">
-        <span class="spinner"></span>
-    </div>
-}
-else if (_users.Count == 0)
-{
-    <div class="admin-table-wrap">
-        <div class="admin-empty-state">
-            <h3>No users</h3>
-            <p>Create the first user to get started.</p>
-        </div>
-    </div>
-}
-else if (FilteredUsers.Count == 0)
-{
-    <div class="admin-table-wrap">
-        <div class="admin-empty-state" style="padding:32px;">
-            <h3>No matching users</h3>
-            <p>Try a different search term.</p>
-        </div>
-    </div>
+    <AdminUserDetail UserId="@_selectedUserId.Value" OnBack="ClearSelection" />
 }
 else
 {
-    <div class="admin-table-wrap">
+    <div class="section-header">
+        <div>
+            <h2>Users</h2>
+            <div class="section-header-subtitle">Manage user accounts and roles</div>
+        </div>
+        <button class="btn btn-primary" @onclick="OpenCreateModal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Create User
+        </button>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" class="filter-input" placeholder="Search users by name or email..."
+                   @bind="_searchFilter" @bind:event="oninput" />
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="admin-empty-state">
+            <span class="spinner"></span>
+        </div>
+    }
+    else if (_users.Count == 0)
+    {
+        <div class="admin-table-wrap">
+            <div class="admin-empty-state">
+                <h3>No users</h3>
+                <p>Create the first user to get started.</p>
+            </div>
+        </div>
+    }
+    else if (FilteredUsers.Count == 0)
+    {
+        <div class="admin-table-wrap">
+            <div class="admin-empty-state" style="padding:32px;">
+                <h3>No matching users</h3>
+                <p>Try a different search term.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="admin-table-wrap">
         <table class="admin-table">
             <thead>
                 <tr>
@@ -66,17 +72,23 @@ else
             <tbody>
                 @foreach (var user in FilteredUsers)
                 {
-                    <tr>
+                    <tr @onclick="() => SelectUser(user.Id)" style="cursor:pointer;">
                         <td>
                             <div class="user-cell">
                                 <div class="user-cell-avatar" style="background:@GetAvatarColor(user.DisplayName);">
                                     @GetInitials(user.DisplayName)
                                 </div>
-                                <span class="user-cell-name">@user.DisplayName</span>
+                                <span class="user-cell-name">
+                                    @user.DisplayName
+                                    @if (user.IsAgent)
+                                    {
+                                        <span class="bot-badge-inline">BOT</span>
+                                    }
+                                </span>
                             </div>
                         </td>
                         <td style="color:var(--text-muted);font-size:12px;">@user.Email</td>
-                        <td>
+                        <td @onclick:stopPropagation="true">
                             <select class="role-select"
                                     value="@user.Role"
                                     @onchange="(e) => ChangeRole(user, e)">
@@ -87,7 +99,7 @@ else
                         </td>
                         <td><span class="date-cell">@FormatDate(user.CreatedAtUtc)</span></td>
                         <td><span class="date-cell">@FormatDate(user.LastSeenUtc)</span></td>
-                        <td>
+                        <td @onclick:stopPropagation="true">
                             <div class="table-actions">
                                 <button class="btn-icon danger" title="Delete User"
                                         @onclick="() => OpenDeleteConfirm(user)">
@@ -100,6 +112,7 @@ else
             </tbody>
         </table>
     </div>
+    }
 }
 
 @* Create User Modal *@
@@ -167,6 +180,9 @@ else
     private string _searchFilter = string.Empty;
     private bool _isLoading = true;
     private bool _isSubmitting;
+
+    // Detail view selection
+    private Guid? _selectedUserId;
 
     // Create modal
     private bool _showCreateModal;
@@ -364,4 +380,33 @@ else
         }
         return $"hsl({Math.Abs(hash) % 360}, 32%, 38%)";
     }
+
+    private void SelectUser(Guid userId)
+    {
+        _selectedUserId = userId;
+    }
+
+    private async Task ClearSelection()
+    {
+        _selectedUserId = null;
+        await LoadUsers();
+    }
 }
+
+<style>
+    .bot-badge-inline {
+        display: inline-flex;
+        align-items: center;
+        font-family: var(--font-mono);
+        font-size: 8px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 2px 5px;
+        border-radius: var(--radius-sm);
+        background: var(--accent-muted);
+        color: var(--accent);
+        margin-left: 6px;
+        vertical-align: middle;
+    }
+</style>

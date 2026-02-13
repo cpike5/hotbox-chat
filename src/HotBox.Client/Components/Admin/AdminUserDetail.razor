@@ -1,0 +1,691 @@
+@using HotBox.Client.Models
+@using HotBox.Client.Services
+@using HotBox.Client.State
+@inject ApiClient Api
+@inject PresenceState PresenceState
+@inject AuthState AuthState
+@inject ToastService ToastService
+@inject ILogger<AdminUserDetail> Logger
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="user-detail-panel">
+    @if (_isLoading)
+    {
+        <div class="detail-header">
+            <div class="skeleton skeleton-text medium" style="width: 100px; height: 14px;"></div>
+        </div>
+        <div class="detail-body">
+            <div class="detail-avatar-section">
+                <div class="skeleton skeleton-avatar" style="width: 80px; height: 80px;"></div>
+                <div style="flex: 1;">
+                    <div class="skeleton skeleton-text long" style="height: 20px; margin-bottom: 8px;"></div>
+                    <div class="skeleton skeleton-text medium" style="height: 14px;"></div>
+                </div>
+            </div>
+            <div class="detail-section">
+                <div class="skeleton skeleton-text short" style="height: 10px; margin-bottom: 8px;"></div>
+                <div class="skeleton skeleton-text long" style="height: 14px;"></div>
+            </div>
+        </div>
+    }
+    else if (_user is not null)
+    {
+        <div class="detail-header">
+            <button class="back-btn" @onclick="HandleBack" aria-label="Go back to user list">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                <span>Back to Users</span>
+            </button>
+        </div>
+
+        <div class="detail-body">
+            <!-- Avatar + Identity -->
+            <div class="detail-avatar-section">
+                <div class="detail-avatar-wrapper">
+                    <div class="detail-avatar" style="background: @GetAvatarColor(_user.DisplayName);">
+                        @GetInitials(_user.DisplayName)
+                    </div>
+                    <span class="status-dot @GetStatusCssClass(_liveStatus)"></span>
+                </div>
+                <div class="detail-identity">
+                    <div class="detail-name-row">
+                        <h2 class="detail-name">@_user.DisplayName</h2>
+                        @if (_user.IsAgent)
+                        {
+                            <span class="bot-badge">BOT</span>
+                        }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_user.Pronouns))
+                    {
+                        <span class="detail-pronouns">@_user.Pronouns</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_user.CustomStatus))
+                    {
+                        <span class="detail-custom-status">@_user.CustomStatus</span>
+                    }
+                </div>
+            </div>
+
+            <!-- Profile Section -->
+            <div class="detail-section">
+                <span class="detail-section-label">PROFILE</span>
+                <div class="detail-field-row">
+                    <span class="detail-field-label">Email:</span>
+                    <span class="detail-field-value">@_user.Email</span>
+                    @if (_user.EmailConfirmed)
+                    {
+                        <span class="email-verified-badge">Verified</span>
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_user.Bio))
+                {
+                    <div class="detail-field-row">
+                        <span class="detail-field-label">Bio:</span>
+                        <span class="detail-field-value bio-text">@_user.Bio</span>
+                    </div>
+                }
+            </div>
+
+            <!-- Account Metadata -->
+            <div class="detail-section">
+                <span class="detail-section-label">ACCOUNT INFO</span>
+                <div class="detail-field-row">
+                    <span class="detail-field-label">User ID:</span>
+                    <span class="detail-field-value detail-id-value">@_user.Id</span>
+                    <button class="copy-btn" @onclick="CopyUserId" title="Copy User ID" aria-label="Copy user ID">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="detail-field-row">
+                    <span class="detail-field-label">Created:</span>
+                    <span class="detail-field-value">@FormatDate(_user.CreatedAtUtc)</span>
+                </div>
+                <div class="detail-field-row">
+                    <span class="detail-field-label">Last Seen:</span>
+                    <span class="detail-field-value">@FormatDate(_user.LastSeenUtc)</span>
+                </div>
+            </div>
+
+            <!-- Role Management -->
+            <div class="detail-section">
+                <span class="detail-section-label">ROLE</span>
+                <select class="role-select-large"
+                        value="@_user.Role"
+                        @onchange="ChangeRole"
+                        aria-label="Change user role">
+                    <option value="Admin">Admin</option>
+                    <option value="Moderator">Moderator</option>
+                    <option value="Member">Member</option>
+                </select>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="detail-section danger-section">
+                <span class="detail-section-label danger-label">DANGER ZONE</span>
+                <div class="danger-actions">
+                    @if (_user.LockoutEnd.HasValue && _user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+                    {
+                        <button class="btn btn-secondary" @onclick="EnableAccount" disabled="@(_isSubmitting || _isSelf)" title="@(_isSelf ? "Cannot disable your own account" : "")">
+                            @(_isSubmitting ? "Enabling..." : "Enable Account")
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-secondary" @onclick="DisableAccount" disabled="@(_isSubmitting || _isSelf)" title="@(_isSelf ? "Cannot disable your own account" : "")">
+                            @(_isSubmitting ? "Disabling..." : "Disable Account")
+                        </button>
+                    }
+                    <button class="btn btn-danger" @onclick="OpenDeleteConfirm" disabled="@(_isSubmitting || _isSelf)" title="@(_isSelf ? "Cannot delete your own account" : "Delete this user account")">
+                        Delete Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@* Delete Confirmation *@
+<ConfirmationDialog IsOpen="@(_showDeleteConfirm && _user is not null)"
+                    OnClose="CloseDeleteConfirm"
+                    OnCancel="CloseDeleteConfirm"
+                    OnConfirm="ConfirmDelete"
+                    Title="Delete User Account"
+                    ConfirmText="Delete Account"
+                    LoadingText="Deleting..."
+                    IsDanger="true"
+                    IsLoading="@_isSubmitting">
+    <MessageContent>
+        <p class="confirm-message">
+            Are you sure you want to permanently delete <strong>@_user?.DisplayName</strong>?
+            This action cannot be undone.
+        </p>
+    </MessageContent>
+</ConfirmationDialog>
+
+@code {
+    [Parameter] public Guid UserId { get; set; }
+    [Parameter] public EventCallback OnBack { get; set; }
+
+    private AdminUserDetailResponse? _user;
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+    private bool _showDeleteConfirm;
+    private bool _isSelf;
+    private string _liveStatus = "Offline";
+
+    protected override async Task OnInitializedAsync()
+    {
+        PresenceState.OnChange += OnPresenceChanged;
+        _liveStatus = PresenceState.GetStatus(UserId);
+        _isSelf = AuthState.CurrentUser?.Id == UserId;
+
+        await LoadUser();
+    }
+
+    private async Task LoadUser()
+    {
+        _isLoading = true;
+        try
+        {
+            _user = await Api.GetAdminUserAsync(UserId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load user detail for {UserId}", UserId);
+            ToastService.ShowError("Failed to load user details.");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OnPresenceChanged()
+    {
+        var newStatus = PresenceState.GetStatus(UserId);
+        if (newStatus != _liveStatus)
+        {
+            _liveStatus = newStatus;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task HandleBack()
+    {
+        await OnBack.InvokeAsync();
+    }
+
+    private async Task CopyUserId()
+    {
+        if (_user is null) return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", _user.Id.ToString());
+            ToastService.ShowSuccess("User ID copied to clipboard");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to copy user ID to clipboard");
+            ToastService.ShowError("Failed to copy to clipboard.");
+        }
+    }
+
+    private async Task ChangeRole(ChangeEventArgs e)
+    {
+        if (_user is null) return;
+
+        var newRole = e.Value?.ToString();
+        if (string.IsNullOrEmpty(newRole) || newRole == _user.Role) return;
+
+        var oldRole = _user.Role;
+        _user.Role = newRole;
+
+        var success = await Api.ChangeUserRoleAsync(_user.Id, newRole);
+        if (success)
+        {
+            ToastService.ShowSuccess($"Role updated to {newRole}");
+        }
+        else
+        {
+            _user.Role = oldRole;
+            ToastService.ShowError("Failed to update role.");
+        }
+    }
+
+    private async Task DisableAccount()
+    {
+        if (_user is null) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var success = await Api.ToggleUserLockoutAsync(_user.Id, true);
+            if (success)
+            {
+                _user.LockoutEnd = DateTimeOffset.MaxValue;
+                ToastService.ShowSuccess("Account disabled");
+            }
+            else
+            {
+                ToastService.ShowError("Failed to disable account.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to disable user {UserId}", _user.Id);
+            ToastService.ShowError("Failed to disable account.");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task EnableAccount()
+    {
+        if (_user is null) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var success = await Api.ToggleUserLockoutAsync(_user.Id, false);
+            if (success)
+            {
+                _user.LockoutEnd = null;
+                ToastService.ShowSuccess("Account enabled");
+            }
+            else
+            {
+                ToastService.ShowError("Failed to enable account.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to enable user {UserId}", _user.Id);
+            ToastService.ShowError("Failed to enable account.");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void OpenDeleteConfirm()
+    {
+        _showDeleteConfirm = true;
+    }
+
+    private void CloseDeleteConfirm()
+    {
+        _showDeleteConfirm = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (_user is null) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var success = await Api.DeleteUserAsync(_user.Id);
+            if (success)
+            {
+                var name = _user.DisplayName;
+                ToastService.ShowSuccess($"User \"{name}\" deleted");
+                CloseDeleteConfirm();
+                await HandleBack();
+            }
+            else
+            {
+                ToastService.ShowError("Failed to delete user.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete user {UserId}", _user.Id);
+            ToastService.ShowError("Failed to delete user.");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private static string FormatDate(DateTime utcDate)
+    {
+        if (utcDate == default) return "--";
+        return utcDate.ToLocalTime().ToString("MMM d, yyyy");
+    }
+
+    private static string GetStatusCssClass(string status)
+    {
+        return status switch
+        {
+            "Online" => "online",
+            "Idle" => "idle",
+            "DoNotDisturb" => "dnd",
+            "Offline" => "offline",
+            _ => "offline"
+        };
+    }
+
+    private static string GetInitials(string name)
+    {
+        var cleaned = System.Text.RegularExpressions.Regex.Replace(name, @"[^a-zA-Z0-9 ]", "");
+        var parts = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpperInvariant();
+        return name.Length >= 2 ? name[..2].ToUpperInvariant() : name.ToUpperInvariant();
+    }
+
+    private static string GetAvatarColor(string name)
+    {
+        var hash = 0;
+        foreach (var c in name)
+        {
+            hash = c + ((hash << 5) - hash);
+        }
+        return $"hsl({Math.Abs(hash) % 360}, 32%, 38%)";
+    }
+
+    public void Dispose()
+    {
+        PresenceState.OnChange -= OnPresenceChanged;
+    }
+}
+
+<style>
+    .user-detail-panel {
+        height: 100%;
+        background: var(--bg-raised);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .detail-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .back-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 0;
+        transition: color var(--transition-fast);
+    }
+
+    .back-btn:hover {
+        color: var(--text-primary);
+    }
+
+    .back-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .detail-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+    }
+
+    .detail-avatar-section {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+
+    .detail-avatar-wrapper {
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    .detail-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: var(--radius-pill);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    .detail-avatar-wrapper > .status-dot {
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        width: 18px;
+        height: 18px;
+        border-radius: var(--radius-pill);
+        border: 4px solid var(--bg-raised);
+    }
+
+    .detail-identity {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    .detail-name-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .detail-name {
+        font-size: 22px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .detail-pronouns {
+        font-size: 14px;
+        color: var(--text-muted);
+    }
+
+    .detail-custom-status {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .detail-section {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-md);
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+    .detail-section-label {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+        user-select: none;
+    }
+
+    .detail-field-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .detail-field-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .detail-field-label {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--text-muted);
+        min-width: 80px;
+    }
+
+    .detail-field-value {
+        font-size: 13px;
+        color: var(--text-secondary);
+        word-break: break-word;
+        flex: 1;
+    }
+
+    .detail-id-value {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+
+    .bio-text {
+        line-height: 1.5;
+    }
+
+    .email-verified-badge {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        background: rgba(72, 187, 120, 0.12);
+        color: #48bb78;
+    }
+
+    .copy-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        background: var(--bg-raised);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+    }
+
+    .copy-btn svg {
+        width: 14px;
+        height: 14px;
+        color: var(--text-muted);
+    }
+
+    .copy-btn:hover {
+        background: var(--bg-surface);
+        border-color: var(--border-light);
+    }
+
+    .copy-btn:hover svg {
+        color: var(--text-secondary);
+    }
+
+    .role-select-large {
+        width: 100%;
+        padding: 10px 12px;
+        background: var(--bg-raised);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: border-color var(--transition-fast);
+    }
+
+    .role-select-large:hover {
+        border-color: var(--border-light);
+    }
+
+    .role-select-large:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+
+    .danger-section {
+        border-color: var(--danger);
+    }
+
+    .danger-label {
+        color: var(--danger);
+    }
+
+    .danger-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .bot-badge {
+        display: inline-flex;
+        align-items: center;
+        font-family: var(--font-mono);
+        font-size: 8px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 3px 6px;
+        border-radius: var(--radius-sm);
+        background: var(--accent-muted);
+        color: var(--accent);
+        user-select: none;
+    }
+
+    .skeleton {
+        background: linear-gradient(90deg, var(--bg-surface) 0%, var(--bg-raised) 50%, var(--bg-surface) 100%);
+        background-size: 200% 100%;
+        animation: skeleton-loading 1.5s ease-in-out infinite;
+        border-radius: var(--radius-sm);
+    }
+
+    .skeleton-avatar {
+        border-radius: var(--radius-pill);
+    }
+
+    .skeleton-text {
+        height: 14px;
+    }
+
+    .skeleton-text.short {
+        width: 40%;
+    }
+
+    .skeleton-text.medium {
+        width: 60%;
+    }
+
+    .skeleton-text.long {
+        width: 80%;
+    }
+
+    @@keyframes skeleton-loading {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
+    }
+</style>
