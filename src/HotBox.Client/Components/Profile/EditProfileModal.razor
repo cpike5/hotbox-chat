@@ -1,0 +1,566 @@
+@inject ApiClient Api
+@inject AuthState AuthState
+@inject ILogger<EditProfileModal> Logger
+
+<div class="edit-profile-backdrop" @onclick="HandleBackdropClick" @onkeydown="HandleKeyDown" tabindex="-1">
+    <div class="edit-profile-modal" @onclick:stopPropagation="true" @onkeydown="HandleKeyDown" tabindex="0">
+        <div class="edit-profile-header">
+            <h2 class="edit-profile-title">Edit Profile</h2>
+            <button class="edit-profile-close-btn" @onclick="HandleCancel" aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="edit-profile-loading">
+                <span class="spinner"></span>
+            </div>
+        }
+        else if (_loadError is not null)
+        {
+            <div class="edit-profile-error-state">
+                <p>@_loadError</p>
+                <button class="edit-profile-btn edit-profile-btn-cancel" @onclick="HandleCancel">Close</button>
+            </div>
+        }
+        else
+        {
+            <div class="edit-profile-body">
+                <!-- Avatar Preview -->
+                @if (!string.IsNullOrWhiteSpace(_avatarUrl) && _avatarPreviewValid)
+                {
+                    <div class="edit-profile-avatar-preview">
+                        <img src="@_avatarUrl"
+                             alt="Avatar preview"
+                             class="edit-profile-avatar-img"
+                             @onerror="HandleAvatarError" />
+                    </div>
+                }
+
+                <!-- Display Name -->
+                <div class="form-group @(_displayNameError is not null ? "has-error" : "")">
+                    <label class="form-label" for="edit-displayname">Display Name *</label>
+                    <input type="text"
+                           id="edit-displayname"
+                           class="form-input"
+                           @bind="_displayName"
+                           @bind:event="oninput"
+                           maxlength="100"
+                           placeholder="Your display name" />
+                    @if (_displayNameError is not null)
+                    {
+                        <div class="form-error">@_displayNameError</div>
+                    }
+                </div>
+
+                <!-- Avatar URL -->
+                <div class="form-group @(_avatarUrlError is not null ? "has-error" : "")">
+                    <label class="form-label" for="edit-avatarurl">Avatar URL</label>
+                    <input type="url"
+                           id="edit-avatarurl"
+                           class="form-input"
+                           @bind="_avatarUrl"
+                           @bind:event="oninput"
+                           @bind:after="HandleAvatarUrlChanged"
+                           maxlength="500"
+                           placeholder="https://example.com/avatar.png" />
+                    @if (_avatarUrlError is not null)
+                    {
+                        <div class="form-error">@_avatarUrlError</div>
+                    }
+                </div>
+
+                <!-- Pronouns -->
+                <div class="form-group @(_pronounsError is not null ? "has-error" : "")">
+                    <label class="form-label" for="edit-pronouns">Pronouns</label>
+                    <input type="text"
+                           id="edit-pronouns"
+                           class="form-input"
+                           @bind="_pronouns"
+                           @bind:event="oninput"
+                           maxlength="50"
+                           placeholder="e.g. they/them" />
+                    @if (_pronounsError is not null)
+                    {
+                        <div class="form-error">@_pronounsError</div>
+                    }
+                </div>
+
+                <!-- Custom Status -->
+                <div class="form-group @(_customStatusError is not null ? "has-error" : "")">
+                    <label class="form-label" for="edit-customstatus">Custom Status</label>
+                    <input type="text"
+                           id="edit-customstatus"
+                           class="form-input"
+                           @bind="_customStatus"
+                           @bind:event="oninput"
+                           maxlength="128"
+                           placeholder="What are you up to?" />
+                    @if (_customStatusError is not null)
+                    {
+                        <div class="form-error">@_customStatusError</div>
+                    }
+                </div>
+
+                <!-- Bio -->
+                <div class="form-group @(_bioError is not null ? "has-error" : "")">
+                    <label class="form-label" for="edit-bio">Bio</label>
+                    <textarea id="edit-bio"
+                              class="form-input edit-profile-textarea"
+                              @bind="_bio"
+                              @bind:event="oninput"
+                              maxlength="256"
+                              rows="3"
+                              placeholder="Tell us about yourself"></textarea>
+                    <div class="edit-profile-char-count">@(_bio?.Length ?? 0) / 256</div>
+                    @if (_bioError is not null)
+                    {
+                        <div class="form-error">@_bioError</div>
+                    }
+                </div>
+
+                @if (_saveError is not null)
+                {
+                    <div class="edit-profile-save-error">@_saveError</div>
+                }
+            </div>
+
+            <div class="edit-profile-footer">
+                <button class="edit-profile-btn edit-profile-btn-cancel" @onclick="HandleCancel" disabled="@_isSaving">
+                    Cancel
+                </button>
+                <button class="edit-profile-btn edit-profile-btn-save" @onclick="HandleSave" disabled="@_isSaving">
+                    @if (_isSaving)
+                    {
+                        <span class="spinner" style="width:14px;height:14px;"></span>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span>Save Changes</span>
+                    }
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private string _displayName = string.Empty;
+    private string? _avatarUrl;
+    private string? _bio;
+    private string? _pronouns;
+    private string? _customStatus;
+
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _avatarPreviewValid = true;
+
+    private string? _loadError;
+    private string? _saveError;
+    private string? _displayNameError;
+    private string? _avatarUrlError;
+    private string? _bioError;
+    private string? _pronounsError;
+    private string? _customStatusError;
+
+    private UserProfileResponse? _profile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfileAsync();
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            _profile = await Api.GetMyProfileAsync();
+            if (_profile is not null)
+            {
+                _displayName = _profile.DisplayName;
+                _avatarUrl = _profile.AvatarUrl;
+                _bio = _profile.Bio;
+                _pronouns = _profile.Pronouns;
+                _customStatus = _profile.CustomStatus;
+                _avatarPreviewValid = !string.IsNullOrWhiteSpace(_avatarUrl);
+            }
+            else
+            {
+                _loadError = "Failed to load your profile. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load user profile for editing");
+            _loadError = "Failed to load your profile. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSave()
+    {
+        _saveError = null;
+
+        if (!ValidateForm())
+        {
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            var request = new UpdateProfileRequest
+            {
+                DisplayName = _displayName.Trim(),
+                AvatarUrl = string.IsNullOrWhiteSpace(_avatarUrl) ? null : _avatarUrl.Trim(),
+                Bio = string.IsNullOrWhiteSpace(_bio) ? null : _bio.Trim(),
+                Pronouns = string.IsNullOrWhiteSpace(_pronouns) ? null : _pronouns.Trim(),
+                CustomStatus = string.IsNullOrWhiteSpace(_customStatus) ? null : _customStatus.Trim(),
+            };
+
+            var result = await Api.UpdateMyProfileAsync(request);
+
+            if (result is not null)
+            {
+                // Update AuthState with new display name and avatar
+                if (AuthState.CurrentUser is not null && AuthState.AccessToken is not null)
+                {
+                    var updatedUserInfo = new UserInfo
+                    {
+                        Id = AuthState.CurrentUser.Id,
+                        DisplayName = result.DisplayName,
+                        AvatarUrl = result.AvatarUrl,
+                        Status = AuthState.CurrentUser.Status,
+                        Role = AuthState.CurrentUser.Role,
+                    };
+                    AuthState.SetAuthenticated(AuthState.AccessToken, updatedUserInfo);
+                }
+
+                await OnSaved.InvokeAsync();
+                await OnClose.InvokeAsync();
+            }
+            else
+            {
+                _saveError = "Failed to save profile. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to update user profile");
+            _saveError = "Failed to save profile. Please try again.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private bool ValidateForm()
+    {
+        bool isValid = true;
+        _displayNameError = null;
+        _avatarUrlError = null;
+        _bioError = null;
+        _pronounsError = null;
+        _customStatusError = null;
+
+        if (string.IsNullOrWhiteSpace(_displayName))
+        {
+            _displayNameError = "Display name is required";
+            isValid = false;
+        }
+        else if (_displayName.Length > 100)
+        {
+            _displayNameError = "Display name must be 100 characters or less";
+            isValid = false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_avatarUrl) && _avatarUrl.Length > 500)
+        {
+            _avatarUrlError = "Avatar URL must be 500 characters or less";
+            isValid = false;
+        }
+        else if (!string.IsNullOrWhiteSpace(_avatarUrl) && !Uri.TryCreate(_avatarUrl, UriKind.Absolute, out _))
+        {
+            _avatarUrlError = "Please enter a valid URL";
+            isValid = false;
+        }
+
+        if (_bio?.Length > 256)
+        {
+            _bioError = "Bio must be 256 characters or less";
+            isValid = false;
+        }
+
+        if (_pronouns?.Length > 50)
+        {
+            _pronounsError = "Pronouns must be 50 characters or less";
+            isValid = false;
+        }
+
+        if (_customStatus?.Length > 128)
+        {
+            _customStatusError = "Custom status must be 128 characters or less";
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    private async Task HandleCancel()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private void HandleBackdropClick()
+    {
+        if (!_isSaving)
+        {
+            _ = OnClose.InvokeAsync();
+        }
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && !_isSaving)
+        {
+            _ = OnClose.InvokeAsync();
+        }
+    }
+
+    private void HandleAvatarUrlChanged()
+    {
+        // Reset avatar preview validity when URL changes
+        _avatarPreviewValid = !string.IsNullOrWhiteSpace(_avatarUrl)
+                              && Uri.TryCreate(_avatarUrl, UriKind.Absolute, out _);
+    }
+
+    private void HandleAvatarError()
+    {
+        _avatarPreviewValid = false;
+    }
+}
+
+<style>
+    .edit-profile-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        outline: none;
+    }
+
+    .edit-profile-modal {
+        background: var(--bg-deep);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        width: 100%;
+        max-width: 440px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        outline: none;
+        overflow: hidden;
+    }
+
+    .edit-profile-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px 0 24px;
+    }
+
+    .edit-profile-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .edit-profile-close-btn {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--transition-base);
+    }
+
+    .edit-profile-close-btn:hover {
+        color: var(--text-primary);
+        background: var(--bg-raised);
+    }
+
+    .edit-profile-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 24px;
+    }
+
+    .edit-profile-error-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 40px 24px;
+        color: var(--text-secondary);
+        text-align: center;
+    }
+
+    .edit-profile-body {
+        padding: 20px 24px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .edit-profile-avatar-preview {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 4px;
+    }
+
+    .edit-profile-avatar-img {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid var(--border-light);
+    }
+
+    .edit-profile-textarea {
+        resize: vertical;
+        min-height: 72px;
+        font-family: inherit;
+    }
+
+    .edit-profile-char-count {
+        font-size: 11px;
+        color: var(--text-secondary);
+        text-align: right;
+        margin-top: 4px;
+    }
+
+    .edit-profile-save-error {
+        font-size: 13px;
+        color: var(--status-dnd);
+        padding: 10px 14px;
+        background: rgba(199, 96, 96, 0.08);
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(199, 96, 96, 0.15);
+    }
+
+    .edit-profile-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 16px 24px 20px 24px;
+        border-top: 1px solid var(--border-subtle);
+    }
+
+    .edit-profile-btn {
+        padding: 8px 20px;
+        border-radius: var(--radius-md);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all var(--transition-base);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .edit-profile-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .edit-profile-btn-cancel {
+        background: var(--bg-raised);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-light);
+    }
+
+    .edit-profile-btn-cancel:hover:not(:disabled) {
+        color: var(--text-primary);
+        background: var(--bg-base);
+    }
+
+    .edit-profile-btn-save {
+        background: var(--accent);
+        color: var(--bg-deepest);
+    }
+
+    .edit-profile-btn-save:hover:not(:disabled) {
+        background: var(--accent-hover);
+    }
+
+    /* Form styles - these use global .form-input, .form-label, .form-error */
+    .edit-profile-body .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .edit-profile-body .form-input {
+        width: 100%;
+        padding: 10px 14px;
+        font-size: 14px;
+        color: var(--text-primary);
+        background: var(--bg-base);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-md);
+        transition: all var(--transition-base);
+    }
+
+    .edit-profile-body .form-input:focus {
+        outline: none;
+        border-color: var(--border-focus);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .edit-profile-body .form-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+        letter-spacing: 0.01em;
+    }
+
+    .edit-profile-body .form-group.has-error .form-input {
+        border-color: var(--status-dnd);
+        box-shadow: 0 0 0 3px rgba(199, 96, 96, 0.08);
+    }
+
+    .edit-profile-body .form-error {
+        font-size: 11px;
+        color: var(--status-dnd);
+        margin-top: 4px;
+    }
+</style>

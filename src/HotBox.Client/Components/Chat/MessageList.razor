@@ -62,7 +62,10 @@
                         </div>
                         <div class="msg-content">
                             <div class="msg-header">
-                                <span class="msg-author" style="color: @GetAvatarColor(msg.AuthorDisplayName);">
+                                <span class="msg-author"
+                                      style="color: @GetAvatarColor(msg.AuthorDisplayName); cursor: pointer;"
+                                      @onclick="() => ToggleAuthorProfile(msg.AuthorId)"
+                                      @onclick:stopPropagation="true">
                                     @msg.AuthorDisplayName
                                 </span>
                                 @if (msg.IsAgent)
@@ -93,6 +96,11 @@
     </div>
 </div>
 
+@if (_selectedAuthorId.HasValue)
+{
+    <UserProfilePopover UserId="_selectedAuthorId.Value" OnClose="ClosePopover" />
+}
+
 @code {
     private record SkeletonMessageDef(int AuthorWidth, int Line1Width, int Line2Width);
 
@@ -108,6 +116,7 @@
 
     private bool _forceScroll;
     private bool _wasLoading;
+    private Guid? _selectedAuthorId;
 
     protected override void OnInitialized()
     {
@@ -163,6 +172,19 @@
         return displayName.Length >= 2
             ? displayName[..2].ToUpper()
             : displayName.ToUpper();
+    }
+
+    private void ToggleAuthorProfile(Guid authorId)
+    {
+        if (_selectedAuthorId == authorId)
+            _selectedAuthorId = null;
+        else
+            _selectedAuthorId = authorId;
+    }
+
+    private void ClosePopover()
+    {
+        _selectedAuthorId = null;
     }
 
     public void Dispose()
