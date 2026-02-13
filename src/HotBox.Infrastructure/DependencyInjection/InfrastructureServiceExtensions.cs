@@ -25,6 +25,8 @@ public static class InfrastructureServiceExtensions
             configuration.GetSection(ServerOptions.SectionName).Bind(opts));
         services.Configure<ObservabilityOptions>(opts =>
             configuration.GetSection(ObservabilityOptions.SectionName).Bind(opts));
+        services.Configure<PresenceOptions>(opts =>
+            configuration.GetSection(PresenceOptions.SectionName).Bind(opts));
 
         // Read database options for provider configuration
         var dbOptions = configuration

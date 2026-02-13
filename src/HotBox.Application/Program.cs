@@ -1,5 +1,6 @@
 using HotBox.Application.DependencyInjection;
 using HotBox.Application.Hubs;
+using HotBox.Application.Middleware;
 using HotBox.Core.Enums;
 using HotBox.Core.Interfaces;
 using HotBox.Infrastructure.Data;
@@ -63,6 +64,7 @@ try
     app.UseCors();
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseMiddleware<AgentPresenceMiddleware>();
     app.MapControllers();
     app.MapHub<ChatHub>("/hubs/chat");
     app.MapHub<VoiceSignalingHub>("/hubs/voice");

@@ -72,6 +72,7 @@ public class TokenServiceTests
         jwtToken.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Sub && c.Value == user.Id.ToString());
         jwtToken.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Email && c.Value == user.Email);
         jwtToken.Claims.Should().Contain(c => c.Type == "display_name" && c.Value == user.DisplayName);
+        jwtToken.Claims.Should().Contain(c => c.Type == "is_agent" && c.Value == "false");
         jwtToken.Claims.Should().Contain(c => c.Type == ClaimTypes.Role && c.Value == "Member");
     }
 

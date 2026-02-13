@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using HotBox.Core.Enums;
 using HotBox.Core.Interfaces;
+using HotBox.Core.Options;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace HotBox.Infrastructure.Services;
 
@@ -46,12 +48,18 @@ public class PresenceService : IPresenceService, IDisposable
     private readonly ConcurrentDictionary<Guid, Timer> _idleTimers = new();
 
     /// <summary>
+    /// Tracks inactivity timeout timers for agent API activity presence.
+    /// </summary>
+    private readonly ConcurrentDictionary<Guid, Timer> _agentInactivityTimers = new();
+
+    /// <summary>
     /// Lock object for connection set modifications (HashSet is not thread-safe).
     /// </summary>
     private readonly object _connectionLock = new();
 
-    private static readonly TimeSpan GracePeriod = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan IdleTimeout = TimeSpan.FromMinutes(5);
+    private readonly TimeSpan _gracePeriod;
+    private readonly TimeSpan _idleTimeout;
+    private readonly TimeSpan _agentInactivityTimeout;
 
     /// <summary>
     /// Event raised when a user's status changes. The ChatHub subscribes to this
@@ -61,15 +69,21 @@ public class PresenceService : IPresenceService, IDisposable
 
     private bool _disposed;
 
-    public PresenceService(ILogger<PresenceService> logger)
+    public PresenceService(ILogger<PresenceService> logger, IOptions<PresenceOptions>? presenceOptions = null)
     {
         _logger = logger;
+
+        var options = presenceOptions?.Value ?? new PresenceOptions();
+        _gracePeriod = options.GracePeriod;
+        _idleTimeout = options.IdleTimeout;
+        _agentInactivityTimeout = options.AgentInactivityTimeout;
     }
 
     public Task SetOnlineAsync(Guid userId, string connectionId, string displayName, bool isAgent = false)
     {
         // Cancel any pending grace timer for this user
         CancelGraceTimer(userId);
+        CancelAgentInactivityTimer(userId);
 
         lock (_connectionLock)
         {
@@ -123,6 +137,7 @@ public class PresenceService : IPresenceService, IDisposable
     {
         CancelGraceTimer(userId);
         CancelIdleTimer(userId);
+        CancelAgentInactivityTimer(userId);
 
         lock (_connectionLock)
         {
@@ -218,6 +233,30 @@ public class PresenceService : IPresenceService, IDisposable
         ResetIdleTimer(userId);
     }
 
+    public Task TouchAgentActivityAsync(Guid userId, string displayName)
+    {
+        CancelGraceTimer(userId);
+
+        _userDisplayNames[userId] = displayName;
+        _userIsAgent[userId] = true;
+        _lastHeartbeat[userId] = DateTime.UtcNow;
+
+        var previousStatus = GetStatus(userId);
+        _userStatuses[userId] = UserStatus.Online;
+
+        // Agents using API activity should not transition to Idle.
+        CancelIdleTimer(userId);
+        ResetAgentInactivityTimer(userId);
+
+        if (previousStatus != UserStatus.Online)
+        {
+            _logger.LogInformation("Agent {UserId} ({DisplayName}) is now online via API activity", userId, displayName);
+            OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Online, true);
+        }
+
+        return Task.CompletedTask;
+    }
+
     private string GetDisplayName(Guid userId)
     {
         return _userDisplayNames.TryGetValue(userId, out var name) ? name : "Unknown";
@@ -239,13 +278,14 @@ public class PresenceService : IPresenceService, IDisposable
                 catch (Exception ex) { _logger.LogError(ex, "Grace period callback failed for {UserId}", userId); }
             }),
             null,
-            GracePeriod,
+            _gracePeriod,
             Timeout.InfiniteTimeSpan);
 
         _graceTimers[userId] = timer;
 
         _logger.LogDebug(
-            "Started 30-second grace period for user {UserId}",
+            "Started grace period ({GracePeriodSeconds}s) for user {UserId}",
+            _gracePeriod.TotalSeconds,
             userId);
     }
 
@@ -309,7 +349,7 @@ public class PresenceService : IPresenceService, IDisposable
                 catch (Exception ex) { _logger.LogError(ex, "Idle timeout callback failed for {UserId}", userId); }
             }),
             null,
-            IdleTimeout,
+            _idleTimeout,
             Timeout.InfiniteTimeSpan);
 
         _idleTimers[userId] = timer;
@@ -320,13 +360,17 @@ public class PresenceService : IPresenceService, IDisposable
         var lastBeat = _lastHeartbeat.TryGetValue(userId, out var ts) ? ts : DateTime.MinValue;
         var elapsed = DateTime.UtcNow - lastBeat;
 
-        if (elapsed >= IdleTimeout)
+        if (elapsed >= _idleTimeout)
         {
+            if (GetIsAgent(userId))
+            {
+                return SetOfflineAsync(userId);
+            }
+
             return SetIdleAsync(userId);
         }
 
         // Heartbeat came in after timer was set; reschedule
-        var remaining = IdleTimeout - elapsed;
         ResetIdleTimer(userId);
         return Task.CompletedTask;
     }
@@ -334,6 +378,50 @@ public class PresenceService : IPresenceService, IDisposable
     private void CancelIdleTimer(Guid userId)
     {
         if (_idleTimers.TryRemove(userId, out var timer))
+        {
+            timer.Dispose();
+        }
+    }
+
+    private void ResetAgentInactivityTimer(Guid userId)
+    {
+        CancelAgentInactivityTimer(userId);
+
+        var timer = new Timer(
+            _ => Task.Run(async () =>
+            {
+                try { await OnAgentInactivityTimeoutExpiredAsync(userId); }
+                catch (Exception ex) { _logger.LogError(ex, "Agent inactivity callback failed for {UserId}", userId); }
+            }),
+            null,
+            _agentInactivityTimeout,
+            Timeout.InfiniteTimeSpan);
+
+        _agentInactivityTimers[userId] = timer;
+    }
+
+    private Task OnAgentInactivityTimeoutExpiredAsync(Guid userId)
+    {
+        if (!GetIsAgent(userId))
+        {
+            return Task.CompletedTask;
+        }
+
+        var lastBeat = _lastHeartbeat.TryGetValue(userId, out var ts) ? ts : DateTime.MinValue;
+        var elapsed = DateTime.UtcNow - lastBeat;
+
+        if (elapsed >= _agentInactivityTimeout)
+        {
+            return SetOfflineAsync(userId);
+        }
+
+        ResetAgentInactivityTimer(userId);
+        return Task.CompletedTask;
+    }
+
+    private void CancelAgentInactivityTimer(Guid userId)
+    {
+        if (_agentInactivityTimers.TryRemove(userId, out var timer))
         {
             timer.Dispose();
         }
@@ -357,5 +445,11 @@ public class PresenceService : IPresenceService, IDisposable
             timer.Dispose();
         }
         _idleTimers.Clear();
+
+        foreach (var timer in _agentInactivityTimers.Values)
+        {
+            timer.Dispose();
+        }
+        _agentInactivityTimers.Clear();
     }
 }
