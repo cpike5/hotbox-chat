@@ -2348,6 +2348,20 @@ input, textarea {
   height: 12px;
 }
 
+/* --- API Key one-time display --- */
+.key-display {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  background: var(--accent-muted);
+  border: 1px solid rgba(93, 228, 199, 0.15);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  word-break: break-all;
+  user-select: all;
+  line-height: 1.5;
+}
+
 /* --- Reorder arrows --- */
 .reorder-arrows {
   display: flex;

@@ -1,0 +1,437 @@
+@using HotBox.Client.Models
+@using HotBox.Client.Services
+@inject ApiClient Api
+@inject IJSRuntime JS
+@inject ILogger<AdminApiKeyManagement> Logger
+
+<div class="section-header">
+    <div>
+        <h2>API Keys</h2>
+        <div class="section-header-subtitle">Manage API keys for MCP agent tools and integrations</div>
+    </div>
+    <button class="btn btn-primary" @onclick="OpenCreateModal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Create Key
+    </button>
+</div>
+
+@if (_isLoading)
+{
+    <div class="admin-empty-state">
+        <span class="spinner"></span>
+    </div>
+}
+else if (_apiKeys.Count == 0)
+{
+    <div class="admin-table-wrap">
+        <div class="admin-empty-state">
+            <h3>No API keys yet</h3>
+            <p>Create one to connect MCP tools and integrations.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Key</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th style="width:120px; text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var key in _apiKeys)
+                {
+                    <tr>
+                        <td>@key.Name</td>
+                        <td><span class="invite-code">@key.MaskedKey</span></td>
+                        <td>
+                            @if (key.IsActive)
+                            {
+                                <span class="badge badge-active">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-revoked">Revoked</span>
+                            }
+                        </td>
+                        <td><span class="date-cell">@FormatDate(key.CreatedAtUtc)</span></td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="copy-btn @(_copiedId == key.Id ? "copied" : "")"
+                                        @onclick="() => CopyMaskedKey(key)">
+                                    @if (_copiedId == key.Id)
+                                    {
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        <span>Copied!</span>
+                                    }
+                                    else
+                                    {
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                        <span>Copy</span>
+                                    }
+                                </button>
+                                @if (key.IsActive)
+                                {
+                                    <button class="btn-icon danger" title="Revoke"
+                                            @onclick="() => OpenRevokeConfirm(key)">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@* Toast *@
+@if (_toastMessage is not null)
+{
+    <div class="toast-container">
+        <div class="toast @(_toastType == "error" ? "toast-error" : "toast-success") show">
+            @if (_toastType == "success")
+            {
+                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            }
+            else
+            {
+                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            }
+            <span>@_toastMessage</span>
+        </div>
+    </div>
+}
+
+@* Create API Key Modal *@
+@if (_showCreateModal)
+{
+    <div class="modal-overlay open" @onclick="CloseModals">
+        <div class="modal" style="max-width:480px;" @onclick:stopPropagation="true">
+            @if (_createdKeyResponse is null)
+            {
+                <div class="modal-header">
+                    <h3>Create API Key</h3>
+                    <button class="modal-close" @onclick="CloseModals">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label admin-form-label">Name</label>
+                        <input type="text" class="form-input admin-form-input"
+                               @bind="_createName" @bind:event="oninput" placeholder="e.g. CI Pipeline" />
+                        @if (_createNameError is not null)
+                        {
+                            <div class="form-error">@_createNameError</div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+                    <button class="btn btn-primary" @onclick="CreateApiKey" disabled="@_isSubmitting">
+                        @(_isSubmitting ? "Creating..." : "Create")
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="modal-header">
+                    <h3>API Key Created</h3>
+                    <button class="modal-close" @onclick="FinishCreate">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Your API key has been created. <strong style="color:var(--danger);">This key will only be shown once.</strong> Copy it now.</p>
+                    <div class="key-display"><code>@_createdKeyResponse.Key</code></div>
+                    <button class="copy-btn @(_copiedCreatedKey ? "copied" : "")" style="margin-top:8px;"
+                            @onclick="CopyCreatedKey">
+                        @if (_copiedCreatedKey)
+                        {
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            <span>Copied!</span>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <span>Copy</span>
+                        }
+                    </button>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" @onclick="FinishCreate">Done</button>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@* Revoke Confirmation Modal *@
+@if (_showRevokeConfirm && _revokeKey is not null)
+{
+    <div class="modal-overlay open" @onclick="CloseModals">
+        <div class="modal modal-confirm" style="max-width:380px;" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Revoke API Key</h3>
+                <button class="modal-close" @onclick="CloseModals">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="confirm-message">
+                    Are you sure you want to revoke API key <strong>@_revokeKey.Name</strong>?
+                    Any agents or integrations using this key will lose access.
+                </p>
+                <div class="form-group">
+                    <label class="form-label admin-form-label">
+                        Reason
+                        <span style="color:var(--text-muted);text-transform:none;letter-spacing:normal;font-weight:400;">(optional)</span>
+                    </label>
+                    <textarea class="form-input admin-form-input" rows="2" @bind="_revokeReason" placeholder="e.g. Key compromised"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+                <button class="btn btn-danger" @onclick="ConfirmRevoke" disabled="@_isSubmitting">
+                    @(_isSubmitting ? "Revoking..." : "Revoke Key")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool IsActive { get; set; }
+
+    private bool _hasLoaded;
+    private List<AdminApiKeyResponse> _apiKeys = new();
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+
+    // Create modal
+    private bool _showCreateModal;
+    private string _createName = string.Empty;
+    private string? _createNameError;
+    private CreateApiKeyResponse? _createdKeyResponse;
+    private bool _copiedCreatedKey;
+
+    // Revoke confirm
+    private bool _showRevokeConfirm;
+    private AdminApiKeyResponse? _revokeKey;
+    private string? _revokeReason;
+
+    // Copy state (table rows)
+    private Guid? _copiedId;
+
+    // Toast
+    private string? _toastMessage;
+    private string _toastType = "success";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsActive && !_hasLoaded)
+        {
+            _hasLoaded = true;
+            await LoadApiKeys();
+        }
+    }
+
+    private async Task LoadApiKeys()
+    {
+        _isLoading = true;
+        try
+        {
+            _apiKeys = await Api.GetAdminApiKeysAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load admin API keys");
+            ShowToast("Failed to load API keys.", "error");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        _createName = string.Empty;
+        _createNameError = null;
+        _createdKeyResponse = null;
+        _copiedCreatedKey = false;
+        _showCreateModal = true;
+    }
+
+    private async Task CreateApiKey()
+    {
+        _createNameError = null;
+
+        if (string.IsNullOrWhiteSpace(_createName))
+        {
+            _createNameError = "Name is required.";
+            return;
+        }
+
+        _isSubmitting = true;
+        try
+        {
+            var result = await Api.CreateAdminApiKeyAsync(_createName.Trim());
+            if (result is not null)
+            {
+                _createdKeyResponse = result;
+            }
+            else
+            {
+                ShowToast("Failed to create API key.", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to create API key {KeyName}", _createName);
+            ShowToast("Failed to create API key.", "error");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void FinishCreate()
+    {
+        if (_createdKeyResponse is not null)
+        {
+            var plainKey = _createdKeyResponse.Key;
+            var prefix = plainKey.Length >= 8 ? plainKey[^8..] : plainKey;
+            _apiKeys.Insert(0, new AdminApiKeyResponse
+            {
+                Id = _createdKeyResponse.Id,
+                Name = _createdKeyResponse.Name,
+                MaskedKey = $"\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022{prefix}",
+                CreatedAtUtc = _createdKeyResponse.CreatedAtUtc,
+                IsActive = true,
+            });
+
+            ShowToast($"API key \"{_createdKeyResponse.Name}\" created", "success");
+        }
+
+        _showCreateModal = false;
+        _createdKeyResponse = null;
+    }
+
+    private void OpenRevokeConfirm(AdminApiKeyResponse key)
+    {
+        _revokeKey = key;
+        _revokeReason = null;
+        _showRevokeConfirm = true;
+    }
+
+    private async Task ConfirmRevoke()
+    {
+        if (_revokeKey is null) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var success = await Api.RevokeAdminApiKeyAsync(_revokeKey.Id, _revokeReason);
+            if (success)
+            {
+                var name = _revokeKey.Name;
+                _revokeKey.IsActive = false;
+                _revokeKey.RevokedAtUtc = DateTime.UtcNow;
+                _revokeKey.RevokedReason = _revokeReason;
+                CloseModals();
+                ShowToast($"API key \"{name}\" revoked", "success");
+            }
+            else
+            {
+                ShowToast("Failed to revoke API key.", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to revoke API key {ApiKeyId}", _revokeKey.Id);
+            ShowToast("Failed to revoke API key.", "error");
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task CopyMaskedKey(AdminApiKeyResponse key)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", key.MaskedKey);
+            _copiedId = key.Id;
+            StateHasChanged();
+
+            await Task.Delay(2000);
+            if (_copiedId == key.Id)
+            {
+                _copiedId = null;
+                StateHasChanged();
+            }
+        }
+        catch
+        {
+            ShowToast("Failed to copy to clipboard", "error");
+        }
+    }
+
+    private async Task CopyCreatedKey()
+    {
+        if (_createdKeyResponse is null) return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", _createdKeyResponse.Key);
+            _copiedCreatedKey = true;
+            StateHasChanged();
+
+            await Task.Delay(2000);
+            _copiedCreatedKey = false;
+            StateHasChanged();
+        }
+        catch
+        {
+            ShowToast("Failed to copy to clipboard", "error");
+        }
+    }
+
+    private void CloseModals()
+    {
+        _showCreateModal = false;
+        _showRevokeConfirm = false;
+    }
+
+    private static string FormatDate(DateTime utcDate)
+    {
+        if (utcDate == default) return "--";
+        return utcDate.ToLocalTime().ToString("MMM d, yyyy");
+    }
+
+    private void ShowToast(string message, string type)
+    {
+        _toastMessage = message;
+        _toastType = type;
+        StateHasChanged();
+        _ = HideToastAfterDelay();
+    }
+
+    private async Task HideToastAfterDelay()
+    {
+        await Task.Delay(3000);
+        _toastMessage = null;
+        await InvokeAsync(StateHasChanged);
+    }
+}

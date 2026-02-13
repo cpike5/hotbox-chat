@@ -234,6 +234,25 @@ public class ApiClient
         return await DeleteAsync($"api/admin/invites/{code}", ct);
     }
 
+    // --- API Key Management ---
+
+    public async Task<List<AdminApiKeyResponse>> GetAdminApiKeysAsync(CancellationToken ct = default)
+    {
+        return await GetAsync<List<AdminApiKeyResponse>>("api/admin/apikeys", ct) ?? new List<AdminApiKeyResponse>();
+    }
+
+    public async Task<CreateApiKeyResponse?> CreateAdminApiKeyAsync(string name, CancellationToken ct = default)
+    {
+        var request = new { Name = name };
+        return await PostAsync<CreateApiKeyResponse>("api/admin/apikeys", request, ct);
+    }
+
+    public async Task<bool> RevokeAdminApiKeyAsync(Guid id, string? reason, CancellationToken ct = default)
+    {
+        var request = new { Reason = reason };
+        return await PutAsync($"api/admin/apikeys/{id}/revoke", request, ct);
+    }
+
     public async Task<bool> ReorderChannelsAsync(List<Guid> channelIds, CancellationToken ct = default)
     {
         var request = new { ChannelIds = channelIds };
