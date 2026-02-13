@@ -10,10 +10,12 @@ namespace HotBox.Mcp.Clients;
 public class HotBoxApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly ApiKeyProvider _apiKeyProvider;
 
-    public HotBoxApiClient(HttpClient httpClient)
+    public HotBoxApiClient(HttpClient httpClient, ApiKeyProvider apiKeyProvider)
     {
         _httpClient = httpClient;
+        _apiKeyProvider = apiKeyProvider;
     }
 
     /// <summary>
@@ -22,7 +24,11 @@ public class HotBoxApiClient
     public async Task<JsonElement> CreateAgentAccountAsync(string email, string displayName, CancellationToken cancellationToken = default)
     {
         var payload = new { email, displayName };
-        var response = await _httpClient.PostAsJsonAsync("/api/admin/agents", payload, cancellationToken);
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/admin/agents");
+        request.Headers.Add("X-Api-Key", _apiKeyProvider.ApiKey);
+        request.Content = JsonContent.Create(payload);
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -39,7 +45,10 @@ public class HotBoxApiClient
     /// </summary>
     public async Task<JsonElement> ListAgentAccountsAsync(CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync("/api/admin/agents", cancellationToken);
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/admin/agents");
+        request.Headers.Add("X-Api-Key", _apiKeyProvider.ApiKey);
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);

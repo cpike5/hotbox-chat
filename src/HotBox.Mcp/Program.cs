@@ -18,13 +18,15 @@ builder.Services.AddHttpClient<HotBoxApiClient>((serviceProvider, client) =>
 {
     var configuration = serviceProvider.GetRequiredService<IConfiguration>();
     var baseUrl = configuration["HotBox:BaseUrl"] ?? "http://localhost:5000";
-    var apiKey = configuration["HotBox:ApiKey"] ?? "";
 
     client.BaseAddress = new Uri(baseUrl);
-    if (!string.IsNullOrWhiteSpace(apiKey))
-    {
-        client.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
-    }
+});
+
+// Make the API key available for admin-only requests
+builder.Services.AddSingleton<ApiKeyProvider>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    return new ApiKeyProvider(configuration["HotBox:ApiKey"] ?? "");
 });
 
 // Add MCP server with stdio transport and auto-discover tools

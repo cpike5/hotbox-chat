@@ -71,6 +71,25 @@ public static class ApplicationServiceExtensions
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.FromSeconds(30),
             };
+
+            // SignalR sends the JWT as a query-string parameter because
+            // WebSockets cannot set custom HTTP headers. Extract it here
+            // so the bearer middleware can validate it normally.
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    var path = context.HttpContext.Request.Path;
+
+                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                    {
+                        context.Token = accessToken;
+                    }
+
+                    return Task.CompletedTask;
+                }
+            };
         });
 
         // Conditionally add OAuth providers
