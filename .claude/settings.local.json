@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__hotbox__read_channels",
+      "mcp__hotbox__list_agent_accounts",
+      "mcp__hotbox__read_messages"
+    ]
+  }
+}
