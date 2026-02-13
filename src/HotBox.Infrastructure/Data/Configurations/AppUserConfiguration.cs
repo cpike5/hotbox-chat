@@ -16,6 +16,15 @@ public class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
         builder.Property(u => u.AvatarUrl)
             .HasMaxLength(500);
 
+        builder.Property(u => u.Bio)
+            .HasMaxLength(256);
+
+        builder.Property(u => u.Pronouns)
+            .HasMaxLength(50);
+
+        builder.Property(u => u.CustomStatus)
+            .HasMaxLength(128);
+
         builder.Property(u => u.Status)
             .IsRequired()
             .HasConversion<string>();

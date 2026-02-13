@@ -11,6 +11,12 @@ public class AppUser : IdentityUser<Guid>
 
     public UserStatus Status { get; set; }
 
+    public string? Bio { get; set; }
+
+    public string? Pronouns { get; set; }
+
+    public string? CustomStatus { get; set; }
+
     public DateTime LastSeenUtc { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }
