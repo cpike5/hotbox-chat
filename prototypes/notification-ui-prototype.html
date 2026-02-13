@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HotBox - Notification System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ========================================
+       CSS Custom Properties / Design Tokens
+       (Matching main-ui-proposal.html exactly)
+       ======================================== */
+    :root {
+      /* Background layers -- deep cool slate */
+      --bg-deepest: #0c0c0f;
+      --bg-deep: #111116;
+      --bg-base: #16161d;
+      --bg-raised: #1c1c25;
+      --bg-surface: #23232e;
+      --bg-hover: #2a2a37;
+      --bg-active: #32323f;
+
+      /* Text */
+      --text-primary: #e2e2ea;
+      --text-secondary: #9898a8;
+      --text-muted: #5c5c72;
+      --text-faint: #3e3e52;
+
+      /* Accent -- cool teal/mint */
+      --accent: #5de4c7;
+      --accent-hover: #7aecd5;
+      --accent-muted: rgba(93, 228, 199, 0.10);
+      --accent-strong: #a0f0de;
+      --accent-glow: rgba(93, 228, 199, 0.06);
+
+      /* Status */
+      --status-online: #6bc76b;
+      --status-idle: #c7a63e;
+      --status-dnd: #c76060;
+      --status-offline: #4a4a5a;
+
+      /* Borders */
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --border-light: rgba(255, 255, 255, 0.07);
+      --border-focus: rgba(93, 228, 199, 0.3);
+
+      /* Misc */
+      --radius-xs: 3px;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-pill: 9999px;
+      --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.5);
+      --shadow-lg: 0 8px 48px rgba(0, 0, 0, 0.6);
+      --shadow-overlay: 0 12px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-subtle);
+      --transition-fast: 100ms ease;
+      --transition-base: 180ms ease;
+      --transition-smooth: 280ms cubic-bezier(0.4, 0, 0.2, 1);
+
+      /* Typography */
+      --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    }
+
+    /* ========================================
+       Reset & Base
+       ======================================== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-deepest);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: inherit;
+      border: none;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    input, textarea {
+      font-family: inherit;
+      font-size: inherit;
+      border: none;
+      outline: none;
+      background: none;
+      color: inherit;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--bg-active); border-radius: var(--radius-pill); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--bg-hover); }
+
+    /* ========================================
+       App Layout
+       ======================================== */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ========================================
+       Top Bar (matching main prototype)
+       ======================================== */
+    .topbar {
+      height: 52px;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      background: var(--bg-deep);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 16px;
+      gap: 0;
+      z-index: 20;
+      user-select: none;
+    }
+
+    .topbar-brand {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-right: 20px;
+      flex-shrink: 0;
+      padding: 6px 0;
+    }
+
+    .topbar-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border-light);
+      margin: 0 12px;
+      flex-shrink: 0;
+    }
+
+    /* Nav tabs in topbar */
+    .nav-tabs {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .nav-tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 450;
+      white-space: nowrap;
+      transition: all var(--transition-fast);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .nav-tab:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .nav-tab.active {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+    }
+
+    .nav-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 16px;
+      height: 2px;
+      background: var(--accent);
+      border-radius: var(--radius-pill);
+    }
+
+    .nav-tab svg {
+      width: 14px;
+      height: 14px;
+      opacity: 0.5;
+    }
+
+    .nav-tab.active svg {
+      opacity: 0.8;
+    }
+
+    /* Topbar right */
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: auto;
+      flex-shrink: 0;
+      padding-left: 12px;
+    }
+
+    .topbar-icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: all var(--transition-fast);
+      position: relative;
+    }
+
+    .topbar-icon-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .topbar-icon-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Notification bell badge */
+    .notif-badge {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      min-width: 14px;
+      height: 14px;
+      border-radius: var(--radius-pill);
+      background: var(--accent);
+      color: var(--bg-deepest);
+      font-size: 9px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 3px;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .notif-badge.hidden { display: none; }
+
+    .topbar-user {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--radius-pill);
+      background: var(--accent-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      transition: all var(--transition-base);
+      position: relative;
+      margin-left: 4px;
+      flex-shrink: 0;
+    }
+
+    .topbar-user:hover {
+      background: var(--accent);
+      color: var(--bg-deepest);
+    }
+
+    .topbar-user .status-dot {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 10px;
+      height: 10px;
+      border-radius: var(--radius-pill);
+      border: 2px solid var(--bg-deep);
+    }
+
+    .status-dot.online { background: var(--status-online); }
+    .status-dot.dnd { background: var(--status-dnd); }
+
+    /* ========================================
+       Main Content Area
+       ======================================== */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: var(--bg-base);
+      overflow: hidden;
+    }
+
+    /* ========================================
+       View Container (switches between views)
+       ======================================== */
+    .view {
+      display: none;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .view.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ========================================
+       Demo Controls Bar
+       ======================================== */
+    .demo-bar {
+      background: var(--bg-deep);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .demo-bar-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-right: 4px;
+    }
+
+    .demo-btn {
+      padding: 5px 12px;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      transition: all var(--transition-fast);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .demo-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--border-light);
+    }
+
+    .demo-btn.accent {
+      background: var(--accent-muted);
+      color: var(--accent);
+      border-color: rgba(93, 228, 199, 0.15);
+    }
+
+    .demo-btn.accent:hover {
+      background: rgba(93, 228, 199, 0.18);
+      border-color: rgba(93, 228, 199, 0.25);
+    }
+
+    /* ========================================
+       1. Toast Notifications
+       ======================================== */
+    .toast-container {
+      position: fixed;
+      top: 64px;
+      right: 16px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      max-width: 360px;
+      width: 100%;
+    }
+
+    .toast {
+      pointer-events: auto;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-overlay);
+      padding: 12px 14px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      cursor: pointer;
+      transition: opacity 300ms ease, transform 300ms ease;
+      opacity: 0;
+      transform: translateX(20px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .toast.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .toast.dismissing {
+      opacity: 0;
+      transform: translateX(40px);
+      pointer-events: none;
+    }
+
+    .toast:hover {
+      border-color: rgba(255, 255, 255, 0.10);
+    }
+
+    /* Progress bar for auto-dismiss */
+    .toast-progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      opacity: 0.4;
+      transition: width linear;
+    }
+
+    .toast-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .toast-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .toast-header {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .toast-sender {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .toast-context {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toast-context .channel-ref {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .toast-preview {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .toast-close {
+      width: 20px;
+      height: 20px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-faint);
+      flex-shrink: 0;
+      transition: all var(--transition-fast);
+      opacity: 0;
+    }
+
+    .toast:hover .toast-close {
+      opacity: 1;
+    }
+
+    .toast-close:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .toast-close svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* ========================================
+       2. Notification History Page
+       ======================================== */
+    .notif-history {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .notif-history-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+    }
+
+    .notif-history-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .notif-history-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-text {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      padding: 5px 10px;
+      border-radius: var(--radius-md);
+      transition: all var(--transition-fast);
+    }
+
+    .btn-text:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .btn-text.accent {
+      color: var(--accent);
+    }
+
+    .btn-text.accent:hover {
+      background: var(--accent-muted);
+      color: var(--accent-hover);
+    }
+
+    .notif-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 24px;
+    }
+
+    .notif-list-inner {
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    /* Individual notification item */
+    .notif-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px 12px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+      position: relative;
+      align-items: flex-start;
+    }
+
+    .notif-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .notif-item + .notif-item {
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .notif-item:hover + .notif-item {
+      border-top-color: transparent;
+    }
+
+    /* Unread indicator dot */
+    .notif-item.unread::before {
+      content: '';
+      position: absolute;
+      left: 2px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 5px;
+      height: 5px;
+      border-radius: var(--radius-pill);
+      background: var(--accent);
+    }
+
+    /* Unread vs read styling */
+    .notif-item.unread .notif-item-sender {
+      color: var(--text-primary);
+    }
+
+    .notif-item.unread .notif-item-preview {
+      color: var(--text-secondary);
+    }
+
+    .notif-item.read .notif-item-sender {
+      color: var(--text-secondary);
+    }
+
+    .notif-item.read .notif-item-preview {
+      color: var(--text-muted);
+    }
+
+    .notif-item.read .notif-item-avatar {
+      opacity: 0.5;
+    }
+
+    .notif-item-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      margin-top: 1px;
+      transition: opacity var(--transition-base);
+    }
+
+    .notif-item-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .notif-item-header {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .notif-item-sender {
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: color var(--transition-fast);
+    }
+
+    .notif-item-context {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .notif-item-context .channel-ref {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .notif-item-preview {
+      font-size: 13px;
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition: color var(--transition-fast);
+    }
+
+    .notif-item-time {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
+
+    .notif-item.unread .notif-item-time {
+      color: var(--text-muted);
+    }
+
+    /* Notification type icon */
+    .notif-type-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      background: var(--bg-base);
+      border: 1.5px solid var(--bg-base);
+    }
+
+    .notif-type-icon svg {
+      width: 9px;
+      height: 9px;
+    }
+
+    .notif-type-icon.mention {
+      color: var(--accent);
+    }
+
+    .notif-type-icon.dm {
+      color: var(--text-secondary);
+    }
+
+    .notif-item-avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      gap: 8px;
+      text-align: center;
+      padding: 32px;
+    }
+
+    .empty-state .empty-icon {
+      width: 48px;
+      height: 48px;
+      color: var(--text-faint);
+      margin-bottom: 8px;
+    }
+
+    .empty-state h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .empty-state p {
+      font-size: 13px;
+      max-width: 280px;
+    }
+
+    /* ========================================
+       3. Notification Preferences
+       ======================================== */
+    .prefs-view {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 24px 24px;
+    }
+
+    .prefs-inner {
+      max-width: 540px;
+      margin: 0 auto;
+      padding-top: 16px;
+    }
+
+    .prefs-section {
+      margin-bottom: 28px;
+    }
+
+    .prefs-section-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      padding: 8px 0 10px;
+      user-select: none;
+    }
+
+    .prefs-section-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    /* DND card */
+    .dnd-card {
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .dnd-card.active {
+      border-color: rgba(199, 96, 96, 0.25);
+      background: rgba(199, 96, 96, 0.04);
+    }
+
+    .dnd-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      background: rgba(199, 96, 96, 0.10);
+      color: var(--status-dnd);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .dnd-icon svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .dnd-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .dnd-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 1px;
+    }
+
+    .dnd-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .dnd-card.active .dnd-title {
+      color: var(--status-dnd);
+    }
+
+    /* Toggle switch */
+    .toggle {
+      width: 36px;
+      height: 20px;
+      border-radius: var(--radius-pill);
+      background: var(--bg-active);
+      position: relative;
+      cursor: pointer;
+      transition: background var(--transition-base);
+      flex-shrink: 0;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 14px;
+      height: 14px;
+      border-radius: var(--radius-pill);
+      background: var(--text-muted);
+      transition: transform var(--transition-base), background var(--transition-base);
+    }
+
+    .toggle.on {
+      background: var(--accent);
+    }
+
+    .toggle.on::after {
+      transform: translateX(16px);
+      background: var(--bg-deepest);
+    }
+
+    .toggle.dnd-toggle.on {
+      background: var(--status-dnd);
+    }
+
+    /* Mute list */
+    .mute-list {
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .mute-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      transition: background var(--transition-fast);
+    }
+
+    .mute-item + .mute-item {
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .mute-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .mute-item-icon {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-faint);
+      width: 16px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .mute-item-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .mute-item-name {
+      font-size: 13px;
+      font-weight: 450;
+      color: var(--text-secondary);
+      flex: 1;
+      min-width: 0;
+    }
+
+    .mute-item.muted .mute-item-name {
+      color: var(--text-muted);
+    }
+
+    .mute-item.muted .mute-item-icon {
+      color: var(--text-faint);
+      opacity: 0.5;
+    }
+
+    /* ========================================
+       4. Sidebar Integration Demo
+       ======================================== */
+    .sidebar-demo {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 32px 24px;
+      gap: 48px;
+      overflow-y: auto;
+    }
+
+    .sidebar-mockup {
+      width: 220px;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .sidebar-mockup-header {
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .sidebar-mockup-brand {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .sidebar-mockup-section {
+      padding: 10px 8px 6px;
+    }
+
+    .sidebar-mockup-section-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      padding: 0 6px 6px;
+    }
+
+    .sidebar-mockup-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 450;
+      cursor: default;
+      transition: background var(--transition-fast);
+      position: relative;
+    }
+
+    .sidebar-mockup-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .sidebar-mockup-item.active {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+    }
+
+    .sidebar-mockup-item .item-hash {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0.4;
+      width: 14px;
+      text-align: center;
+    }
+
+    .sidebar-mockup-item .item-icon {
+      width: 14px;
+      height: 14px;
+      opacity: 0.4;
+    }
+
+    .sidebar-mockup-item.active .item-icon {
+      opacity: 0.7;
+      color: var(--accent);
+    }
+
+    .sidebar-item-badge {
+      margin-left: auto;
+      background: var(--accent);
+      color: var(--bg-deepest);
+      font-size: 10px;
+      font-weight: 700;
+      min-width: 16px;
+      height: 16px;
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      line-height: 1;
+    }
+
+    .sidebar-demo-annotation {
+      max-width: 300px;
+      padding-top: 16px;
+    }
+
+    .annotation-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .annotation-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+
+    .annotation-detail {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      padding: 10px 12px;
+      background: var(--bg-raised);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .annotation-detail code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent);
+      background: var(--accent-muted);
+      padding: 1px 5px;
+      border-radius: var(--radius-xs);
+    }
+
+    /* ========================================
+       Tooltips
+       ======================================== */
+    [data-tooltip] {
+      position: relative;
+    }
+
+    [data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      padding: 5px 10px;
+      background: var(--bg-deepest);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-light);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--transition-fast), transform var(--transition-fast);
+      z-index: 100;
+    }
+
+    [data-tooltip]:hover::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ============ Top Bar ============ -->
+  <header class="topbar">
+    <div class="topbar-brand">HotBox</div>
+
+    <div class="topbar-divider"></div>
+
+    <!-- Navigation tabs for prototype views -->
+    <div class="nav-tabs" id="navTabs">
+      <button class="nav-tab active" data-view="toasts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+        Toasts
+      </button>
+      <button class="nav-tab" data-view="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>
+        History
+      </button>
+      <button class="nav-tab" data-view="preferences">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        Preferences
+      </button>
+      <button class="nav-tab" data-view="sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+        Sidebar
+      </button>
+    </div>
+
+    <div class="topbar-divider"></div>
+
+    <div class="topbar-right">
+      <!-- Notification bell with badge -->
+      <button class="topbar-icon-btn" id="btnBell" data-tooltip="Notifications" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+        <span class="notif-badge" id="bellBadge">4</span>
+      </button>
+
+      <!-- User avatar -->
+      <div class="topbar-user" aria-label="User profile">
+        CP
+        <span class="status-dot online" id="userStatusDot"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ Main Content ============ -->
+  <main class="main-content">
+
+    <!-- ====== VIEW: Toast Demo ====== -->
+    <div class="view active" id="view-toasts">
+      <div class="demo-bar">
+        <span class="demo-bar-label">Trigger toasts:</span>
+        <button class="demo-btn accent" onclick="fireMentionToast()">@mention in #general</button>
+        <button class="demo-btn accent" onclick="fireDmToast()">DM from JohnDoe</button>
+        <button class="demo-btn accent" onclick="fireDmToast2()">DM from Meghan</button>
+        <button class="demo-btn" onclick="fireMultipleToasts()">Stack 3 toasts</button>
+        <button class="demo-btn" onclick="clearAllToasts()">Clear all</button>
+      </div>
+      <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px;">
+        <div style="text-align: center; color: var(--text-muted);">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.2; margin-bottom: 12px;"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+          <h3 style="font-size: 16px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">Toast Notification Demo</h3>
+          <p style="font-size: 13px; max-width: 340px;">Use the buttons above to trigger toast notifications. They appear in the top-right corner, auto-dismiss after 5 seconds, and stack when multiple are active.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VIEW: Notification History ====== -->
+    <div class="view" id="view-history">
+      <div class="notif-history" id="notifHistory">
+        <div class="notif-history-header">
+          <span class="notif-history-title">Notifications</span>
+          <div class="notif-history-actions">
+            <button class="btn-text accent" id="btnMarkAllRead" onclick="markAllRead()">Mark all as read</button>
+          </div>
+        </div>
+        <div class="notif-list" id="notifList">
+          <div class="notif-list-inner" id="notifListInner">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VIEW: Empty History (toggle demo) ====== -->
+    <div class="view" id="view-history-empty" style="display: none;">
+      <div class="notif-history">
+        <div class="notif-history-header">
+          <span class="notif-history-title">Notifications</span>
+        </div>
+        <div class="empty-state">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+          <h3>All caught up</h3>
+          <p>No notifications to show. Mentions and DMs will appear here.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VIEW: Preferences ====== -->
+    <div class="view" id="view-preferences">
+      <div class="prefs-view">
+        <div class="prefs-inner">
+
+          <!-- Do Not Disturb -->
+          <div class="prefs-section">
+            <div class="dnd-card" id="dndCard">
+              <div class="dnd-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+              </div>
+              <div class="dnd-info">
+                <div class="dnd-title">Do Not Disturb</div>
+                <div class="dnd-desc">Suppress all notification toasts</div>
+              </div>
+              <div class="toggle dnd-toggle" id="dndToggle" onclick="toggleDnd()"></div>
+            </div>
+          </div>
+
+          <!-- Channel Mutes -->
+          <div class="prefs-section">
+            <div class="prefs-section-label">Channel Notifications</div>
+            <div class="prefs-section-desc">Muted channels will not send you notification toasts for @mentions.</div>
+            <div class="mute-list" id="channelMuteList">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- DM Mutes -->
+          <div class="prefs-section">
+            <div class="prefs-section-label">Direct Message Notifications</div>
+            <div class="prefs-section-desc">Muted conversations will not send you notification toasts for new messages.</div>
+            <div class="mute-list" id="dmMuteList">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VIEW: Sidebar Integration ====== -->
+    <div class="view" id="view-sidebar">
+      <div class="sidebar-demo">
+        <!-- Sidebar mockup -->
+        <div class="sidebar-mockup">
+          <div class="sidebar-mockup-header">
+            <div class="sidebar-mockup-brand">HotBox</div>
+          </div>
+          <div class="sidebar-mockup-section">
+            <div class="sidebar-mockup-section-label">Navigation</div>
+            <div class="sidebar-mockup-item">
+              <svg class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path></svg>
+              <span>Notifications</span>
+              <span class="sidebar-item-badge">4</span>
+            </div>
+          </div>
+          <div class="sidebar-mockup-section">
+            <div class="sidebar-mockup-section-label">Text Channels</div>
+            <div class="sidebar-mockup-item active">
+              <span class="item-hash">#</span>
+              <span>general</span>
+            </div>
+            <div class="sidebar-mockup-item">
+              <span class="item-hash">#</span>
+              <span>shitposting</span>
+            </div>
+            <div class="sidebar-mockup-item">
+              <span class="item-hash">#</span>
+              <span>gaming</span>
+              <span class="sidebar-item-badge">3</span>
+            </div>
+            <div class="sidebar-mockup-item">
+              <span class="item-hash">#</span>
+              <span>music</span>
+            </div>
+          </div>
+          <div class="sidebar-mockup-section">
+            <div class="sidebar-mockup-section-label">Voice Channels</div>
+            <div class="sidebar-mockup-item">
+              <svg class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+              <span>Lounge</span>
+            </div>
+            <div class="sidebar-mockup-item">
+              <svg class="item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+              <span>Gaming</span>
+            </div>
+          </div>
+          <div class="sidebar-mockup-section">
+            <div class="sidebar-mockup-section-label">Direct Messages</div>
+            <div class="sidebar-mockup-item">
+              <div class="mute-item-avatar" style="background: hsl(200, 32%, 38%); width: 18px; height: 18px; font-size: 7px;">JD</div>
+              <span>JohnDoe</span>
+            </div>
+            <div class="sidebar-mockup-item">
+              <div class="mute-item-avatar" style="background: hsl(120, 32%, 38%); width: 18px; height: 18px; font-size: 7px;">SK</div>
+              <span>SaltyKid99</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Annotation -->
+        <div class="sidebar-demo-annotation">
+          <div class="annotation-title">Bell Icon with Badge</div>
+          <div class="annotation-text">
+            A notification bell icon sits in the sidebar's navigation section (or in the topbar, as shown at the top of this prototype). The badge displays the unread notification count and disappears when all are read.
+          </div>
+          <div class="annotation-detail">
+            The badge uses the <code>--accent</code> color on <code>--bg-deepest</code> text, consistent with existing unread badges on channel tabs. The bell icon uses the same stroke style as other sidebar icons.
+            <br><br>
+            In the topbar variant (shown above), the bell sits alongside search and settings icons. Both placements are valid -- the choice depends on whether HotBox adopts a sidebar or keeps the current topbar-only layout.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast container (fixed, outside main flow) -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ==========================================
+  // Mock Data
+  // ==========================================
+
+  var USERS = {
+    cpike:        { initials: 'CP', status: 'online' },
+    JohnDoe:      { initials: 'JD', status: 'online' },
+    SaltyKid99:   { initials: 'SK', status: 'online' },
+    Meghan:       { initials: 'MR', status: 'idle' },
+    xXDarkLordXx: { initials: 'DL', status: 'online' },
+    ghostpepper:  { initials: 'GP', status: 'online' },
+  };
+
+  var CHANNELS = ['general', 'shitposting', 'gaming', 'music'];
+  var DM_USERS = ['JohnDoe', 'SaltyKid99', 'Meghan'];
+
+  // Notification history data
+  var notifications = [
+    { id: 1, type: 'mention', sender: 'JohnDoe', channel: 'general', preview: 'yo @cpike you coming tonight or what?', time: minutesAgo(2), read: false },
+    { id: 2, type: 'dm', sender: 'Meghan', channel: null, preview: 'when are you deploying the update?', time: minutesAgo(8), read: false },
+    { id: 3, type: 'mention', sender: 'SaltyKid99', channel: 'gaming', preview: '@cpike 1v1 me bro', time: minutesAgo(15), read: false },
+    { id: 4, type: 'dm', sender: 'JohnDoe', channel: null, preview: 'hey you got the server link for that minecraft thing?', time: minutesAgo(45), read: false },
+    { id: 5, type: 'mention', sender: 'xXDarkLordXx', channel: 'general', preview: '@cpike dark souls marathon this weekend?', time: minutesAgo(120), read: true },
+    { id: 6, type: 'dm', sender: 'SaltyKid99', channel: null, preview: 'yo is the voice chat working for you?', time: minutesAgo(180), read: true },
+    { id: 7, type: 'mention', sender: 'ghostpepper', channel: 'shitposting', preview: '@cpike check this out lmao', time: minutesAgo(300), read: true },
+    { id: 8, type: 'dm', sender: 'Meghan', channel: null, preview: 'the new feature looks great btw', time: minutesAgo(420), read: true },
+    { id: 9, type: 'mention', sender: 'JohnDoe', channel: 'music', preview: '@cpike have you heard the new album?', time: minutesAgo(600), read: true },
+  ];
+
+  // Mute state
+  var channelMutes = { general: false, shitposting: false, gaming: false, music: false };
+  var dmMutes = { JohnDoe: false, SaltyKid99: false, Meghan: false };
+  var dndActive = false;
+
+  // ==========================================
+  // Helpers
+  // ==========================================
+
+  function minutesAgo(m) {
+    return Date.now() - m * 60 * 1000;
+  }
+
+  function relativeTime(ts) {
+    var diff = Math.floor((Date.now() - ts) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  function getAvatarColor(name) {
+    var hash = 0;
+    for (var i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    var hue = Math.abs(hash) % 360;
+    return 'hsl(' + hue + ', 32%, 38%)';
+  }
+
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function el(id) {
+    return document.getElementById(id);
+  }
+
+  function getUnreadCount() {
+    return notifications.filter(function (n) { return !n.read; }).length;
+  }
+
+  // ==========================================
+  // View Navigation
+  // ==========================================
+
+  var activeView = 'toasts';
+
+  function switchView(viewId) {
+    if (viewId === activeView) return;
+    activeView = viewId;
+
+    document.querySelectorAll('.nav-tab').forEach(function (tab) {
+      tab.classList.toggle('active', tab.dataset.view === viewId);
+    });
+
+    document.querySelectorAll('.view').forEach(function (v) {
+      v.classList.remove('active');
+    });
+
+    el('view-' + viewId).classList.add('active');
+  }
+
+  el('navTabs').addEventListener('click', function (e) {
+    var tab = e.target.closest('[data-view]');
+    if (!tab) return;
+    switchView(tab.dataset.view);
+  });
+
+  // Bell icon switches to history view
+  el('btnBell').addEventListener('click', function () {
+    switchView('history');
+  });
+
+  // ==========================================
+  // 1. Toast Notifications
+  // ==========================================
+
+  var toastIdCounter = 0;
+  var activeToasts = [];
+  var TOAST_DURATION = 5000;
+
+  function createToast(opts) {
+    var id = ++toastIdCounter;
+    var container = el('toastContainer');
+    var user = USERS[opts.sender] || { initials: '??', status: 'online' };
+    var color = getAvatarColor(opts.sender);
+
+    var contextHtml = '';
+    if (opts.type === 'mention') {
+      contextHtml = 'mentioned you in <span class="channel-ref">#' + escapeHtml(opts.channel) + '</span>';
+    } else {
+      contextHtml = 'sent you a message';
+    }
+
+    var toastEl = document.createElement('div');
+    toastEl.className = 'toast';
+    toastEl.dataset.toastId = id;
+    toastEl.innerHTML =
+      '<div class="toast-avatar" style="background: ' + color + ';">' + user.initials + '</div>' +
+      '<div class="toast-body">' +
+        '<div class="toast-header">' +
+          '<span class="toast-sender">' + escapeHtml(opts.sender) + '</span>' +
+          '<span class="toast-context">' + contextHtml + '</span>' +
+        '</div>' +
+        '<div class="toast-preview">' + escapeHtml(opts.preview) + '</div>' +
+      '</div>' +
+      '<button class="toast-close" aria-label="Dismiss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>' +
+      '<div class="toast-progress" style="width: 100%;"></div>';
+
+    container.appendChild(toastEl);
+
+    // Slide in
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        toastEl.classList.add('visible');
+      });
+    });
+
+    // Start progress bar
+    var progress = toastEl.querySelector('.toast-progress');
+    progress.style.transitionDuration = TOAST_DURATION + 'ms';
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        progress.style.width = '0%';
+      });
+    });
+
+    // Track pause state
+    var remaining = TOAST_DURATION;
+    var startTime = Date.now();
+    var paused = false;
+
+    // Auto-dismiss timer
+    var timer = setTimeout(function () {
+      dismissToast(id);
+    }, TOAST_DURATION);
+
+    // Pause on hover
+    toastEl.addEventListener('mouseenter', function () {
+      paused = true;
+      clearTimeout(timer);
+      remaining = remaining - (Date.now() - startTime);
+      if (remaining < 0) remaining = 0;
+      progress.style.transitionDuration = '0ms';
+      var pct = (remaining / TOAST_DURATION) * 100;
+      progress.style.width = pct + '%';
+    });
+
+    toastEl.addEventListener('mouseleave', function () {
+      paused = false;
+      startTime = Date.now();
+      progress.style.transitionDuration = remaining + 'ms';
+      requestAnimationFrame(function () {
+        progress.style.width = '0%';
+      });
+      timer = setTimeout(function () {
+        dismissToast(id);
+      }, remaining);
+    });
+
+    // Close button
+    toastEl.querySelector('.toast-close').addEventListener('click', function (e) {
+      e.stopPropagation();
+      clearTimeout(timer);
+      dismissToast(id);
+    });
+
+    // Click toast to navigate (demo: switch to history view)
+    toastEl.addEventListener('click', function () {
+      clearTimeout(timer);
+      dismissToast(id);
+      switchView('history');
+    });
+
+    activeToasts.push({ id: id, el: toastEl, timer: timer });
+
+    // Update badge
+    updateBadge();
+  }
+
+  function dismissToast(id) {
+    var idx = activeToasts.findIndex(function (t) { return t.id === id; });
+    if (idx === -1) return;
+
+    var toast = activeToasts[idx];
+    toast.el.classList.remove('visible');
+    toast.el.classList.add('dismissing');
+
+    setTimeout(function () {
+      if (toast.el.parentNode) {
+        toast.el.parentNode.removeChild(toast.el);
+      }
+    }, 320);
+
+    activeToasts.splice(idx, 1);
+  }
+
+  function clearAllToasts() {
+    activeToasts.slice().forEach(function (t) {
+      clearTimeout(t.timer);
+      dismissToast(t.id);
+    });
+  }
+
+  // Expose toast triggers globally for demo buttons
+  window.fireMentionToast = function () {
+    createToast({
+      type: 'mention',
+      sender: 'SaltyKid99',
+      channel: 'general',
+      preview: '@cpike you coming tonight or what?'
+    });
+  };
+
+  window.fireDmToast = function () {
+    createToast({
+      type: 'dm',
+      sender: 'JohnDoe',
+      preview: 'hey you got the server link for that minecraft thing?'
+    });
+  };
+
+  window.fireDmToast2 = function () {
+    createToast({
+      type: 'dm',
+      sender: 'Meghan',
+      preview: 'when are you deploying the update?'
+    });
+  };
+
+  window.fireMultipleToasts = function () {
+    createToast({
+      type: 'mention',
+      sender: 'xXDarkLordXx',
+      channel: 'gaming',
+      preview: '@cpike dark souls marathon this weekend?'
+    });
+    setTimeout(function () {
+      createToast({
+        type: 'dm',
+        sender: 'ghostpepper',
+        preview: 'just got home, what did i miss'
+      });
+    }, 400);
+    setTimeout(function () {
+      createToast({
+        type: 'mention',
+        sender: 'JohnDoe',
+        channel: 'shitposting',
+        preview: '@cpike check this cursed image'
+      });
+    }, 800);
+  };
+
+  window.clearAllToasts = clearAllToasts;
+
+  // ==========================================
+  // 2. Notification History
+  // ==========================================
+
+  function renderNotifHistory() {
+    var container = el('notifListInner');
+    var html = '';
+
+    if (notifications.length === 0) {
+      el('view-history').querySelector('.notif-list').style.display = 'none';
+      el('view-history').querySelector('.notif-history-header').style.display = 'none';
+      el('view-history-empty').style.display = '';
+      el('view-history-empty').classList.add('active');
+      el('view-history').classList.remove('active');
+      return;
+    }
+
+    notifications.forEach(function (n) {
+      var user = USERS[n.sender] || { initials: '??', status: 'online' };
+      var color = getAvatarColor(n.sender);
+      var readClass = n.read ? 'read' : 'unread';
+
+      var contextHtml = '';
+      if (n.type === 'mention') {
+        contextHtml = 'mentioned you in <span class="channel-ref">#' + escapeHtml(n.channel) + '</span>';
+      } else {
+        contextHtml = 'sent you a message';
+      }
+
+      var typeIconHtml = '';
+      if (n.type === 'mention') {
+        typeIconHtml = '<div class="notif-type-icon mention"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"></path></svg></div>';
+      } else {
+        typeIconHtml = '<div class="notif-type-icon dm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>';
+      }
+
+      html += '<div class="notif-item ' + readClass + '" data-notif-id="' + n.id + '">';
+      html += '<div class="notif-item-avatar-wrap">';
+      html += '<div class="notif-item-avatar" style="background: ' + color + ';">' + user.initials + '</div>';
+      html += typeIconHtml;
+      html += '</div>';
+      html += '<div class="notif-item-body">';
+      html += '<div class="notif-item-header">';
+      html += '<span class="notif-item-sender">' + escapeHtml(n.sender) + '</span>';
+      html += '<span class="notif-item-context">' + contextHtml + '</span>';
+      html += '</div>';
+      html += '<div class="notif-item-preview">' + escapeHtml(n.preview) + '</div>';
+      html += '</div>';
+      html += '<span class="notif-item-time">' + relativeTime(n.time) + '</span>';
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+
+    // Update mark-all button visibility
+    var unreadCount = getUnreadCount();
+    el('btnMarkAllRead').style.display = unreadCount > 0 ? '' : 'none';
+  }
+
+  // Click notification item to mark as read
+  el('notifListInner').addEventListener('click', function (e) {
+    var item = e.target.closest('.notif-item');
+    if (!item) return;
+    var id = parseInt(item.dataset.notifId, 10);
+    var notif = notifications.find(function (n) { return n.id === id; });
+    if (notif && !notif.read) {
+      notif.read = true;
+      renderNotifHistory();
+      updateBadge();
+    }
+  });
+
+  window.markAllRead = function () {
+    notifications.forEach(function (n) { n.read = true; });
+    renderNotifHistory();
+    updateBadge();
+  };
+
+  // ==========================================
+  // Badge Updates
+  // ==========================================
+
+  function updateBadge() {
+    var count = getUnreadCount();
+    var badge = el('bellBadge');
+    if (count > 0) {
+      badge.textContent = count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+
+  // ==========================================
+  // 3. Notification Preferences
+  // ==========================================
+
+  function renderChannelMutes() {
+    var container = el('channelMuteList');
+    var html = '';
+
+    CHANNELS.forEach(function (ch) {
+      var isMuted = channelMutes[ch];
+      html += '<div class="mute-item' + (isMuted ? ' muted' : '') + '" data-mute-channel="' + ch + '">';
+      html += '<span class="mute-item-icon">#</span>';
+      html += '<span class="mute-item-name">' + ch + '</span>';
+      html += '<div class="toggle' + (!isMuted ? ' on' : '') + '" data-toggle-channel="' + ch + '"></div>';
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+  }
+
+  function renderDmMutes() {
+    var container = el('dmMuteList');
+    var html = '';
+
+    DM_USERS.forEach(function (u) {
+      var user = USERS[u] || { initials: '??', status: 'online' };
+      var color = getAvatarColor(u);
+      var isMuted = dmMutes[u];
+
+      html += '<div class="mute-item' + (isMuted ? ' muted' : '') + '" data-mute-dm="' + u + '">';
+      html += '<div class="mute-item-avatar" style="background: ' + color + ';">' + user.initials + '</div>';
+      html += '<span class="mute-item-name">' + u + '</span>';
+      html += '<div class="toggle' + (!isMuted ? ' on' : '') + '" data-toggle-dm="' + u + '"></div>';
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+  }
+
+  // Toggle channel mute
+  el('channelMuteList').addEventListener('click', function (e) {
+    var toggle = e.target.closest('[data-toggle-channel]');
+    if (!toggle) return;
+    var ch = toggle.dataset.toggleChannel;
+    channelMutes[ch] = !channelMutes[ch];
+    renderChannelMutes();
+  });
+
+  // Toggle DM mute
+  el('dmMuteList').addEventListener('click', function (e) {
+    var toggle = e.target.closest('[data-toggle-dm]');
+    if (!toggle) return;
+    var u = toggle.dataset.toggleDm;
+    dmMutes[u] = !dmMutes[u];
+    renderDmMutes();
+  });
+
+  // DND toggle
+  window.toggleDnd = function () {
+    dndActive = !dndActive;
+    var toggle = el('dndToggle');
+    var card = el('dndCard');
+    var statusDot = el('userStatusDot');
+    toggle.classList.toggle('on', dndActive);
+    card.classList.toggle('active', dndActive);
+
+    // Update status dot in topbar
+    if (dndActive) {
+      statusDot.className = 'status-dot dnd';
+    } else {
+      statusDot.className = 'status-dot online';
+    }
+  };
+
+  // ==========================================
+  // Initial Render
+  // ==========================================
+
+  renderNotifHistory();
+  renderChannelMutes();
+  renderDmMutes();
+  updateBadge();
+
+})();
+</script>
+
+</body>
+</html>
+
