@@ -37,7 +37,9 @@ else
             {
                 <div class="member-item @(user.Status == "Offline" ? "offline" : "")"
                      role="listitem"
-                     aria-label="@GetMemberAriaLabel(user)">
+                     aria-label="@GetMemberAriaLabel(user)"
+                     style="cursor: pointer;"
+                     @onclick="() => ToggleProfile(user.UserId)">
                     <div class="member-avatar" style="background: @GetAvatarColor(user.DisplayName);" aria-hidden="true">
                         @GetInitials(user.DisplayName)
                         <span class="status-dot @GetStatusCssClass(user.Status)" aria-hidden="true"></span>
@@ -54,10 +56,30 @@ else
     }
 }
 
+@if (_selectedUserId.HasValue)
+{
+    <UserProfilePopover UserId="_selectedUserId.Value" OnClose="ClosePopover" />
+}
+
 @code {
     private static readonly int[] _skeletonNameWidths = { 72, 56, 88, 64, 48, 80, 60 };
 
     private static readonly string[] _statusOrder = { "Online", "Idle", "DoNotDisturb", "Offline" };
+
+    private Guid? _selectedUserId;
+
+    private void ToggleProfile(Guid userId)
+    {
+        if (_selectedUserId == userId)
+            _selectedUserId = null;
+        else
+            _selectedUserId = userId;
+    }
+
+    private void ClosePopover()
+    {
+        _selectedUserId = null;
+    }
 
     private static readonly Dictionary<string, string> _statusLabels = new()
     {
