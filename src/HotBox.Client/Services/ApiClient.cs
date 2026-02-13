@@ -269,6 +269,23 @@ public class ApiClient
         return await GetAsync<List<UserSearchResult>>(url, ct) ?? new List<UserSearchResult>();
     }
 
+    public async Task<UserProfileResponse?> GetMyProfileAsync(CancellationToken ct = default)
+    {
+        return await GetAsync<UserProfileResponse>("api/users/me", ct);
+    }
+
+    public async Task<UserProfileResponse?> GetUserProfileAsync(Guid userId, CancellationToken ct = default)
+    {
+        return await GetAsync<UserProfileResponse>($"api/users/{userId}", ct);
+    }
+
+    public async Task<UserProfileResponse?> UpdateMyProfileAsync(
+        UpdateProfileRequest request,
+        CancellationToken ct = default)
+    {
+        return await PutReturningAsync<UserProfileResponse>("api/users/me", request, ct);
+    }
+
     // ── Search ────────────────────────────────────────────────────────────
 
     public async Task<SearchResultModel?> SearchMessagesAsync(

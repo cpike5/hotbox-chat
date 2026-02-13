@@ -20,6 +20,73 @@ public class UsersController : ControllerBase
         _userManager = userManager;
     }
 
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMyProfile()
+    {
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+
+        var user = await _userManager.FindByIdAsync(userId.Value.ToString());
+        if (user is null)
+            return NotFound();
+
+        var roles = await _userManager.GetRolesAsync(user);
+        return Ok(MapToResponse(user, roles.FirstOrDefault() ?? "Member"));
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetUserProfile(Guid id)
+    {
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+            return NotFound();
+
+        var roles = await _userManager.GetRolesAsync(user);
+        return Ok(MapToResponse(user, roles.FirstOrDefault() ?? "Member"));
+    }
+
+    [HttpPut("me")]
+    public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateProfileRequest request)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+
+        var user = await _userManager.FindByIdAsync(userId.Value.ToString());
+        if (user is null)
+            return NotFound();
+
+        user.DisplayName = request.DisplayName;
+        user.AvatarUrl = request.AvatarUrl;
+        user.Bio = request.Bio;
+        user.Pronouns = request.Pronouns;
+        user.CustomStatus = request.CustomStatus;
+
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            return BadRequest(new { error = errors });
+        }
+
+        var roles = await _userManager.GetRolesAsync(user);
+        return Ok(MapToResponse(user, roles.FirstOrDefault() ?? "Member"));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAllUsers(CancellationToken ct = default)
+    {
+        var users = await _userManager.Users.ToListAsync(ct);
+        var result = new List<UserProfileResponse>();
+        foreach (var user in users)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+            result.Add(MapToResponse(user, roles.FirstOrDefault() ?? "Member"));
+        }
+        return Ok(result);
+    }
+
     [HttpGet("search")]
     public async Task<IActionResult> Search(
         [FromQuery] string? q = null,
@@ -59,4 +126,19 @@ public class UsersController : ControllerBase
 
         return userId;
     }
+
+    private static UserProfileResponse MapToResponse(AppUser user, string role) => new()
+    {
+        Id = user.Id,
+        DisplayName = user.DisplayName,
+        AvatarUrl = user.AvatarUrl,
+        Bio = user.Bio,
+        Pronouns = user.Pronouns,
+        CustomStatus = user.CustomStatus,
+        Status = user.Status.ToString(),
+        Role = role,
+        CreatedAtUtc = user.CreatedAtUtc,
+        LastSeenUtc = user.LastSeenUtc,
+        IsAgent = user.IsAgent,
+    };
 }
