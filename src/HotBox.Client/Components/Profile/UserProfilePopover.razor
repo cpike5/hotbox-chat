@@ -2,6 +2,7 @@
 @inject AuthState AuthState
 @inject NavigationManager Navigation
 @inject PresenceState PresenceState
+@inject IJSRuntime JS
 @implements IDisposable
 
 <div class="profile-popover-backdrop"
@@ -9,7 +10,7 @@
      @onclick="HandleBackdropClick"
      @onkeydown="HandleKeyDown"
      @ref="_backdropRef">
-    <div class="profile-popover" @onclick:stopPropagation="true">
+    <div class="profile-popover" style="@_positionStyle" @onclick:stopPropagation="true">
         @if (_isLoading)
         {
             <!-- Loading skeleton -->
@@ -96,6 +97,10 @@
 @code {
     [Parameter] public Guid UserId { get; set; }
 
+    [Parameter] public double AnchorX { get; set; }
+
+    [Parameter] public double AnchorY { get; set; }
+
     [Parameter] public EventCallback OnClose { get; set; }
 
     private ElementReference _backdropRef;
@@ -103,11 +108,13 @@
     private bool _isLoading = true;
     private bool _isSelf;
     private string _liveStatus = "Offline";
+    private string _positionStyle = "visibility: hidden;";
     private CancellationTokenSource? _loadCts;
 
     protected override async Task OnInitializedAsync()
     {
         PresenceState.OnChange += OnPresenceChanged;
+
 
         _isSelf = AuthState.CurrentUser?.Id == UserId;
         _liveStatus = PresenceState.GetStatus(UserId);
@@ -135,6 +142,17 @@
         {
             try
             {
+                var viewport = await JS.InvokeAsync<ViewportSize>("chatInterop.getViewportSize");
+                _positionStyle = ComputePosition(viewport.Width, viewport.Height);
+                StateHasChanged();
+            }
+            catch
+            {
+                // JS interop may not be available yet
+            }
+
+            try
+            {
                 await _backdropRef.FocusAsync();
             }
             catch
@@ -143,6 +161,30 @@
             }
         }
     }
+
+    private string ComputePosition(double vpWidth, double vpHeight)
+    {
+        const double popoverWidth = 300;
+        const double popoverMaxHeight = 420;
+        const double gap = 12;
+        const double topbarHeight = 52;
+
+        double left = AnchorX + gap;
+        double top = AnchorY - 40;
+
+        // Flip to left side if would overflow right
+        if (left + popoverWidth > vpWidth - 12)
+            left = AnchorX - popoverWidth - gap;
+
+        // Clamp to viewport vertically
+        top = Math.Max(topbarHeight + 8, top);
+        if (top + popoverMaxHeight > vpHeight - 12)
+            top = vpHeight - popoverMaxHeight - 12;
+
+        return $"left: {left:F0}px; top: {top:F0}px;";
+    }
+
+    private record ViewportSize(double Width, double Height);
 
     private void OnPresenceChanged()
     {
@@ -234,27 +276,27 @@
 
     .profile-popover {
         position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
         width: 300px;
+        max-height: calc(100vh - 64px);
+        overflow-y: auto;
         background: var(--bg-raised);
         border: 1px solid var(--border-light);
         border-radius: var(--radius-lg);
         box-shadow: var(--shadow-overlay);
         z-index: 55;
-        overflow: hidden;
         animation: profile-popover-in var(--transition-smooth) forwards;
+        margin-top: 0.5em;
+        margin-bottom: 1em;
     }
 
     @@keyframes profile-popover-in {
         from {
             opacity: 0;
-            transform: translate(-50%, -50%) scale(0.96);
+            transform: scale(0.96) translateY(-4px);
         }
         to {
             opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
+            transform: scale(1) translateY(0);
         }
     }
 
