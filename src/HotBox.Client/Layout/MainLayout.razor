@@ -342,6 +342,12 @@
 
             if (DirectMessageState.ActiveConversationUserId.HasValue)
                 Navigation.NavigateTo($"/dm/{DirectMessageState.ActiveConversationUserId.Value}");
+            else if (DirectMessageState.Conversations.Count > 0)
+            {
+                var mostRecent = DirectMessageState.Conversations[0];
+                DirectMessageState.SetActiveConversation(mostRecent.UserId, mostRecent.DisplayName);
+                Navigation.NavigateTo($"/dm/{mostRecent.UserId}");
+            }
             else
                 Navigation.NavigateTo("/dms");
         }

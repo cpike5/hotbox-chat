@@ -1,11 +1,101 @@
 @page "/dms"
+@using HotBox.Client.State
+@using HotBox.Client.Models
+@using HotBox.Client.Services
+@inject DirectMessageState DirectMessageState
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject ILogger<DmsPage> Logger
+@implements IDisposable
 
 <PageTitle>HotBox - Direct Messages</PageTitle>
 
-<div class="page-placeholder">
-    <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-    </svg>
-    <h2>Direct Messages</h2>
-    <p>Select a conversation from the tabs above, or start a new one.</p>
-</div>
+@if (DirectMessageState.Conversations.Count == 0)
+{
+    <div class="page-placeholder">
+        <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <h2>Direct Messages</h2>
+        <p>Select a conversation from the tabs above, or start a new one.</p>
+    </div>
+}
+else
+{
+    <div class="dms-page-container">
+        <div class="dms-page-header">
+            <h2>Recent Conversations</h2>
+        </div>
+        <div class="dms-page-list">
+            @foreach (var conversation in DirectMessageState.Conversations)
+            {
+                <button class="dms-page-item" @onclick="() => SelectConversation(conversation)">
+                    <div class="dms-page-item-main">
+                        <div class="dms-page-item-name">@conversation.DisplayName</div>
+                        <div class="dms-page-item-preview">@(string.IsNullOrWhiteSpace(conversation.LastMessageContent) ? "No messages yet" : conversation.LastMessageContent)</div>
+                    </div>
+                    <div class="dms-page-item-meta">
+                        <div class="dms-page-item-time">@FormatTimestamp(conversation.LastMessageAtUtc)</div>
+                        @if (conversation.UnreadCount > 0)
+                        {
+                            <span class="unread-badge">@conversation.UnreadCount</span>
+                        }
+                    </div>
+                </button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        DirectMessageState.OnChange += StateHasChanged;
+
+        // Load conversations if not already loaded
+        if (!_loaded && DirectMessageState.Conversations.Count == 0)
+        {
+            _loaded = true;
+            try
+            {
+                var conversations = await Api.GetConversationsAsync();
+                DirectMessageState.SetConversations(conversations);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to load conversations");
+            }
+        }
+    }
+
+    private void SelectConversation(ConversationSummaryResponse conversation)
+    {
+        DirectMessageState.SetActiveConversation(conversation.UserId, conversation.DisplayName);
+        Navigation.NavigateTo($"/dm/{conversation.UserId}");
+    }
+
+    private string FormatTimestamp(DateTime utc)
+    {
+        var local = utc.ToLocalTime();
+        var now = DateTime.Now;
+        var diff = now - local;
+
+        if (diff.TotalMinutes < 1)
+            return "Just now";
+        if (diff.TotalMinutes < 60)
+            return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24)
+            return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 7)
+            return $"{(int)diff.TotalDays}d ago";
+
+        return local.ToString("MMM d");
+    }
+
+    public void Dispose()
+    {
+        DirectMessageState.OnChange -= StateHasChanged;
+    }
+}
