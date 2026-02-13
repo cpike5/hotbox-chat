@@ -23,7 +23,14 @@ public class HotBoxApiClient
     {
         var payload = new { email, displayName };
         var response = await _httpClient.PostAsJsonAsync("/api/admin/agents", payload, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}). Body: {errorBody}",
+                null,
+                response.StatusCode);
+        }
         return await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
     }
 
@@ -33,7 +40,14 @@ public class HotBoxApiClient
     public async Task<JsonElement> ListAgentAccountsAsync(CancellationToken cancellationToken = default)
     {
         var response = await _httpClient.GetAsync("/api/admin/agents", cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}). Body: {errorBody}",
+                null,
+                response.StatusCode);
+        }
         return await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
     }
 
@@ -47,7 +61,14 @@ public class HotBoxApiClient
         request.Content = JsonContent.Create(new { content });
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}). Body: {errorBody}",
+                null,
+                response.StatusCode);
+        }
         return await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
     }
 
@@ -61,7 +82,14 @@ public class HotBoxApiClient
         request.Content = JsonContent.Create(new { content });
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}). Body: {errorBody}",
+                null,
+                response.StatusCode);
+        }
         return await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
     }
 
@@ -74,7 +102,14 @@ public class HotBoxApiClient
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}). Body: {errorBody}",
+                null,
+                response.StatusCode);
+        }
         return await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
     }
 
@@ -87,7 +122,14 @@ public class HotBoxApiClient
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}). Body: {errorBody}",
+                null,
+                response.StatusCode);
+        }
         return await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
     }
 }
