@@ -63,8 +63,8 @@
                         <div class="msg-content">
                             <div class="msg-header">
                                 <span class="msg-author"
-                                      style="color: @GetAvatarColor(msg.AuthorDisplayName); cursor: pointer;"
-                                      @onclick="() => ToggleAuthorProfile(msg.AuthorId)"
+                                      style="color: @GetAvatarColor(msg.AuthorDisplayName);"
+                                      @onclick="(e) => ToggleAuthorProfile(msg.AuthorId, e)"
                                       @onclick:stopPropagation="true">
                                     @msg.AuthorDisplayName
                                 </span>
@@ -98,7 +98,7 @@
 
 @if (_selectedAuthorId.HasValue)
 {
-    <UserProfilePopover UserId="_selectedAuthorId.Value" OnClose="ClosePopover" />
+    <UserProfilePopover UserId="_selectedAuthorId.Value" AnchorX="_anchorX" AnchorY="_anchorY" OnClose="ClosePopover" />
 }
 
 @code {
@@ -117,6 +117,8 @@
     private bool _forceScroll;
     private bool _wasLoading;
     private Guid? _selectedAuthorId;
+    private double _anchorX;
+    private double _anchorY;
 
     protected override void OnInitialized()
     {
@@ -174,12 +176,18 @@
             : displayName.ToUpper();
     }
 
-    private void ToggleAuthorProfile(Guid authorId)
+    private void ToggleAuthorProfile(Guid authorId, MouseEventArgs e)
     {
         if (_selectedAuthorId == authorId)
+        {
             _selectedAuthorId = null;
+        }
         else
+        {
+            _anchorX = e.ClientX;
+            _anchorY = e.ClientY;
             _selectedAuthorId = authorId;
+        }
     }
 
     private void ClosePopover()

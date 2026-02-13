@@ -38,8 +38,7 @@ else
                 <div class="member-item @(user.Status == "Offline" ? "offline" : "")"
                      role="listitem"
                      aria-label="@GetMemberAriaLabel(user)"
-                     style="cursor: pointer;"
-                     @onclick="() => ToggleProfile(user.UserId)">
+                     @onclick="(e) => ToggleProfile(user.UserId, e)">
                     <div class="member-avatar" style="background: @GetAvatarColor(user.DisplayName);" aria-hidden="true">
                         @GetInitials(user.DisplayName)
                         <span class="status-dot @GetStatusCssClass(user.Status)" aria-hidden="true"></span>
@@ -58,7 +57,7 @@ else
 
 @if (_selectedUserId.HasValue)
 {
-    <UserProfilePopover UserId="_selectedUserId.Value" OnClose="ClosePopover" />
+    <UserProfilePopover UserId="_selectedUserId.Value" AnchorX="_anchorX" AnchorY="_anchorY" OnClose="ClosePopover" />
 }
 
 @code {
@@ -67,13 +66,21 @@ else
     private static readonly string[] _statusOrder = { "Online", "Idle", "DoNotDisturb", "Offline" };
 
     private Guid? _selectedUserId;
+    private double _anchorX;
+    private double _anchorY;
 
-    private void ToggleProfile(Guid userId)
+    private void ToggleProfile(Guid userId, MouseEventArgs e)
     {
         if (_selectedUserId == userId)
+        {
             _selectedUserId = null;
+        }
         else
+        {
+            _anchorX = e.ClientX;
+            _anchorY = e.ClientY;
             _selectedUserId = userId;
+        }
     }
 
     private void ClosePopover()

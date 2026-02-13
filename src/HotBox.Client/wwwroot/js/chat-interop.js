@@ -14,5 +14,9 @@ window.chatInterop = {
         if (distanceFromBottom <= (threshold || 150)) {
             el.scrollTop = el.scrollHeight;
         }
+    },
+
+    getViewportSize: function () {
+        return { width: window.innerWidth, height: window.innerHeight };
     }
 };
