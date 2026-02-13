@@ -96,6 +96,10 @@ The project is organized into five ownership domains, each with a dedicated sub-
 
 See `docs/ownership-domains.md` for full domain boundaries, code ownership, and coordination rules.
 
+## GitHub CLI Quirk
+
+`gh issue view {N}` (without `--json`) fails with a Projects (classic) deprecation error. Always use `gh issue view {N} --json title,body,labels,state` instead.
+
 ## Enum Serialization
 
 All enums in `HotBox.Core/Enums/` must have `[JsonConverter(typeof(JsonStringEnumConverter))]`. The server (API controllers + SignalR) serializes enums as strings. The Blazor WASM client deserializes API responses with default `System.Text.Json` options — without the attribute on the enum itself, the client cannot parse string values like `"Text"` back into `ChannelType`. Adding `JsonStringEnumConverter` only on the server side is **not enough**; the attribute must live on the enum type in Core so both sides agree.

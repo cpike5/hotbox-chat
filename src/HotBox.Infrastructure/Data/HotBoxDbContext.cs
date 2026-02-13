@@ -24,6 +24,8 @@ public class HotBoxDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Gu
 
     public DbSet<ServerSettings> ServerSettings => Set<ServerSettings>();
 
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
