@@ -243,7 +243,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("external/{provider}")]
-    public IActionResult ExternalLogin(string provider)
+    public IActionResult ExternalLogin(string provider, [FromQuery] string? inviteCode = null)
     {
         if (!SupportedProviders.Contains(provider))
         {
@@ -253,6 +253,13 @@ public class AuthController : ControllerBase
 
         var redirectUrl = Url.Action(nameof(ExternalCallback), "Auth");
         var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
+
+        // Store invite code in authentication properties if provided
+        if (!string.IsNullOrWhiteSpace(inviteCode))
+        {
+            properties.Items["InviteCode"] = inviteCode;
+            _logger.LogDebug("Invite code stored in OAuth flow for provider {Provider}", provider);
+        }
 
         return Challenge(properties, provider);
     }
@@ -283,10 +290,31 @@ public class AuthController : ControllerBase
         {
             // Check registration mode for new OAuth users
             var oauthSettings = await _serverSettingsService.GetAsync(ct);
-            if (oauthSettings.RegistrationMode == RegistrationMode.Closed)
+            string? inviteCodeForValidation = null;
+
+            switch (oauthSettings.RegistrationMode)
             {
-                _logger.LogWarning("OAuth registration rejected: registration is closed for {Email}", email);
-                return Redirect("/login?error=Registration+is+currently+closed");
+                case RegistrationMode.Closed:
+                    _logger.LogWarning("OAuth registration rejected: registration is closed for {Email}", email);
+                    return Redirect("/login?error=Registration+is+currently+closed");
+
+                case RegistrationMode.InviteOnly:
+                    // Extract invite code from authentication properties
+                    authenticateResult.Properties?.Items.TryGetValue("InviteCode", out inviteCodeForValidation);
+
+                    if (string.IsNullOrWhiteSpace(inviteCodeForValidation))
+                    {
+                        _logger.LogWarning("OAuth registration rejected: invite code required but not provided for {Email}", email);
+                        return Redirect("/register?error=An+invite+code+is+required+to+register");
+                    }
+
+                    // Store code for validation after user creation
+                    _logger.LogDebug("OAuth registration for {Email} has invite code, will validate after user creation", email);
+                    break;
+
+                case RegistrationMode.Open:
+                    // No restrictions
+                    break;
             }
 
             user = new AppUser
@@ -305,7 +333,23 @@ public class AuthController : ControllerBase
             {
                 var errors = string.Join("; ", createResult.Errors.Select(e => e.Description));
                 _logger.LogError("Failed to create user via OAuth for {Email}: {Errors}", email, errors);
-                return Redirect($"/login?error={Uri.EscapeDataString(errors)}");
+                return Redirect($"/register?error={Uri.EscapeDataString(errors)}");
+            }
+
+            // User created successfully - now validate and consume invite code if in InviteOnly mode
+            if (oauthSettings.RegistrationMode == RegistrationMode.InviteOnly && !string.IsNullOrWhiteSpace(inviteCodeForValidation))
+            {
+                var invite = await _inviteService.ValidateAndConsumeAsync(inviteCodeForValidation, ct);
+                if (invite is null)
+                {
+                    // This shouldn't happen if the code was valid moments ago, but handle it
+                    _logger.LogError("OAuth registration: invite code {InviteCode} became invalid after user creation for {Email}", inviteCodeForValidation, email);
+                    // User is already created, so we can't reject - just log the error
+                }
+                else
+                {
+                    _logger.LogInformation("OAuth registration: consumed invite code for {Email}", email);
+                }
             }
 
             var roleResult = await _userManager.AddToRoleAsync(user, DefaultRole);

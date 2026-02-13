@@ -1509,6 +1509,11 @@ input, textarea {
   box-shadow: 0 0 0 3px rgba(199, 96, 96, 0.08);
 }
 
+.form-input-code {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
 .form-error {
   font-size: 11px;
   color: var(--status-dnd);
@@ -1695,6 +1700,23 @@ input, textarea {
 
 .auth-footer a:hover {
   color: var(--accent-hover);
+}
+
+.auth-back-link {
+  display: block;
+  text-align: center;
+  margin-top: 16px;
+}
+
+.auth-back-link a {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.auth-back-link a:hover {
+  color: var(--accent);
 }
 
 /* Registration mode banner */
