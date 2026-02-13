@@ -203,6 +203,71 @@ public class AdminController : ControllerBase
         return Ok(new { message = $"User role updated to {request.Role}." });
     }
 
+    [HttpGet("users/{id:guid}")]
+    public async Task<IActionResult> GetUser(Guid id)
+    {
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return NotFound(new { error = $"User {id} not found." });
+        }
+
+        var roles = await _userManager.GetRolesAsync(user);
+
+        return Ok(new AdminUserDetailResponse
+        {
+            Id = user.Id,
+            DisplayName = user.DisplayName,
+            Email = user.Email ?? string.Empty,
+            Role = roles.FirstOrDefault() ?? "Member",
+            CreatedAtUtc = user.CreatedAtUtc,
+            LastSeenUtc = user.LastSeenUtc,
+            IsAgent = user.IsAgent,
+            AvatarUrl = user.AvatarUrl,
+            Bio = user.Bio,
+            Pronouns = user.Pronouns,
+            CustomStatus = user.CustomStatus,
+            EmailConfirmed = user.EmailConfirmed,
+            LockoutEnd = user.LockoutEnd,
+            LockoutEnabled = user.LockoutEnabled,
+        });
+    }
+
+    [HttpPut("users/{id:guid}/lockout")]
+    public async Task<IActionResult> ToggleLockout(Guid id, [FromBody] ToggleLockoutRequest request)
+    {
+        var adminUserId = GetUserId();
+        if (adminUserId is null)
+        {
+            return Unauthorized(new { error = "Unable to determine user identity." });
+        }
+
+        if (adminUserId == id)
+        {
+            return BadRequest(new { error = "Cannot lock out your own account." });
+        }
+
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return NotFound(new { error = $"User {id} not found." });
+        }
+
+        if (request.Disabled)
+        {
+            await _userManager.SetLockoutEnabledAsync(user, true);
+            await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+            _logger.LogInformation("Admin {AdminUserId} disabled user {UserId}", adminUserId, id);
+        }
+        else
+        {
+            await _userManager.SetLockoutEndDateAsync(user, null);
+            _logger.LogInformation("Admin {AdminUserId} enabled user {UserId}", adminUserId, id);
+        }
+
+        return Ok(new { message = request.Disabled ? "User disabled." : "User enabled." });
+    }
+
     [HttpDelete("users/{id:guid}")]
     public async Task<IActionResult> DeleteUser(Guid id)
     {

@@ -1,6 +1,6 @@
 namespace HotBox.Client.Models;
 
-public class AdminUserResponse
+public class AdminUserDetailResponse
 {
     public Guid Id { get; set; }
 
@@ -15,4 +15,18 @@ public class AdminUserResponse
     public DateTime LastSeenUtc { get; set; }
 
     public bool IsAgent { get; set; }
+
+    public string? AvatarUrl { get; set; }
+
+    public string? Bio { get; set; }
+
+    public string? Pronouns { get; set; }
+
+    public string? CustomStatus { get; set; }
+
+    public bool EmailConfirmed { get; set; }
+
+    public DateTimeOffset? LockoutEnd { get; set; }
+
+    public bool LockoutEnabled { get; set; }
 }
