@@ -20,6 +20,7 @@ public static class ClientServiceExtensions
         services.AddScoped<VoiceHubService>();
         services.AddScoped<WebRtcService>();
         services.AddScoped<VoiceConnectionManager>();
+        services.AddScoped<ToastService>();
 
         return services;
     }

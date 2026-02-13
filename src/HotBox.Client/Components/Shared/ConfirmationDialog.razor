@@ -1,0 +1,62 @@
+@using HotBox.Client.Components.Shared
+
+<Modal IsOpen="@IsOpen" OnClose="HandleCancel" CssClass="modal-confirm">
+    <Title>@Title</Title>
+    <Body>
+        @if (MessageContent is not null)
+        {
+            @MessageContent
+        }
+        else
+        {
+            <p class="confirm-message">@Message</p>
+        }
+    </Body>
+    <Footer>
+        <button class="btn btn-secondary" @onclick="HandleCancel">@CancelText</button>
+        <button class="btn @(IsDanger ? "btn-danger" : "btn-primary")"
+                @onclick="HandleConfirm"
+                disabled="@IsLoading">
+            @if (IsLoading)
+            {
+                @LoadingText
+            }
+            else
+            {
+                @ConfirmText
+            }
+        </button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public string Title { get; set; } = "Confirm";
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public RenderFragment? MessageContent { get; set; }
+    [Parameter] public string ConfirmText { get; set; } = "Confirm";
+    [Parameter] public string CancelText { get; set; } = "Cancel";
+    [Parameter] public bool IsDanger { get; set; }
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public string LoadingText { get; set; } = "Loading...";
+
+    private async Task HandleCancel()
+    {
+        if (OnCancel.HasDelegate)
+        {
+            await OnCancel.InvokeAsync();
+        }
+        else
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private async Task HandleConfirm()
+    {
+        await OnConfirm.InvokeAsync();
+    }
+}

@@ -1,0 +1,19 @@
+<div class="dropdown-item @(IsActive ? "active" : "") @(IsDisabled ? "disabled" : "")"
+     role="menuitem" @onclick="HandleClick">
+    @ChildContent
+</div>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public bool IsActive { get; set; }
+    [Parameter] public bool IsDisabled { get; set; }
+
+    private async Task HandleClick()
+    {
+        if (!IsDisabled)
+        {
+            await OnClick.InvokeAsync();
+        }
+    }
+}

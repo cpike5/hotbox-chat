@@ -5,7 +5,12 @@
 @if (ChannelState.TypingUsers.Count > 0)
 {
     <div class="typing-indicator">
-        @FormatTypingText()
+        <span class="typing-text">@FormatTypingText()</span>
+        <span class="typing-dots">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+        </span>
     </div>
 }
 
@@ -21,10 +26,10 @@
 
         return users.Count switch
         {
-            1 => $"{users[0]} is typing...",
-            2 => $"{users[0]} and {users[1]} are typing...",
-            3 => $"{users[0]}, {users[1]}, and {users[2]} are typing...",
-            _ => "Several people are typing..."
+            1 => $"{users[0]} is typing",
+            2 => $"{users[0]} and {users[1]} are typing",
+            3 => $"{users[0]}, {users[1]}, and {users[2]} are typing",
+            _ => "Several people are typing"
         };
     }
 

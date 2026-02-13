@@ -3,6 +3,7 @@
 @using HotBox.Client.State
 @inject ApiClient Api
 @inject AuthState AuthState
+@inject ToastService ToastService
 @inject ILogger<AdminUserManagement> Logger
 
 <div class="section-header">
@@ -101,102 +102,65 @@ else
     </div>
 }
 
-@* Toast *@
-@if (_toastMessage is not null)
-{
-    <div class="toast-container">
-        <div class="toast @(_toastType == "error" ? "toast-error" : "toast-success") show">
-            @if (_toastType == "success")
-            {
-                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            }
-            else
-            {
-                <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-            }
-            <span>@_toastMessage</span>
-        </div>
-    </div>
-}
-
 @* Create User Modal *@
-@if (_showCreateModal)
-{
-    <div class="modal-overlay open" @onclick="CloseModals">
-        <div class="modal" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3>Create User</h3>
-                <button class="modal-close" @onclick="CloseModals">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
+<Modal IsOpen="@_showCreateModal" OnClose="CloseModals">
+    <Title>Create User</Title>
+    <Body>
+        <div class="form-input-row">
+            <div class="form-group">
+                <label class="form-label admin-form-label">Display Name</label>
+                <input type="text" class="form-input admin-form-input @(_createErrors.ContainsKey("name") ? "error" : "")"
+                       @bind="_createDisplayName" @bind:event="oninput" placeholder="Display name" />
             </div>
-            <div class="modal-body">
-                <div class="form-input-row">
-                    <div class="form-group">
-                        <label class="form-label admin-form-label">Display Name</label>
-                        <input type="text" class="form-input admin-form-input @(_createErrors.ContainsKey("name") ? "error" : "")"
-                               @bind="_createDisplayName" @bind:event="oninput" placeholder="Display name" />
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label admin-form-label">Role</label>
-                        <select class="form-select" @bind="_createRole">
-                            <option value="Member">Member</option>
-                            <option value="Moderator">Moderator</option>
-                            <option value="Admin">Admin</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label admin-form-label">Email</label>
-                    <input type="email" class="form-input admin-form-input @(_createErrors.ContainsKey("email") ? "error" : "")"
-                           @bind="_createEmail" @bind:event="oninput" placeholder="user@example.com" />
-                </div>
-                <div class="form-group">
-                    <label class="form-label admin-form-label">Password</label>
-                    <input type="password" class="form-input admin-form-input @(_createErrors.ContainsKey("password") ? "error" : "")"
-                           @bind="_createPassword" @bind:event="oninput" placeholder="Minimum 8 characters" />
-                </div>
-                @if (_createErrors.Count > 0)
-                {
-                    <div class="form-error visible">@_createErrors.Values.First()</div>
-                }
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
-                <button class="btn btn-primary" @onclick="CreateUser" disabled="@_isSubmitting">
-                    @(_isSubmitting ? "Creating..." : "Create User")
-                </button>
+            <div class="form-group">
+                <label class="form-label admin-form-label">Role</label>
+                <select class="form-select" @bind="_createRole">
+                    <option value="Member">Member</option>
+                    <option value="Moderator">Moderator</option>
+                    <option value="Admin">Admin</option>
+                </select>
             </div>
         </div>
-    </div>
-}
+        <div class="form-group">
+            <label class="form-label admin-form-label">Email</label>
+            <input type="email" class="form-input admin-form-input @(_createErrors.ContainsKey("email") ? "error" : "")"
+                   @bind="_createEmail" @bind:event="oninput" placeholder="user@example.com" />
+        </div>
+        <div class="form-group">
+            <label class="form-label admin-form-label">Password</label>
+            <input type="password" class="form-input admin-form-input @(_createErrors.ContainsKey("password") ? "error" : "")"
+                   @bind="_createPassword" @bind:event="oninput" placeholder="Minimum 8 characters" />
+        </div>
+        @if (_createErrors.Count > 0)
+        {
+            <div class="form-error visible">@_createErrors.Values.First()</div>
+        }
+    </Body>
+    <Footer>
+        <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
+        <button class="btn btn-primary" @onclick="CreateUser" disabled="@_isSubmitting">
+            @(_isSubmitting ? "Creating..." : "Create User")
+        </button>
+    </Footer>
+</Modal>
 
-@* Delete Confirmation Modal *@
-@if (_showDeleteConfirm && _deleteUser is not null)
-{
-    <div class="modal-overlay open" @onclick="CloseModals">
-        <div class="modal modal-confirm" @onclick:stopPropagation="true">
-            <div class="modal-header">
-                <h3>Delete User</h3>
-                <button class="modal-close" @onclick="CloseModals">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p class="confirm-message">
-                    Are you sure you want to permanently delete <strong>@_deleteUser.DisplayName</strong>?
-                    This action cannot be undone.
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="CloseModals">Cancel</button>
-                <button class="btn btn-danger" @onclick="ConfirmDeleteUser" disabled="@_isSubmitting">
-                    @(_isSubmitting ? "Deleting..." : "Delete User")
-                </button>
-            </div>
-        </div>
-    </div>
-}
+@* Delete Confirmation *@
+<ConfirmationDialog IsOpen="@(_showDeleteConfirm && _deleteUser is not null)"
+                    OnClose="CloseModals"
+                    OnCancel="CloseModals"
+                    OnConfirm="ConfirmDeleteUser"
+                    Title="Delete User"
+                    ConfirmText="Delete User"
+                    LoadingText="Deleting..."
+                    IsDanger="true"
+                    IsLoading="@_isSubmitting">
+    <MessageContent>
+        <p class="confirm-message">
+            Are you sure you want to permanently delete <strong>@_deleteUser?.DisplayName</strong>?
+            This action cannot be undone.
+        </p>
+    </MessageContent>
+</ConfirmationDialog>
 
 @code {
     private List<AdminUserResponse> _users = new();
@@ -215,10 +179,6 @@ else
     // Delete confirm
     private bool _showDeleteConfirm;
     private AdminUserResponse? _deleteUser;
-
-    // Toast
-    private string? _toastMessage;
-    private string _toastType = "success";
 
     private List<AdminUserResponse> FilteredUsers
     {
@@ -258,7 +218,7 @@ else
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to load admin users");
-            ShowToast("Failed to load users.", "error");
+            ToastService.ShowError("Failed to load users.");
         }
         finally
         {
@@ -311,17 +271,17 @@ else
             {
                 _users.Add(result);
                 CloseModals();
-                ShowToast($"User \"{_createDisplayName.Trim()}\" created", "success");
+                ToastService.ShowSuccess($"User \"{_createDisplayName.Trim()}\" created");
             }
             else
             {
-                ShowToast("Failed to create user. The email may already be in use.", "error");
+                ToastService.ShowError("Failed to create user. The email may already be in use.");
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to create admin user");
-            ShowToast("Failed to create user.", "error");
+            ToastService.ShowError("Failed to create user.");
         }
         finally
         {
@@ -340,12 +300,12 @@ else
         var success = await Api.ChangeUserRoleAsync(user.Id, newRole);
         if (success)
         {
-            ShowToast($"Role updated for {user.DisplayName}", "success");
+            ToastService.ShowSuccess($"Role updated for {user.DisplayName}");
         }
         else
         {
             user.Role = oldRole;
-            ShowToast("Failed to update role.", "error");
+            ToastService.ShowError("Failed to update role.");
         }
     }
 
@@ -362,37 +322,22 @@ else
                 var name = _deleteUser.DisplayName;
                 _users.RemoveAll(u => u.Id == _deleteUser.Id);
                 CloseModals();
-                ShowToast($"User \"{name}\" deleted", "success");
+                ToastService.ShowSuccess($"User \"{name}\" deleted");
             }
             else
             {
-                ShowToast("Failed to delete user.", "error");
+                ToastService.ShowError("Failed to delete user.");
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to delete user {UserId}", _deleteUser.Id);
-            ShowToast("Failed to delete user.", "error");
+            ToastService.ShowError("Failed to delete user.");
         }
         finally
         {
             _isSubmitting = false;
         }
-    }
-
-    private void ShowToast(string message, string type)
-    {
-        _toastMessage = message;
-        _toastType = type;
-        StateHasChanged();
-        _ = HideToastAfterDelay();
-    }
-
-    private async Task HideToastAfterDelay()
-    {
-        await Task.Delay(3000);
-        _toastMessage = null;
-        await InvokeAsync(StateHasChanged);
     }
 
     private static string FormatDate(DateTime utcDate)

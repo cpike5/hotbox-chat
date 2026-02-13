@@ -1,0 +1,34 @@
+<section class="empty-state" aria-labelledby="@_titleId">
+    @if (Icon is not null)
+    {
+        <div class="empty-state-icon">
+            @Icon
+        </div>
+    }
+    <h3 id="@_titleId" class="empty-state-title">@Title</h3>
+    @if (DescriptionContent is not null)
+    {
+        <p class="empty-state-description">@DescriptionContent</p>
+    }
+    else if (Description is not null)
+    {
+        <p class="empty-state-description">@Description</p>
+    }
+    @if (ActionText is not null)
+    {
+        <button class="btn btn-secondary empty-state-action" @onclick="OnAction">
+            @ActionText
+        </button>
+    }
+</section>
+
+@code {
+    [Parameter] public RenderFragment? Icon { get; set; }
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public RenderFragment? DescriptionContent { get; set; }
+    [Parameter] public string? ActionText { get; set; }
+    [Parameter] public EventCallback OnAction { get; set; }
+
+    private readonly string _titleId = $"empty-state-{Guid.NewGuid().ToString("N")[..8]}";
+}

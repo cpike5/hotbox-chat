@@ -1,0 +1,39 @@
+<span class="badge badge-@Variant.ToString().ToLower() badge-@Size.ToString().ToLower() @StatusCssClass"
+      style="@CustomColorStyle">
+    @if (Variant == BadgeVariant.Status)
+    {
+        <span class="badge-dot"></span>
+    }
+    @if (Variant == BadgeVariant.Count && Count.HasValue)
+    {
+        @Count
+    }
+    else if (Text is not null)
+    {
+        @Text
+    }
+    @ChildContent
+</span>
+
+@code {
+    public enum BadgeVariant { Status, Role, Count, Custom }
+    public enum BadgeSize { Sm, Md }
+
+    [Parameter] public BadgeVariant Variant { get; set; } = BadgeVariant.Custom;
+    [Parameter] public BadgeSize Size { get; set; } = BadgeSize.Md;
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public string? Color { get; set; }
+    [Parameter] public string? StatusType { get; set; }
+    [Parameter] public int? Count { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string StatusCssClass =>
+        Variant == BadgeVariant.Status && !string.IsNullOrEmpty(StatusType)
+            ? $"status-{StatusType.ToLower()}"
+            : string.Empty;
+
+    private string? CustomColorStyle =>
+        Variant == BadgeVariant.Custom && !string.IsNullOrEmpty(Color)
+            ? $"color: {Color};"
+            : null;
+}

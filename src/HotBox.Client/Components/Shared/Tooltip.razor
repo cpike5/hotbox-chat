@@ -1,0 +1,65 @@
+@implements IDisposable
+
+<div class="tooltip-wrapper" @onmouseenter="ShowTooltip" @onmouseleave="HideTooltip">
+    @ChildContent
+    @if (_isVisible)
+    {
+        <div class="tooltip-popup tooltip-@Position" role="tooltip">
+            @if (TooltipContent is not null)
+            {
+                @TooltipContent
+            }
+            else
+            {
+                @Text
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public RenderFragment? TooltipContent { get; set; }
+    [Parameter] public string Position { get; set; } = "top";
+    [Parameter] public int DelayMs { get; set; } = 500;
+
+    private bool _isVisible;
+    private CancellationTokenSource? _delayCts;
+
+    private async Task ShowTooltip()
+    {
+        _delayCts?.Cancel();
+        _delayCts?.Dispose();
+        _delayCts = new CancellationTokenSource();
+        var ct = _delayCts.Token;
+
+        try
+        {
+            await Task.Delay(DelayMs, ct);
+            if (!ct.IsCancellationRequested)
+            {
+                _isVisible = true;
+                StateHasChanged();
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Delay cancelled -- expected when mouse leaves before delay completes
+        }
+    }
+
+    private void HideTooltip()
+    {
+        _delayCts?.Cancel();
+        _delayCts?.Dispose();
+        _delayCts = null;
+        _isVisible = false;
+    }
+
+    public void Dispose()
+    {
+        _delayCts?.Cancel();
+        _delayCts?.Dispose();
+    }
+}

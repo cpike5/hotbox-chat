@@ -1,0 +1,69 @@
+@for (int i = 0; i < Count; i++)
+{
+    @if (Preset.HasValue)
+    {
+        @switch (Preset.Value)
+        {
+            case SkeletonPreset.Message:
+                <div class="skeleton-message">
+                    <div class="skeleton skeleton-avatar"></div>
+                    <div class="skeleton-message-content">
+                        <div class="skeleton-message-header">
+                            <div class="skeleton skeleton-message-author" style="width: 72px;"></div>
+                            <div class="skeleton skeleton-message-time"></div>
+                        </div>
+                        <div class="skeleton skeleton-message-line" style="width: 85%;"></div>
+                        <div class="skeleton skeleton-message-line" style="width: 60%;"></div>
+                    </div>
+                </div>
+                break;
+
+            case SkeletonPreset.UserListItem:
+                <div class="skeleton-member">
+                    <div class="skeleton skeleton-avatar"></div>
+                    <div class="skeleton skeleton-member-name" style="width: 72px;"></div>
+                </div>
+                break;
+
+            case SkeletonPreset.ChannelListItem:
+                <div class="skeleton-channel">
+                    <div class="skeleton skeleton-channel-hash"></div>
+                    <div class="skeleton skeleton-channel-name" style="width: 64px;"></div>
+                </div>
+                break;
+        }
+    }
+    else
+    {
+        @switch (Shape)
+        {
+            case SkeletonShape.Line:
+                <div class="skeleton" style="width: @(Width ?? "100%"); height: @(Height ?? "14px"); border-radius: var(--radius-sm);"></div>
+                break;
+
+            case SkeletonShape.Circle:
+                <div class="skeleton" style="width: @(Width ?? "32px"); height: @(Height ?? Width ?? "32px"); border-radius: var(--radius-pill);"></div>
+                break;
+
+            case SkeletonShape.Rectangle:
+                <div class="skeleton" style="width: @(Width ?? "100%"); height: @(Height ?? "40px"); border-radius: var(--radius-md);"></div>
+                break;
+
+            case SkeletonShape.Custom:
+                @ChildContent
+                break;
+        }
+    }
+}
+
+@code {
+    public enum SkeletonShape { Line, Circle, Rectangle, Custom }
+    public enum SkeletonPreset { Message, UserListItem, ChannelListItem }
+
+    [Parameter] public SkeletonShape Shape { get; set; } = SkeletonShape.Line;
+    [Parameter] public string? Width { get; set; }
+    [Parameter] public string? Height { get; set; }
+    [Parameter] public SkeletonPreset? Preset { get; set; }
+    [Parameter] public int Count { get; set; } = 1;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -1,0 +1,27 @@
+<label class="toggle-switch @(Disabled ? "disabled" : "")">
+    <input type="checkbox" checked="@IsChecked" @onchange="HandleToggle" disabled="@Disabled"
+           role="switch" aria-checked="@IsChecked" />
+    <span class="toggle-track">
+        <span class="toggle-knob"></span>
+    </span>
+    @if (Label is not null)
+    {
+        <span class="toggle-label">@Label</span>
+    }
+</label>
+
+@code {
+    [Parameter] public bool IsChecked { get; set; }
+    [Parameter] public EventCallback<bool> IsCheckedChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback<bool> OnToggle { get; set; }
+
+    private async Task HandleToggle(ChangeEventArgs e)
+    {
+        var newValue = (bool)(e.Value ?? false);
+        IsChecked = newValue;
+        await IsCheckedChanged.InvokeAsync(IsChecked);
+        await OnToggle.InvokeAsync(IsChecked);
+    }
+}
