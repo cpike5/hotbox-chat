@@ -26,77 +26,63 @@ You own the entire Blazor WASM client shell and the holistic user experience:
 ```
 # Layout
 src/HotBox.Client/Layout/MainLayout.razor
-src/HotBox.Client/Layout/MainLayout.razor.css
+src/HotBox.Client/Layout/AuthLayout.razor
+src/HotBox.Client/Layout/AdminLayout.razor
 
-# Sidebar
-src/HotBox.Client/Components/Sidebar/Sidebar.razor
-src/HotBox.Client/Components/Sidebar/ServerHeader.razor
-src/HotBox.Client/Components/Sidebar/ChannelList.razor
-src/HotBox.Client/Components/Sidebar/ChannelItem.razor
-src/HotBox.Client/Components/Sidebar/DirectMessageList.razor
-src/HotBox.Client/Components/Sidebar/DirectMessageItem.razor
-src/HotBox.Client/Components/Sidebar/UserPanel.razor
+# Pages
+src/HotBox.Client/Pages/Login.razor
+src/HotBox.Client/Pages/Register.razor
+src/HotBox.Client/Pages/Channel.razor
+src/HotBox.Client/Pages/DirectMessage.razor
+src/HotBox.Client/Pages/Admin.razor
 
-# Chat
-src/HotBox.Client/Components/Chat/ChatView.razor
+# Chat Components
+src/HotBox.Client/Components/Chat/ChannelList.razor
+src/HotBox.Client/Components/Chat/DirectMessageList.razor
 src/HotBox.Client/Components/Chat/ChannelHeader.razor
 src/HotBox.Client/Components/Chat/MessageList.razor
-src/HotBox.Client/Components/Chat/MessageGroup.razor
+src/HotBox.Client/Components/Chat/DirectMessageMessageList.razor
 src/HotBox.Client/Components/Chat/MessageInput.razor
+src/HotBox.Client/Components/Chat/DirectMessageInput.razor
 src/HotBox.Client/Components/Chat/TypingIndicator.razor
+src/HotBox.Client/Components/Chat/MembersPanel.razor
 
-# Members
-src/HotBox.Client/Components/Members/MembersPanel.razor
-src/HotBox.Client/Components/Members/MemberItem.razor
+# Profile Components
+src/HotBox.Client/Components/Profile/EditProfileModal.razor
+src/HotBox.Client/Components/Profile/UserProfilePopover.razor
 
-# Auth
-src/HotBox.Client/Components/Auth/LoginPage.razor
-src/HotBox.Client/Components/Auth/RegisterPage.razor
-src/HotBox.Client/Components/Auth/OAuthButtons.razor
+# Admin Components
+src/HotBox.Client/Components/Admin/AdminServerSettings.razor
+src/HotBox.Client/Components/Admin/AdminChannelManagement.razor
+src/HotBox.Client/Components/Admin/AdminUserManagement.razor
+src/HotBox.Client/Components/Admin/AdminInviteManagement.razor
+src/HotBox.Client/Components/Admin/AdminApiKeyManagement.razor
 
-# Admin
-src/HotBox.Client/Components/Admin/AdminPanel.razor
-src/HotBox.Client/Components/Admin/ChannelManagement.razor
-src/HotBox.Client/Components/Admin/UserManagement.razor
-src/HotBox.Client/Components/Admin/InviteManagement.razor
-src/HotBox.Client/Components/Admin/ServerSettings.razor
-
-# Search
-src/HotBox.Client/Components/Search/SearchOverlay.razor
-src/HotBox.Client/Components/Search/SearchOverlay.razor.css
-src/HotBox.Client/Components/Search/SearchInput.razor
-src/HotBox.Client/Components/Search/SearchResults.razor
-src/HotBox.Client/Components/Search/SearchResultItem.razor
-src/HotBox.Client/Components/Search/SearchHighlight.razor
-src/HotBox.Client/State/SearchState.cs
-src/HotBox.Client/Models/SearchResultDto.cs
-src/HotBox.Client/Models/SearchResponse.cs
-
-# Shared
-src/HotBox.Client/Components/Shared/Avatar.razor
-src/HotBox.Client/Components/Shared/StatusDot.razor
-src/HotBox.Client/Components/Shared/UnreadBadge.razor
-src/HotBox.Client/Components/Shared/LoadingSpinner.razor
-src/HotBox.Client/Components/Shared/ErrorBoundary.razor
+# Shared Components
+src/HotBox.Client/Components/SearchOverlay.razor
+src/HotBox.Client/Components/NewDmPicker.razor
+src/HotBox.Client/Components/ConnectionStatus.razor
+src/HotBox.Client/Components/GlobalErrorBoundary.razor
 
 # Services
-src/HotBox.Client/Services/IApiClient.cs
 src/HotBox.Client/Services/ApiClient.cs
-src/HotBox.Client/Services/IAuthService.cs
-src/HotBox.Client/Services/AuthService.cs
-src/HotBox.Client/Services/IChatHubService.cs
 src/HotBox.Client/Services/ChatHubService.cs
-src/HotBox.Client/Services/INotificationService.cs
 src/HotBox.Client/Services/NotificationService.cs
+src/HotBox.Client/Services/JwtParser.cs
 
 # State
 src/HotBox.Client/State/AppState.cs
 src/HotBox.Client/State/ChannelState.cs
+src/HotBox.Client/State/DirectMessageState.cs
 src/HotBox.Client/State/AuthState.cs
 src/HotBox.Client/State/PresenceState.cs
+src/HotBox.Client/State/SearchState.cs
 
 # Models / DTOs
 src/HotBox.Client/Models/
+
+# Dependency Injection
+src/HotBox.Client/DependencyInjection/ClientServiceExtensions.cs
 
 # Styles
 src/HotBox.Client/wwwroot/css/app.css
@@ -116,40 +102,41 @@ tests/HotBox.Client.Tests/
 
 ## Code You Don't Own (But Integrate With)
 
-- `VoiceChannelItem.razor`, `VoiceUserList.razor`, `VoiceConnectedPanel.razor` — owned by Real-time & Media (these plug into your sidebar layout)
 - `webrtc-interop.js`, `audio-interop.js` — owned by Real-time & Media
-- `VoiceHubService.cs`, `WebRtcService.cs`, `VoiceState.cs` — owned by Real-time & Media
+- `VoiceHubService.cs`, `WebRtcService.cs`, `VoiceConnectionManager.cs`, `VoiceState.cs` — owned by Real-time & Media
 - Server-side controllers, hubs, services — owned by their respective domains
 
 ## Documentation You Maintain
 
 - `docs/technical-spec.md` — Section 3 (Frontend Architecture), design tokens table (Section 3.5)
 - `docs/implementation-plan.md` — Phase 7 (Auth UI), Phase 8 (Admin Panel)
-- UI prototype at `temp/prototype.html`
+- UI prototypes at `prototypes/main-ui-proposal.html` and other files in `prototypes/`
 
 ## Design System
 
 ### Design Tokens (CSS Custom Properties)
 
-These are defined in `wwwroot/css/app.css` and derived from the prototype at `temp/prototype.html`:
+These are defined in `wwwroot/css/app.css` and derived from the prototype at `prototypes/main-ui-proposal.html`:
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--bg-deepest` | `#1a1a1e` | Outermost background, user panel |
-| `--bg-deep` | `#1e1e23` | Sidebar, members panel |
-| `--bg-base` | `#232329` | Main content area |
-| `--bg-raised` | `#2a2a32` | Message input, cards |
-| `--bg-surface` | `#32323c` | Avatars, elevated surfaces |
-| `--bg-hover` | `#3a3a46` | Hover states |
-| `--bg-active` | `#424250` | Active/selected states |
-| `--text-primary` | `#e4e4e8` | Primary text |
-| `--text-secondary` | `#a0a0aa` | Secondary text, message bodies |
-| `--text-muted` | `#6e6e7a` | Timestamps, hints |
-| `--accent` | `#7aa2f7` | Links, active indicators |
-| `--status-online` | `#50c878` | Online status dot |
-| `--status-idle` | `#e2b93d` | Idle status dot |
-| `--status-dnd` | `#f7768e` | Do Not Disturb status dot |
-| `--status-offline` | `#565664` | Offline status dot |
+| `--bg-deepest` | `#0c0c0f` | Outermost background, user panel |
+| `--bg-deep` | `#111116` | Sidebar, members panel |
+| `--bg-base` | `#16161d` | Main content area |
+| `--bg-raised` | `#1c1c25` | Message input, cards |
+| `--bg-surface` | `#23232e` | Avatars, elevated surfaces |
+| `--bg-hover` | `#2a2a37` | Hover states |
+| `--bg-active` | `#32323f` | Active/selected states |
+| `--text-primary` | `#e2e2ea` | Primary text |
+| `--text-secondary` | `#9898a8` | Secondary text, message bodies |
+| `--text-muted` | `#5c5c72` | Timestamps, hints |
+| `--text-faint` | `#3e3e52` | Very subtle text |
+| `--accent` | `#5de4c7` | Links, active indicators (cool teal) |
+| `--accent-hover` | `#7aecd5` | Accent hover state |
+| `--status-online` | `#6bc76b` | Online status dot |
+| `--status-idle` | `#c7a63e` | Idle status dot |
+| `--status-dnd` | `#c76060` | Do Not Disturb status dot |
+| `--status-offline` | `#4a4a5a` | Offline status dot |
 
 ### Design Principles
 
@@ -162,15 +149,17 @@ These are defined in `wwwroot/css/app.css` and derived from the prototype at `te
 
 ### Layout
 
-Three-panel layout (based on prototype):
+Top-bar layout with left sidebar (based on prototype):
 ```
-+----------+------------------+----------+
-|          |                  |          |
-| Sidebar  |    Chat Area     | Members  |
-| (240px)  |    (flexible)    | (240px)  |
-|          |                  |(toggle)  |
-|          |                  |          |
-+----------+------------------+----------+
++-----------------------------------------------+
+|  Top Bar (channels/DMs, server name)         |
++----------+------------------------------------+
+|          |                                    |
+| Members  |          Chat Area                 |
+| Panel    |          (flexible)                |
+| (240px)  |                                    |
+| (toggle) |                                    |
++----------+------------------------------------+
 ```
 
 ## State Management Pattern

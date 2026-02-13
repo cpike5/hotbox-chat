@@ -88,24 +88,45 @@ HotBox.sln
 +-- src/
 |   +-- HotBox.Core/                    # Domain layer (no dependencies)
 |   |   +-- Entities/
-|   |   |   +-- User.cs
+|   |   |   +-- AppUser.cs
 |   |   |   +-- Channel.cs
 |   |   |   +-- Message.cs
 |   |   |   +-- DirectMessage.cs
-|   |   |   +-- Role.cs
-|   |   |   +-- VoiceChannel.cs
 |   |   |   +-- Invite.cs
+|   |   |   +-- ApiKey.cs
+|   |   |   +-- RefreshToken.cs
+|   |   |   +-- ServerSettings.cs
 |   |   +-- Enums/
 |   |   |   +-- ChannelType.cs
 |   |   |   +-- RegistrationMode.cs
 |   |   |   +-- UserStatus.cs
+|   |   +-- Models/
+|   |   |   +-- SearchQuery.cs
+|   |   |   +-- SearchResult.cs
+|   |   |   +-- SearchResultItem.cs
+|   |   |   +-- ConversationSummary.cs
+|   |   +-- Options/
+|   |   |   +-- ServerOptions.cs
+|   |   |   +-- DatabaseOptions.cs
+|   |   |   +-- JwtOptions.cs
+|   |   |   +-- OAuthOptions.cs
+|   |   |   +-- IceServerOptions.cs
+|   |   |   +-- ObservabilityOptions.cs
+|   |   |   +-- AdminSeedOptions.cs
+|   |   |   +-- SearchOptions.cs
 |   |   +-- Interfaces/
 |   |   |   +-- IChannelRepository.cs
 |   |   |   +-- IMessageRepository.cs
 |   |   |   +-- IDirectMessageRepository.cs
-|   |   |   +-- IUserRepository.cs
 |   |   |   +-- IInviteRepository.cs
-|   |   |   +-- IUnitOfWork.cs
+|   |   |   +-- IChannelService.cs
+|   |   |   +-- IMessageService.cs
+|   |   |   +-- IDirectMessageService.cs
+|   |   |   +-- IInviteService.cs
+|   |   |   +-- IPresenceService.cs
+|   |   |   +-- INotificationService.cs
+|   |   |   +-- IServerSettingsService.cs
+|   |   |   +-- ITokenService.cs
 |   |   |   +-- ISearchService.cs
 |   |   +-- HotBox.Core.csproj
 |   |
@@ -113,25 +134,35 @@ HotBox.sln
 |   |   +-- Data/
 |   |   |   +-- HotBoxDbContext.cs
 |   |   |   +-- Configurations/          # EF Core Fluent API configs
-|   |   |   |   +-- UserConfiguration.cs
+|   |   |   |   +-- AppUserConfiguration.cs
 |   |   |   |   +-- ChannelConfiguration.cs
 |   |   |   |   +-- MessageConfiguration.cs
 |   |   |   |   +-- DirectMessageConfiguration.cs
+|   |   |   |   +-- ApiKeyConfiguration.cs
+|   |   |   |   +-- RefreshTokenConfiguration.cs
+|   |   |   |   +-- ServerSettingsConfiguration.cs
 |   |   |   +-- Migrations/
+|   |   |   +-- Seeding/
+|   |   |       +-- DatabaseSeeder.cs
 |   |   +-- Repositories/
 |   |   |   +-- ChannelRepository.cs
 |   |   |   +-- MessageRepository.cs
 |   |   |   +-- DirectMessageRepository.cs
-|   |   |   +-- UserRepository.cs
 |   |   |   +-- InviteRepository.cs
-|   |   +-- Search/
-|   |   |   +-- PostgresSearchService.cs
-|   |   |   +-- MySqlSearchService.cs
-|   |   |   +-- SqliteSearchService.cs
-|   |   |   +-- FallbackSearchService.cs      # SQL LIKE fallback
-|   |   +-- Identity/
-|   |   |   +-- AppUser.cs              # ASP.NET Identity user (extends IdentityUser)
-|   |   +-- Extensions/
+|   |   +-- Services/
+|   |   |   +-- ChannelService.cs
+|   |   |   +-- MessageService.cs
+|   |   |   +-- DirectMessageService.cs
+|   |   |   +-- InviteService.cs
+|   |   |   +-- PresenceService.cs
+|   |   |   +-- ServerSettingsService.cs
+|   |   |   +-- TokenService.cs
+|   |   |   +-- Search/
+|   |   |       +-- PostgresSearchService.cs
+|   |   |       +-- MySqlSearchService.cs
+|   |   |       +-- SqliteSearchService.cs
+|   |   |       +-- FallbackSearchService.cs
+|   |   +-- DependencyInjection/
 |   |   |   +-- InfrastructureServiceExtensions.cs
 |   |   +-- HotBox.Infrastructure.csproj
 |   |
@@ -144,31 +175,21 @@ HotBox.sln
 |   |   |   +-- SearchController.cs
 |   |   |   +-- UsersController.cs
 |   |   |   +-- AdminController.cs
+|   |   |   +-- AgentsController.cs
 |   |   +-- Hubs/
 |   |   |   +-- ChatHub.cs
 |   |   |   +-- VoiceSignalingHub.cs
 |   |   +-- Services/
-|   |   |   +-- IChannelService.cs
-|   |   |   +-- ChannelService.cs
-|   |   |   +-- IMessageService.cs
-|   |   |   +-- MessageService.cs
-|   |   |   +-- IDirectMessageService.cs
-|   |   |   +-- DirectMessageService.cs
-|   |   |   +-- ISearchService.cs
-|   |   |   +-- SearchService.cs
-|   |   |   +-- IPresenceService.cs
-|   |   |   +-- PresenceService.cs
-|   |   |   +-- INotificationService.cs
 |   |   |   +-- NotificationService.cs
-|   |   +-- Configuration/
-|   |   |   +-- HotBoxOptions.cs
-|   |   |   +-- AuthOptions.cs
-|   |   |   +-- OAuthProviderOptions.cs
-|   |   |   +-- DatabaseOptions.cs
-|   |   |   +-- SearchOptions.cs
-|   |   +-- Extensions/
+|   |   +-- Authentication/
+|   |   |   +-- ApiKeyAuthenticationHandler.cs
+|   |   +-- Models/
+|   |   |   +-- MessageResponse.cs
+|   |   |   +-- DirectMessageResponse.cs
+|   |   |   +-- UserResponse.cs
+|   |   |   +-- (other DTOs)
+|   |   +-- DependencyInjection/
 |   |   |   +-- ApplicationServiceExtensions.cs
-|   |   |   +-- AuthenticationExtensions.cs
 |   |   |   +-- ObservabilityExtensions.cs
 |   |   +-- Middleware/
 |   |   |   +-- RequestLoggingMiddleware.cs
@@ -186,10 +207,8 @@ HotBox.sln
 |   +-- HotBox.Application.Tests/
 |   +-- HotBox.Client.Tests/
 |
-+-- docker/
-|   +-- Dockerfile
-|   +-- docker-compose.yml
-|   +-- docker-compose.dev.yml
++-- Dockerfile
++-- docker-compose.yml
 |
 +-- docs/
 ```
@@ -197,7 +216,7 @@ HotBox.sln
 ### 2.2 Project Dependencies
 
 ```
-HotBox.Core          --> (none - zero external dependencies)
+HotBox.Core          --> Microsoft.Extensions.Identity.Stores (for IdentityUser<Guid>)
 HotBox.Infrastructure --> HotBox.Core, EF Core, ASP.NET Identity
 HotBox.Application    --> HotBox.Core, HotBox.Infrastructure, SignalR, Serilog, OpenTelemetry
 HotBox.Client         --> (standalone Blazor WASM, communicates via HTTP/SignalR)
@@ -205,72 +224,95 @@ HotBox.Client         --> (standalone Blazor WASM, communicates via HTTP/SignalR
 
 ### 2.3 API Endpoint Design
 
-All API endpoints are prefixed with `/api/v1/`.
+All API endpoints are prefixed with `/api/`.
 
 #### Authentication
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| POST | `/api/v1/auth/register` | Register new user (respects registration mode) |
-| POST | `/api/v1/auth/login` | Email/password login, returns JWT |
-| POST | `/api/v1/auth/refresh` | Refresh JWT token |
-| POST | `/api/v1/auth/logout` | Invalidate refresh token |
-| GET | `/api/v1/auth/providers` | List enabled OAuth providers |
-| GET | `/api/v1/auth/external/{provider}` | Initiate OAuth flow |
-| GET | `/api/v1/auth/external/callback` | OAuth callback handler |
+| POST | `/api/auth/register` | Register new user (respects registration mode) |
+| POST | `/api/auth/login` | Email/password login, returns JWT |
+| POST | `/api/auth/refresh` | Refresh JWT token |
+| POST | `/api/auth/logout` | Invalidate refresh token |
+| GET | `/api/auth/providers` | List enabled OAuth providers |
+| GET | `/api/auth/registration-mode` | Get current registration mode |
+| GET | `/api/auth/external/{provider}` | Initiate OAuth flow |
+| GET | `/api/auth/external/callback` | OAuth callback handler |
 
 #### Channels
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/api/v1/channels` | List all channels (text + voice) |
-| POST | `/api/v1/channels` | Create channel (admin/mod) |
-| GET | `/api/v1/channels/{id}` | Get channel details |
-| PUT | `/api/v1/channels/{id}` | Update channel (admin/mod) |
-| DELETE | `/api/v1/channels/{id}` | Delete channel (admin) |
+| GET | `/api/channels` | List all channels (text + voice) |
+| POST | `/api/channels` | Create channel (admin/mod) |
+| GET | `/api/channels/{id}` | Get channel details |
+| PUT | `/api/channels/{id}` | Update channel (admin/mod) |
+| DELETE | `/api/channels/{id}` | Delete channel (admin) |
 
 #### Messages
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/api/v1/channels/{channelId}/messages` | Get message history (paginated) |
-| POST | `/api/v1/channels/{channelId}/messages` | Post message (also via SignalR) |
+| GET | `/api/channels/{channelId}/messages` | Get message history (paginated) |
+| GET | `/api/messages/{id}` | Get message by ID |
+| POST | `/api/channels/{channelId}/messages` | Post message (also via SignalR) |
 
 #### Direct Messages
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/api/v1/dm/conversations` | List DM conversations |
-| GET | `/api/v1/dm/{userId}/messages` | Get DM history (paginated) |
-| POST | `/api/v1/dm/{userId}/messages` | Send DM (also via SignalR) |
+| GET | `/api/dm` | List DM conversations |
+| GET | `/api/dm/{userId}` | Get DM history (paginated) |
+| POST | `/api/dm/{userId}` | Send DM (also via SignalR) |
 
 #### Search
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/api/v1/search/messages` | Search channel messages (query params: `q`, `channelId?`, `authorId?`, `before?`, `after?`, `page`, `pageSize`) |
-| GET | `/api/v1/search/dm` | Search direct messages (query params: `q`, `participantId?`, `before?`, `after?`, `page`, `pageSize`) |
-| POST | `/api/v1/admin/search/reindex` | Backfill search index from database (admin only) |
+| GET | `/api/search/messages` | Search channel messages (query params: `q`, `channelId?`, `senderId?`, `cursor?`, `limit`) |
+| GET | `/api/search/status` | Get search index status |
+| POST | `/api/search/reindex` | Rebuild search index from database (admin only) |
 
 #### Users
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/api/v1/users` | List users |
-| GET | `/api/v1/users/{id}` | Get user profile |
-| PUT | `/api/v1/users/me` | Update own profile |
-| GET | `/api/v1/users/me` | Get own profile |
+| GET | `/api/users` | List all users |
+| GET | `/api/users/search?q=term` | Search users by display name |
+| GET | `/api/users/me` | Get own profile |
+| PUT | `/api/users/me` | Update own profile |
+| GET | `/api/users/{id}` | Get user profile |
 
 #### Admin
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/api/v1/admin/settings` | Get server settings |
-| PUT | `/api/v1/admin/settings` | Update server settings |
-| POST | `/api/v1/admin/users` | Create user (closed registration) |
-| PUT | `/api/v1/admin/users/{id}/role` | Assign role to user |
-| POST | `/api/v1/admin/invites` | Generate invite code |
-| DELETE | `/api/v1/admin/invites/{code}` | Revoke invite |
+| GET | `/api/admin/settings` | Get server settings |
+| PUT | `/api/admin/settings` | Update server settings |
+| GET | `/api/admin/users` | List all users (admin view) |
+| POST | `/api/admin/users` | Create user (closed registration) |
+| PUT | `/api/admin/users/{id}/role` | Assign role to user |
+| DELETE | `/api/admin/users/{id}` | Delete user |
+| GET | `/api/admin/invites` | List all invites |
+| POST | `/api/admin/invites` | Generate invite code |
+| DELETE | `/api/admin/invites/{code}` | Revoke invite |
+| PUT | `/api/admin/channels/reorder` | Reorder channels |
+| POST | `/api/admin/apikeys` | Create API key |
+| GET | `/api/admin/apikeys` | List API keys |
+| PUT | `/api/admin/apikeys/{id}/revoke` | Revoke API key |
+
+#### Agents
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/admin/agents` | Create agent account with API key |
+| GET | `/api/admin/agents` | List agents created by API key |
+
+#### Health
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/health` | Health check endpoint (database connectivity) |
 
 ### 2.4 SignalR Hub Design
 
@@ -294,18 +336,21 @@ Handles all real-time text messaging, presence, and notification delivery.
 
 | Method | Parameters | Description |
 |--------|-----------|-------------|
-| `ReceiveMessage` | `message: MessageDto` | New channel message |
-| `ReceiveDirectMessage` | `message: DirectMessageDto` | New DM |
-| `UserJoined` | `channelId: Guid, user: UserDto` | User joined channel |
-| `UserLeft` | `channelId: Guid, userId: Guid` | User left channel |
+| `ReceiveMessage` | `message: MessageResponse` | New channel message |
+| `ReceiveDirectMessage` | `message: DirectMessageResponse` | New DM |
+| `UserJoinedChannel` | `channelId: Guid, userId: Guid, displayName: string` | User joined channel |
+| `UserLeftChannel` | `channelId: Guid, userId: Guid` | User left channel |
 | `UserTyping` | `channelId: Guid, userId: Guid` | Typing indicator |
 | `UserStoppedTyping` | `channelId: Guid, userId: Guid` | Stopped typing |
-| `PresenceUpdate` | `userId: Guid, status: UserStatus` | User status changed |
-| `Notification` | `notification: NotificationDto` | General notification |
+| `DirectMessageTyping` | `senderId: Guid` | DM typing indicator |
+| `DirectMessageStoppedTyping` | `senderId: Guid` | DM stopped typing |
+| `UserStatusChanged` | `userId: Guid, displayName: string, status: UserStatus, isAgent: bool` | User status changed |
+| `OnlineUsers` | `users: OnlineUserInfo[]` | Full list of online users (sent on connect) |
+| `ReceiveNotification` | `notification: NotificationDto` | General notification |
 
 **Connection Lifecycle:**
-- `OnConnectedAsync`: Mark user online, notify all connected clients, join user's subscribed channel groups
-- `OnDisconnectedAsync`: Mark user offline (with grace period for reconnection), notify clients, clean up groups
+- `OnConnectedAsync`: Register connection, mark user online, broadcast `UserStatusChanged` to others, send `OnlineUsers` list to caller
+- `OnDisconnectedAsync`: Remove connection, start grace period timer (30s). If no reconnect occurs within grace period, PresenceService raises `OnUserStatusChanged` event which triggers broadcast via IHubContext
 
 **Group Management:**
 - Each text channel maps to a SignalR group named `channel:{channelId}`
@@ -326,6 +371,7 @@ Handles WebRTC signaling only -- no audio passes through the server.
 | `SendIceCandidate` | `targetUserId: Guid, candidate: string` | Send ICE candidate |
 | `ToggleMute` | `channelId: Guid, isMuted: bool` | Broadcast mute status |
 | `ToggleDeafen` | `channelId: Guid, isDeafened: bool` | Broadcast deafen status |
+| `GetIceServers` | (none) | Returns ICE server configuration |
 
 **Client Methods:**
 
@@ -336,9 +382,12 @@ Handles WebRTC signaling only -- no audio passes through the server.
 | `ReceiveOffer` | `fromUserId: Guid, sdp: string` | Receive SDP offer |
 | `ReceiveAnswer` | `fromUserId: Guid, sdp: string` | Receive SDP answer |
 | `ReceiveIceCandidate` | `fromUserId: Guid, candidate: string` | Receive ICE candidate |
-| `UserMuteChanged` | `userId: Guid, isMuted: bool` | Peer mute state |
-| `UserDeafenChanged` | `userId: Guid, isDeafened: bool` | Peer deafen state |
-| `VoiceChannelState` | `users: VoiceUserDto[]` | Full voice channel state on join |
+| `UserMuteChanged` | `channelId: Guid, userId: Guid, isMuted: bool` | Peer mute state (3 params) |
+| `UserDeafenChanged` | `channelId: Guid, userId: Guid, isDeafened: bool` | Peer deafen state (3 params) |
+| `VoiceChannelUsers` | `channelId: Guid, users: VoiceUserDto[]` | Full voice channel state on join |
+
+**Connection Lifecycle:**
+- `OnDisconnectedAsync`: Automatically removes user from all voice channels and notifies peers via `UserLeftVoice`
 
 ---
 
@@ -350,90 +399,77 @@ Handles WebRTC signaling only -- no audio passes through the server.
 HotBox.Client/
 +-- wwwroot/
 |   +-- css/
-|   |   +-- app.css                     # Main styles (from design tokens)
+|   |   +-- app.css                     # Main styles with design tokens
 |   +-- js/
 |   |   +-- webrtc-interop.js           # WebRTC JSInterop bridge
 |   |   +-- notification-interop.js     # Browser notification API bridge
-|   |   +-- audio-interop.js            # Audio device enumeration/control
 |   +-- index.html
 +-- Layout/
-|   +-- MainLayout.razor                # App shell: sidebar + main content
+|   +-- MainLayout.razor                # App shell: top bar + main content + members overlay
 |   +-- MainLayout.razor.css
+|   +-- AuthLayout.razor                # Layout for login/register pages
+|   +-- AdminLayout.razor               # Layout for admin pages
++-- Pages/
+|   +-- IndexRedirect.razor             # Redirect to /channels
+|   +-- LoginPage.razor
+|   +-- RegisterPage.razor
+|   +-- OAuthCallbackPage.razor
+|   +-- ChannelPage.razor               # Channel view
+|   +-- DmsPage.razor                   # DM list view
+|   +-- DirectMessagePage.razor         # DM conversation view
+|   +-- AdminPage.razor                 # Admin dashboard
 +-- Components/
-|   +-- Sidebar/
-|   |   +-- Sidebar.razor               # Left sidebar container
-|   |   +-- ServerHeader.razor
-|   |   +-- ChannelList.razor           # Text + voice channel list
-|   |   +-- ChannelItem.razor
-|   |   +-- VoiceChannelItem.razor
-|   |   +-- VoiceUserList.razor
-|   |   +-- DirectMessageList.razor
-|   |   +-- DirectMessageItem.razor
-|   |   +-- UserPanel.razor             # Bottom-left user info + controls
-|   |   +-- VoiceConnectedPanel.razor   # Voice connection controls
 |   +-- Chat/
-|   |   +-- ChatView.razor              # Main chat area
-|   |   +-- ChannelHeader.razor
+|   |   +-- ChannelList.razor           # Horizontal channel tabs
+|   |   +-- DirectMessageList.razor     # Horizontal DM tabs
+|   |   +-- ChannelHeader.razor         # Channel info bar
 |   |   +-- MessageList.razor           # Scrollable message area
-|   |   +-- MessageGroup.razor          # Grouped messages by author
-|   |   +-- MessageInput.razor          # Text input + send
+|   |   +-- DirectMessageMessageList.razor  # DM message list
+|   |   +-- MessageInput.razor          # Channel message input
+|   |   +-- DirectMessageInput.razor    # DM message input
 |   |   +-- TypingIndicator.razor
-|   +-- Search/
-|   |   +-- SearchOverlay.razor         # Ctrl+K modal overlay
-|   |   +-- SearchOverlay.razor.css
-|   |   +-- SearchInput.razor           # Debounced search input
-|   |   +-- SearchResults.razor         # Scrollable result list
-|   |   +-- SearchResultItem.razor      # Individual result card
-|   |   +-- SearchHighlight.razor       # Query term highlighting
-|   +-- Members/
-|   |   +-- MembersPanel.razor          # Right-side members panel
-|   |   +-- MemberItem.razor
-|   +-- Auth/
-|   |   +-- LoginPage.razor
-|   |   +-- RegisterPage.razor
-|   |   +-- OAuthButtons.razor          # Dynamic OAuth provider buttons
+|   |   +-- MembersPanel.razor          # Right-side slide-in members panel
+|   +-- SearchOverlay.razor             # Ctrl+K modal overlay
+|   +-- ConnectionStatus.razor          # Connection status banner
+|   +-- GlobalErrorBoundary.razor
+|   +-- NewDmPicker.razor               # User picker for new DM
+|   +-- Profile/
+|   |   +-- UserProfilePopover.razor    # Popover for user profile
+|   |   +-- EditProfileModal.razor      # Modal for editing own profile
 |   +-- Admin/
-|   |   +-- AdminPanel.razor
-|   |   +-- ChannelManagement.razor
-|   |   +-- UserManagement.razor
-|   |   +-- InviteManagement.razor
-|   |   +-- ServerSettings.razor
-|   +-- Shared/
-|       +-- Avatar.razor                # Reusable avatar with status dot
-|       +-- StatusDot.razor
-|       +-- UnreadBadge.razor
-|       +-- LoadingSpinner.razor
-|       +-- ErrorBoundary.razor
+|       +-- AdminServerSettings.razor
+|       +-- AdminChannelManagement.razor
+|       +-- AdminUserManagement.razor
+|       +-- AdminInviteManagement.razor
+|       +-- AdminApiKeyManagement.razor
 +-- Services/
-|   +-- IApiClient.cs                   # HTTP API client interface
-|   +-- ApiClient.cs                    # HttpClient wrapper for REST calls
-|   +-- IChatHubService.cs
-|   +-- ChatHubService.cs              # SignalR ChatHub client
-|   +-- IVoiceHubService.cs
-|   +-- VoiceHubService.cs             # SignalR VoiceSignalingHub client
-|   +-- IWebRtcService.cs
-|   +-- WebRtcService.cs               # WebRTC JSInterop wrapper
-|   +-- INotificationService.cs
-|   +-- NotificationService.cs         # Browser notification JSInterop
-|   +-- IAuthService.cs
-|   +-- AuthService.cs                 # Auth state, token management
+|   +-- ApiClient.cs                    # HttpClient wrapper (no interface)
+|   +-- ChatHubService.cs               # SignalR ChatHub client (no interface)
+|   +-- VoiceHubService.cs              # SignalR VoiceSignalingHub client (no interface)
+|   +-- VoiceConnectionManager.cs       # Manages WebRTC peer connections
+|   +-- WebRtcService.cs                # WebRTC JSInterop wrapper (no interface)
+|   +-- NotificationService.cs          # Browser notification JSInterop (no interface)
+|   +-- JwtParser.cs                    # JWT token parsing utility
 +-- State/
-|   +-- AppState.cs                    # Central application state
-|   +-- ChannelState.cs                # Active channel, message cache
-|   +-- VoiceState.cs                  # Voice connection state
-|   +-- PresenceState.cs               # User online/offline/idle status
-|   +-- AuthState.cs                   # Current user, JWT tokens
-|   +-- SearchState.cs                 # Search query, results, loading state
+|   +-- AppState.cs                     # Composite state (references all sub-states)
+|   +-- ChannelState.cs                 # Active channel, message cache
+|   +-- DirectMessageState.cs           # Active DM conversation
+|   +-- VoiceState.cs                   # Voice connection state
+|   +-- PresenceState.cs                # User online/offline/idle status
+|   +-- AuthState.cs                    # Current user, JWT tokens
+|   +-- SearchState.cs                  # Search query, results, loading state
 +-- Models/
-|   +-- ChannelDto.cs
-|   +-- MessageDto.cs
-|   +-- DirectMessageDto.cs
-|   +-- UserDto.cs
-|   +-- VoiceUserDto.cs
-|   +-- NotificationDto.cs
-|   +-- AuthResponseDto.cs
-|   +-- SearchResultDto.cs
-|   +-- SearchResponse.cs
+|   +-- MessageResponse.cs
+|   +-- DirectMessageResponse.cs
+|   +-- ChannelResponse.cs
+|   +-- UserProfileResponse.cs
+|   +-- UserInfo.cs
+|   +-- AuthResponse.cs
+|   +-- OnlineUserInfoModel.cs
+|   +-- VoiceUserInfo.cs
+|   +-- SearchResultModel.cs
+|   +-- SearchResultItemModel.cs
+|   +-- (many other *Response/*Request models)
 +-- Program.cs
 +-- _Imports.razor
 +-- HotBox.Client.csproj
@@ -444,39 +480,55 @@ HotBox.Client/
 ```
 App.razor
 +-- Router
-    +-- MainLayout.razor
-        +-- Sidebar.razor
-        |   +-- ServerHeader.razor
-        |   +-- ChannelList.razor
-        |   |   +-- ChannelItem.razor (foreach text channel)
-        |   |   +-- VoiceChannelItem.razor (foreach voice channel)
-        |   |       +-- VoiceUserList.razor
-        |   +-- DirectMessageList.razor
-        |   |   +-- DirectMessageItem.razor (foreach DM)
-        |   +-- VoiceConnectedPanel.razor (when in voice)
-        |   +-- UserPanel.razor
-        +-- ChatView.razor (or DMView, AdminPanel based on route)
-        |   +-- ChannelHeader.razor
-        |   +-- MessageList.razor
-        |   |   +-- MessageGroup.razor (foreach author group)
-        |   +-- TypingIndicator.razor
-        |   +-- MessageInput.razor
-        +-- MembersPanel.razor (toggleable)
-            +-- MemberItem.razor (foreach member)
+    +-- MainLayout.razor (top-bar layout)
+        +-- ConnectionStatus.razor
+        +-- TopBar
+        |   +-- Brand
+        |   +-- Section Switcher (Channels / DMs)
+        |   +-- ChannelList.razor (horizontal tabs, rendered when "channels" active)
+        |   +-- DirectMessageList.razor (horizontal tabs, rendered when "dms" active)
+        |   +-- Voice Dropdown (voice channels + join button)
+        |   +-- Members Toggle Button
+        |   +-- Search Button (opens SearchOverlay)
+        |   +-- Admin Link (if user is admin)
+        |   +-- User Avatar (with profile popover)
+        +-- Main Content Area (full width)
+        |   +-- ChannelPage.razor (route: /channels/{id})
+        |   |   +-- ChannelHeader.razor
+        |   |   +-- MessageList.razor
+        |   |   +-- TypingIndicator.razor
+        |   |   +-- MessageInput.razor
+        |   +-- DirectMessagePage.razor (route: /dm/{userId})
+        |   |   +-- ChannelHeader.razor
+        |   |   +-- DirectMessageMessageList.razor
+        |   |   +-- TypingIndicator.razor
+        |   |   +-- DirectMessageInput.razor
+        +-- MembersPanel.razor (slide-in overlay from right, toggleable)
+        +-- Bottom Voice Bar (when connected to voice)
+        +-- SearchOverlay.razor (modal, Ctrl+K)
 ```
 
 ### 3.3 State Management
 
-The client uses a service-based state management approach -- no external state library. State services are registered as scoped services (singleton-like in Blazor WASM) and use events to notify components of changes.
+The client uses a service-based state management approach with no external state library. State is split into domain-specific sub-states, each registered as a scoped service (singleton-like in Blazor WASM) and using events to notify components of changes.
+
+**State services:**
+- `AuthState` — Current user, access token (in-memory), login/logout state
+- `ChannelState` — Active channel, message cache, unread counts
+- `DirectMessageState` — Active DM conversation, message cache, conversation summaries
+- `PresenceState` — Online/offline/idle status for all users
+- `VoiceState` — Current voice channel, connected peers, mute/deafen state
+- `SearchState` — Search query, results, loading state
+- `AppState` — Composite state that references all sub-states for convenience
 
 ```csharp
-// Pattern for state services
-public class AppState
+// Pattern used by all state services
+public class ChannelState
 {
     public event Action? OnChange;
 
-    private ChannelDto? _activeChannel;
-    public ChannelDto? ActiveChannel
+    private ChannelResponse? _activeChannel;
+    public ChannelResponse? ActiveChannel
     {
         get => _activeChannel;
         set { _activeChannel = value; NotifyStateChanged(); }
@@ -492,77 +544,128 @@ Components subscribe in `OnInitialized` and unsubscribe in `Dispose`:
 @implements IDisposable
 
 @code {
-    [Inject] private AppState State { get; set; } = default!;
+    [Inject] private ChannelState ChannelState { get; set; } = default!;
 
     protected override void OnInitialized()
     {
-        State.OnChange += StateHasChanged;
+        ChannelState.OnChange += StateHasChanged;
     }
 
     public void Dispose()
     {
-        State.OnChange -= StateHasChanged;
+        ChannelState.OnChange -= StateHasChanged;
     }
 }
 ```
 
 ### 3.4 SignalR Client Integration
 
-Both hub connections are established after login and maintained for the session lifetime. Reconnection is handled automatically with exponential backoff.
+Both hub connections are established after login and maintained for the session lifetime. Reconnection is handled automatically with default exponential backoff (0s, 2s, 10s, 30s intervals).
 
 ```csharp
-// ChatHubService.cs pattern
-public class ChatHubService : IChatHubService, IAsyncDisposable
+// ChatHubService.cs (concrete class, no interface)
+public class ChatHubService : IAsyncDisposable
 {
     private HubConnection? _hubConnection;
-    private readonly NavigationManager _navigation;
-    private readonly AuthState _authState;
+    private readonly string _baseUrl;
+    private readonly ILogger<ChatHubService> _logger;
 
-    public event Action<MessageDto>? OnMessageReceived;
-    public event Action<Guid, UserStatus>? OnPresenceUpdate;
+    public event Action<MessageResponse>? OnMessageReceived;
+    public event Action<Guid, string, string, bool>? OnUserStatusChanged;
+    public event Action<DirectMessageResponse>? OnDirectMessageReceived;
+    // ... more events
 
-    public async Task ConnectAsync()
+    public async Task StartAsync(string accessToken)
     {
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(_navigation.ToAbsoluteUri("/hubs/chat"), options =>
+            .WithUrl($"{_baseUrl}/hubs/chat", options =>
             {
-                options.AccessTokenProvider = () => Task.FromResult(_authState.AccessToken);
+                options.AccessTokenProvider = () => Task.FromResult<string?>(accessToken);
             })
-            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2),
-                TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
+            .WithAutomaticReconnect()  // Uses default intervals
             .Build();
 
-        _hubConnection.On<MessageDto>("ReceiveMessage", message =>
+        RegisterHandlers(_hubConnection);
+        RegisterLifecycleEvents(_hubConnection);
+
+        await _hubConnection.StartAsync();
+        _logger.LogInformation("ChatHub connection started");
+    }
+
+    private void RegisterHandlers(HubConnection connection)
+    {
+        connection.On<MessageResponse>("ReceiveMessage", message =>
         {
             OnMessageReceived?.Invoke(message);
         });
 
-        await _hubConnection.StartAsync();
+        connection.On<Guid, string, string, bool>("UserStatusChanged", (userId, displayName, status, isAgent) =>
+        {
+            OnUserStatusChanged?.Invoke(userId, displayName, status, isAgent);
+        });
+
+        // ... other handlers
     }
 }
 ```
 
 ### 3.5 Design Tokens
 
-The UI design system is defined in the existing HTML prototype at `c:\Users\cpike\workspace\hot-box\temp\prototype.html`. The CSS custom properties (design tokens) from that prototype will be carried into the Blazor app's `wwwroot/css/app.css`. Key tokens include:
+The UI design system is defined in `wwwroot/css/app.css` using CSS custom properties. Key tokens include:
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--bg-deepest` | `#1a1a1e` | Outermost background, user panel |
-| `--bg-deep` | `#1e1e23` | Sidebar, members panel |
-| `--bg-base` | `#232329` | Main content area |
-| `--bg-raised` | `#2a2a32` | Message input, cards |
-| `--bg-surface` | `#32323c` | Avatars, elevated surfaces |
-| `--bg-hover` | `#3a3a46` | Hover states |
-| `--bg-active` | `#424250` | Active/selected states |
-| `--text-primary` | `#e4e4e8` | Primary text |
-| `--text-secondary` | `#a0a0aa` | Secondary text, message bodies |
-| `--text-muted` | `#6e6e7a` | Timestamps, hints |
-| `--accent` | `#7aa2f7` | Links, active indicators, accent color |
-| `--status-online` | `#50c878` | Online status dot |
-| `--status-idle` | `#e2b93d` | Idle status dot |
-| `--status-dnd` | `#f7768e` | Do Not Disturb status dot |
-| `--status-offline` | `#565664` | Offline status dot |
+| **Background layers** | | Deep cool slate palette |
+| `--bg-deepest` | `#0c0c0f` | Outermost background |
+| `--bg-deep` | `#111116` | Top bar background |
+| `--bg-base` | `#16161d` | Main content area |
+| `--bg-raised` | `#1c1c25` | Message input, cards |
+| `--bg-surface` | `#23232e` | Avatars, elevated surfaces |
+| `--bg-hover` | `#2a2a37` | Hover states |
+| `--bg-active` | `#32323f` | Active/selected states |
+| **Text** | | |
+| `--text-primary` | `#e2e2ea` | Primary text |
+| `--text-secondary` | `#9898a8` | Secondary text, message bodies |
+| `--text-muted` | `#5c5c72` | Timestamps, hints |
+| `--text-faint` | `#3e3e52` | Very subtle text |
+| **Accent** | | Cool teal/mint |
+| `--accent` | `#5de4c7` | Links, active indicators, primary accent |
+| `--accent-hover` | `#7aecd5` | Hover state |
+| `--accent-muted` | `rgba(93, 228, 199, 0.10)` | Subtle background tint |
+| `--accent-strong` | `#a0f0de` | Strong emphasis |
+| `--accent-glow` | `rgba(93, 228, 199, 0.06)` | Glow/aura effect |
+| **Status** | | User presence indicators |
+| `--status-online` | `#6bc76b` | Online status dot |
+| `--status-idle` | `#c7a63e` | Idle status dot |
+| `--status-dnd` | `#c76060` | Do Not Disturb status dot |
+| `--status-offline` | `#4a4a5a` | Offline status dot |
+| **Voice** | | |
+| `--voice-active` | `#6bc76b` | Voice connected/speaking |
+| `--voice-muted` | `#5c5c72` | Voice muted |
+| **Bot Badge** | | |
+| `--bot-badge-bg` | `rgba(93, 228, 199, 0.12)` | Bot badge background |
+| `--bot-badge-color` | `var(--accent)` | Bot badge text |
+| **Borders** | | |
+| `--border-subtle` | `rgba(255, 255, 255, 0.04)` | Very subtle border |
+| `--border-light` | `rgba(255, 255, 255, 0.07)` | Light border |
+| `--border-focus` | `rgba(93, 228, 199, 0.3)` | Focus ring |
+| **Radius** | | |
+| `--radius-xs` | `3px` | Very small radius |
+| `--radius-sm` | `4px` | Small radius |
+| `--radius-md` | `8px` | Medium radius |
+| `--radius-lg` | `12px` | Large radius |
+| `--radius-pill` | `9999px` | Pill shape |
+| **Shadows** | | |
+| `--shadow-md` | `0 4px 24px rgba(0, 0, 0, 0.5)` | Medium shadow |
+| `--shadow-lg` | `0 8px 48px rgba(0, 0, 0, 0.6)` | Large shadow |
+| `--shadow-overlay` | `0 12px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--border-subtle)` | Overlay shadow |
+| **Transitions** | | |
+| `--transition-fast` | `100ms ease` | Fast transition |
+| `--transition-base` | `180ms ease` | Base transition |
+| `--transition-smooth` | `280ms cubic-bezier(0.4, 0, 0.2, 1)` | Smooth transition |
+| **Typography** | | |
+| `--font-body` | `'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif` | Body font |
+| `--font-mono` | `'JetBrains Mono', 'SF Mono', 'Consolas', monospace` | Monospace font |
 
 ---
 
@@ -576,7 +679,13 @@ The UI design system is defined in the existing HTML prototype at `c:\Users\cpik
 AppUser (inherits IdentityUser<Guid>)
 ├── DisplayName          : string (required, max 32)
 ├── AvatarUrl            : string? (nullable, future use)
+├── Bio                  : string? (nullable, max 500)
+├── Pronouns             : string? (nullable, max 50)
+├── CustomStatus         : string? (nullable, max 100)
 ├── Status               : UserStatus (enum: Online, Idle, DnD, Offline)
+├── IsAgent              : bool (default false, marks bot accounts)
+├── CreatedByApiKeyId    : Guid? (nullable FK -> ApiKey)
+├── CreatedByApiKey      : ApiKey? (navigation property)
 ├── LastSeenUtc          : DateTime
 ├── CreatedAtUtc         : DateTime
 ├── Messages             : ICollection<Message>
@@ -645,6 +754,45 @@ Invite
 ├── MaxUses              : int? (nullable)
 ├── UseCount             : int (default 0)
 ├── IsRevoked            : bool (default false)
+```
+
+#### ApiKey
+
+```
+ApiKey
+├── Id                   : Guid (PK)
+├── KeyValue             : string (SHA-256 hash of actual key)
+├── KeyPrefix            : string (first 8 chars of key, for lookup)
+├── Name                 : string (user-friendly label)
+├── CreatedAtUtc         : DateTime
+├── RevokedAtUtc         : DateTime? (nullable)
+├── RevokedReason        : string? (nullable)
+├── IsRevoked            : bool (computed property)
+├── IsActive             : bool (computed property)
+├── CreatedAgents        : ICollection<AppUser>
+```
+
+#### RefreshToken
+
+```
+RefreshToken
+├── Id                   : Guid (PK)
+├── Token                : string (unique, hashed)
+├── UserId               : Guid (FK -> AppUser)
+├── ExpiresAtUtc         : DateTime
+├── CreatedAtUtc         : DateTime
+├── RevokedAtUtc         : DateTime? (nullable)
+├── ReplacedByToken      : string? (nullable, for rotation tracking)
+├── IsRevoked            : bool (computed property)
+```
+
+#### ServerSettings
+
+```
+ServerSettings
+├── Id                   : Guid (PK, singleton table)
+├── ServerName           : string (max 100)
+├── RegistrationMode     : RegistrationMode (enum)
 ```
 
 ### 4.2 Entity Relationships
@@ -732,7 +880,7 @@ public static IServiceCollection AddHotBoxInfrastructure(
 ### 5.1 ASP.NET Identity Setup
 
 - Identity is configured with `AppUser` (extends `IdentityUser<Guid>`) and `IdentityRole<Guid>`
-- Password requirements: minimum 8 characters, at least one uppercase, one lowercase, one digit
+- Password requirements: minimum 8 characters, at least one uppercase, one lowercase, one digit, `RequireNonAlphanumeric = false`, `RequiredUniqueChars = 4`
 - Account lockout: 5 failed attempts, 15-minute lockout
 - Email confirmation: disabled for MVP (self-hosted, trusted users)
 
@@ -814,16 +962,48 @@ On first run (when no admin user exists), the server creates an admin account fr
 
 ```json
 {
-  "Auth": {
-    "Seed": {
-      "AdminEmail": "admin@hotbox.local",
-      "AdminPassword": "ChangeMe123!"
-    }
+  "AdminSeed": {
+    "Email": "admin@hotbox.local",
+    "Password": "ChangeMe123!",
+    "DisplayName": "Admin"
   }
 }
 ```
 
-This is handled in `Program.cs` during application startup, after `EnsureCreated`/migration.
+This is handled by the `DatabaseSeeder` hosted service, which runs after EF migrations during application startup.
+
+### 5.7 API Key Authentication
+
+API keys enable programmatic access for agent accounts (bots, integrations) without requiring password-based login.
+
+#### Architecture
+
+- Custom authentication handler: `ApiKeyAuthenticationHandler` (registered as `"ApiKey"` scheme)
+- Header-based authentication: `X-Api-Key: hb_xxxxxxxxxxxxx`
+- SHA-256 hashing with prefix-based lookup for performance
+- Dual authentication policy: `JwtOrApiKey` policy accepts either JWT bearer tokens or API keys
+
+#### API Key Format
+
+- Generated key: `hb_{32-char-random-base62}` (e.g., `hb_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6`)
+- Prefix (`hb_`) stored separately for fast lookup
+- Full key is SHA-256 hashed before storage
+
+#### Flow
+
+1. Admin creates API key via `POST /api/admin/apikeys` with a friendly name
+2. Server generates random key, stores hash + prefix, returns full key **once** (never shown again)
+3. Agent uses API key to create bot account via `POST /api/admin/agents`
+4. Bot account includes `IsAgent = true` flag and reference to creating API key
+5. Bot sends messages via REST API or SignalR using `X-Api-Key` header
+6. API keys can be revoked via `PUT /api/admin/apikeys/{id}/revoke`
+
+#### Security Considerations
+
+- API keys bypass password rotation and 2FA (intentional for service accounts)
+- Keys are scoped to admin-level permissions (for agent creation only)
+- Revocation is immediate and enforced at authentication handler level
+- LastUsedAtUtc tracking for audit purposes
 
 ---
 
@@ -994,56 +1174,58 @@ The `ISearchService` interface (defined in Core) abstracts the provider differen
 // HotBox.Core/Interfaces/ISearchService.cs
 public interface ISearchService
 {
-    Task<SearchResult> SearchMessagesAsync(
-        Guid callingUserId,
-        string query,
-        Guid? channelId = null,
-        Guid? authorId = null,
-        DateTime? before = null,
-        DateTime? after = null,
-        int page = 1,
-        int pageSize = 25,
-        CancellationToken cancellationToken = default);
+    Task<SearchResult> SearchMessagesAsync(SearchQuery query, CancellationToken ct = default);
 
-    Task<SearchResult> SearchDirectMessagesAsync(
-        Guid callingUserId,
-        string query,
-        Guid? participantId = null,
-        DateTime? before = null,
-        DateTime? after = null,
-        int page = 1,
-        int pageSize = 25,
-        CancellationToken cancellationToken = default);
+    Task InitializeIndexAsync(CancellationToken ct = default);
 
-    Task EnsureSearchIndexAsync(CancellationToken cancellationToken = default);
+    Task ReindexAsync(CancellationToken ct = default);
+
+    bool IsFullTextSearchAvailable { get; }
+
+    string ProviderName { get; }
 }
 ```
 
-#### Search Result Shape
+#### Search Query and Result Models
 
 ```csharp
-public class SearchResult
+// HotBox.Core/Models/SearchQuery.cs
+public class SearchQuery
 {
-    public IReadOnlyList<SearchHit> Items { get; init; } = [];
-    public long TotalCount { get; init; }
-    public int Page { get; init; }
-    public int PageSize { get; init; }
-    public bool IsDegraded { get; init; } // True if using LIKE fallback
+    public string QueryText { get; set; } = string.Empty;
+    public Guid? ChannelId { get; set; }
+    public Guid? SenderId { get; set; }
+    public string? Cursor { get; set; }  // Opaque cursor for pagination
+    public int Limit { get; set; } = 20;
 }
 
-public class SearchHit
+// HotBox.Core/Models/SearchResult.cs
+public class SearchResult
 {
-    public Guid MessageId { get; init; }
-    public string Content { get; init; } = string.Empty;
-    public string ContentHighlight { get; init; } = string.Empty; // Snippet with <mark> tags
-    public Guid ChannelId { get; init; }    // For channel messages
-    public string ChannelName { get; init; } = string.Empty;
-    public Guid AuthorId { get; init; }
-    public string AuthorDisplayName { get; init; } = string.Empty;
-    public DateTime CreatedAtUtc { get; init; }
-    public double Score { get; init; }
+    public IReadOnlyList<SearchResultItem> Items { get; set; } = [];
+    public string? Cursor { get; set; }  // Opaque cursor for next page
+    public int TotalEstimate { get; set; }  // Estimated total (not exact count)
+}
+
+// HotBox.Core/Models/SearchResultItem.cs
+public class SearchResultItem
+{
+    public Guid MessageId { get; set; }
+    public string Snippet { get; set; } = string.Empty;  // Snippet with highlighting
+    public Guid ChannelId { get; set; }
+    public string ChannelName { get; set; } = string.Empty;
+    public Guid AuthorId { get; set; }
+    public string AuthorDisplayName { get; set; } = string.Empty;
+    public DateTime CreatedAtUtc { get; set; }
+    public double RelevanceScore { get; set; }
 }
 ```
+
+**Key changes from offset pagination:**
+- Uses opaque cursor-based pagination instead of page/pageSize
+- `TotalEstimate` instead of `TotalCount` (exact counts are expensive for FTS)
+- `Snippet` field contains highlighted text (implementation-dependent format)
+- `RelevanceScore` instead of `Score` for clarity
 
 #### Implementation Details
 
@@ -1058,17 +1240,17 @@ public class SearchHit
 #### Search Scope and Permissions
 
 - **Channel messages**: All authenticated users can search all channels (no per-channel permissions in MVP). `channelId` parameter optionally scopes to a single channel.
-- **Direct messages**: Queries are always filtered to conversations involving the calling user (`senderId == callingUserId OR recipientId == callingUserId`). This is enforced at the service level.
-- **Offset pagination**: Search results are relevance-ranked, not time-ordered, so cursor-based pagination does not apply. Standard page/pageSize is used.
+- **Direct messages**: Not implemented in MVP. Future implementation would filter to conversations involving the calling user.
+- **Cursor-based pagination**: Search results use cursor-based pagination for efficiency. The cursor is an opaque string (implementation-specific) that encodes the pagination state.
 
 #### Index Initialization
 
-On application startup, `EnsureSearchIndexAsync` is called to create FTS infrastructure if it does not exist:
+On application startup (in `Program.cs`), `InitializeIndexAsync` is called to create FTS infrastructure if it does not exist:
 - PostgreSQL: Creates `SearchVector` column, GIN index, and update trigger
 - MySQL/MariaDB: Creates `FULLTEXT` index
 - SQLite: Creates FTS5 virtual table and sync triggers
 
-For existing instances with messages, the admin endpoint `POST /api/v1/admin/search/reindex` rebuilds the search index by batch-processing all existing messages.
+For existing instances with messages, the admin endpoint `POST /api/search/reindex` rebuilds the search index by batch-processing all existing messages.
 
 ---
 
@@ -1078,9 +1260,10 @@ For existing instances with messages, the admin endpoint `POST /api/v1/admin/sea
 
 ```json
 {
-  "HotBox": {
-    "ServerName": "The HotBox",
-    "Port": 5000
+  "Server": {
+    "ServerName": "HotBox",
+    "Port": 5000,
+    "RegistrationMode": "InviteOnly"
   },
 
   "Database": {
@@ -1088,96 +1271,78 @@ For existing instances with messages, the admin endpoint `POST /api/v1/admin/sea
     "ConnectionString": "Data Source=hotbox.db"
   },
 
-  "Auth": {
-    "RegistrationMode": "Open",
-    "Seed": {
-      "AdminEmail": "admin@hotbox.local",
-      "AdminPassword": "ChangeMe123!",
-      "AdminDisplayName": "Admin"
+  "Jwt": {
+    "Secret": "",
+    "Issuer": "HotBox",
+    "Audience": "HotBox",
+    "AccessTokenExpiration": "00:15:00",
+    "RefreshTokenExpiration": "7.00:00:00"
+  },
+
+  "OAuth": {
+    "Google": {
+      "ClientId": "",
+      "ClientSecret": "",
+      "Enabled": false
     },
-    "Jwt": {
-      "Secret": "CHANGE-THIS-TO-A-RANDOM-64-CHAR-STRING",
-      "Issuer": "HotBox",
-      "Audience": "HotBox",
-      "AccessTokenExpirationMinutes": 15,
-      "RefreshTokenExpirationDays": 7
-    },
-    "OAuth": {
-      "Google": {
-        "Enabled": false,
-        "ClientId": "",
-        "ClientSecret": ""
-      },
-      "Microsoft": {
-        "Enabled": false,
-        "ClientId": "",
-        "ClientSecret": ""
-      }
+    "Microsoft": {
+      "ClientId": "",
+      "ClientSecret": "",
+      "Enabled": false
     }
   },
 
-  "Search": {
-    "Enabled": true,
-    "DefaultPageSize": 25,
-    "MaxPageSize": 100,
-    "MinQueryLength": 2
-  },
-
-  "Voice": {
-    "IceServers": [
-      {
-        "Urls": ["stun:stun.l.google.com:19302"]
-      }
-    ]
+  "IceServers": {
+    "StunUrls": [
+      "stun:stun.l.google.com:19302"
+    ],
+    "TurnUrl": "",
+    "TurnUsername": "",
+    "TurnCredential": ""
   },
 
   "Observability": {
-    "Serilog": {
-      "MinimumLevel": "Information",
-      "Seq": {
-        "Enabled": true,
-        "ServerUrl": "http://localhost:5341"
-      },
-      "Elasticsearch": {
-        "Enabled": false,
-        "NodeUrls": ["http://localhost:9200"]
-      }
-    },
-    "OpenTelemetry": {
-      "Enabled": true,
-      "Endpoint": "http://localhost:4317",
-      "ServiceName": "HotBox"
-    }
+    "SeqUrl": "http://localhost:5341",
+    "OtlpEndpoint": "",
+    "LogLevel": "Information"
   },
 
-  "Channels": {
-    "DefaultChannels": [
-      { "Name": "general", "Topic": "General conversation", "Type": "Text" },
-      { "Name": "Lounge", "Topic": null, "Type": "Voice" }
-    ]
-  },
-
-  "Roles": {
-    "Definitions": ["Admin", "Moderator", "Member"],
-    "DefaultRole": "Member"
+  "AdminSeed": {
+    "Email": "",
+    "Password": "",
+    "DisplayName": ""
   }
 }
 ```
 
+**Key differences from the original spec:**
+- Top-level section is `Server` (not `HotBox`)
+- `RegistrationMode` is in `Server` (not `Auth`)
+- JWT section is top-level (not `Auth.Jwt`)
+- OAuth section is top-level (not `Auth.OAuth`)
+- `IceServers` is a flat object with arrays, not nested `Voice.IceServers`
+- `Observability` is flat (no nested `Serilog`/`OpenTelemetry` sections)
+- `AdminSeed` is top-level (not `Auth.Seed`)
+- JWT expiration uses TimeSpan format (`"00:15:00"`) not integer minutes
+- No `Search` section (search is always enabled)
+- No `Channels` or `Roles` sections (seeded by DatabaseSeeder)
+
 ### 8.2 Options Pattern Classes
 
-Each configuration section maps to a strongly-typed Options class:
+Each configuration section maps to a strongly-typed Options class (all located in `HotBox.Core/Options/`):
 
-| Options Class | Config Section | Registration |
-|---------------|---------------|-------------|
-| `HotBoxOptions` | `HotBox` | `services.Configure<HotBoxOptions>(config.GetSection("HotBox"))` |
-| `DatabaseOptions` | `Database` | `services.Configure<DatabaseOptions>(config.GetSection("Database"))` |
-| `AuthOptions` | `Auth` | `services.Configure<AuthOptions>(config.GetSection("Auth"))` |
-| `OAuthProviderOptions` | `Auth:OAuth:{Provider}` | Bound per provider |
-| `JwtOptions` | `Auth:Jwt` | `services.Configure<JwtOptions>(config.GetSection("Auth:Jwt"))` |
-| `SearchOptions` | `Search` | `services.Configure<SearchOptions>(config.GetSection("Search"))` |
-| `VoiceOptions` | `Voice` | `services.Configure<VoiceOptions>(config.GetSection("Voice"))` |
-| `ObservabilityOptions` | `Observability` | `services.Configure<ObservabilityOptions>(config.GetSection("Observability"))` |
+| Options Class | Config Section | Location |
+|---------------|---------------|----------|
+| `ServerOptions` | `Server` | `HotBox.Core/Options/` |
+| `DatabaseOptions` | `Database` | `HotBox.Core/Options/` |
+| `JwtOptions` | `Jwt` | `HotBox.Core/Options/` |
+| `OAuthOptions` | `OAuth` | `HotBox.Core/Options/` |
+| `IceServerOptions` | `IceServers` | `HotBox.Core/Options/` |
+| `ObservabilityOptions` | `Observability` | `HotBox.Core/Options/` |
+| `AdminSeedOptions` | `AdminSeed` | `HotBox.Core/Options/` |
+| `SearchOptions` | (internal defaults) | `HotBox.Core/Options/` |
+
+**Note:** All Options classes are in the Core project (not Application) to avoid circular dependencies and allow Infrastructure services to access configuration.
 
 ### 8.3 Environment Variable Overrides
 
@@ -1186,11 +1351,13 @@ All settings can be overridden via environment variables using the standard ASP.
 ```
 Database__Provider=postgresql
 Database__ConnectionString=Host=db;Database=hotbox;Username=hotbox;Password=secret
-Auth__RegistrationMode=InviteOnly
-Auth__Jwt__Secret=my-production-secret-key-at-least-64-chars
-Auth__OAuth__Google__Enabled=true
-Auth__OAuth__Google__ClientId=xxx.apps.googleusercontent.com
-Auth__OAuth__Google__ClientSecret=xxx
+Server__RegistrationMode=InviteOnly
+Jwt__Secret=my-production-secret-key-at-least-64-chars
+OAuth__Google__Enabled=true
+OAuth__Google__ClientId=xxx.apps.googleusercontent.com
+OAuth__Google__ClientSecret=xxx
+AdminSeed__Email=admin@example.com
+AdminSeed__Password=SecurePassword123
 ```
 
 ---
@@ -1201,54 +1368,57 @@ Auth__OAuth__Google__ClientSecret=xxx
 
 **NuGet Packages:**
 - `Serilog.AspNetCore` -- ASP.NET Core integration
-- `Serilog.Sinks.Console` -- Console output
-- `Serilog.Sinks.Seq` -- Seq log aggregation (development)
-- `Elastic.Serilog.Sinks` -- Elasticsearch (production) -- the modern replacement for the archived `Serilog.Sinks.Elasticsearch`
-- `Serilog.Sinks.Async` -- Async wrapper for production sinks
-- `Serilog.Enrichers.Environment` -- Machine name, environment enrichment
-- `Serilog.Exceptions` -- Structured exception detail
+- `Serilog.Sinks.Console` (included with AspNetCore) -- Console output
+- `Serilog.Sinks.Seq` -- Seq log aggregation
+- `Serilog.Sinks.Elasticsearch` -- Elasticsearch sink (archived but still functional)
+- `Serilog.Enrichers.Environment` -- Machine name enrichment
+- `Serilog.Enrichers.Thread` -- Thread ID enrichment
 
 **Configuration in `ObservabilityExtensions.cs`:**
 
 ```csharp
-public static IServiceCollection AddHotBoxObservability(
-    this IServiceCollection services,
-    IConfiguration configuration,
-    IHostEnvironment environment)
+public static IHostBuilder AddObservability(
+    this IHostBuilder hostBuilder,
+    IConfiguration configuration)
 {
-    // Serilog
-    Log.Logger = new LoggerConfiguration()
-        .ReadFrom.Configuration(configuration)
-        .Enrich.FromLogContext()
-        .Enrich.WithEnvironmentName()
-        .Enrich.WithMachineName()
-        .Enrich.WithExceptionDetails()
-        .WriteTo.Console()
-        .WriteTo.Conditional(
-            _ => configuration.GetValue<bool>("Observability:Serilog:Seq:Enabled"),
-            wt => wt.Seq(configuration["Observability:Serilog:Seq:ServerUrl"]!))
-        .WriteTo.Conditional(
-            _ => configuration.GetValue<bool>("Observability:Serilog:Elasticsearch:Enabled"),
-            wt => wt.Elasticsearch(/* Elastic.Serilog.Sinks config */))
-        .CreateLogger();
+    hostBuilder.UseSerilog((context, services, loggerConfig) =>
+    {
+        var obsOptions = configuration
+            .GetSection(ObservabilityOptions.SectionName)
+            .Get<ObservabilityOptions>() ?? new ObservabilityOptions();
 
-    // OpenTelemetry
-    services.AddOpenTelemetry()
-        .WithTracing(tracing => tracing
-            .AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation()
-            .AddEntityFrameworkCoreInstrumentation()
-            .AddOtlpExporter(o => o.Endpoint = new Uri(
-                configuration["Observability:OpenTelemetry:Endpoint"]!)))
-        .WithMetrics(metrics => metrics
-            .AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation()
-            .AddOtlpExporter(o => o.Endpoint = new Uri(
-                configuration["Observability:OpenTelemetry:Endpoint"]!)));
+        // Parse minimum log level from config with safe fallback
+        if (!Enum.TryParse<Serilog.Events.LogEventLevel>(obsOptions.LogLevel, ignoreCase: true, out var minLevel))
+        {
+            minLevel = Serilog.Events.LogEventLevel.Information;
+        }
 
-    return services;
+        loggerConfig
+            .MinimumLevel.Is(minLevel)
+            .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
+            .Enrich.FromLogContext()
+            .Enrich.WithMachineName()
+            .Enrich.WithThreadId()
+            .WriteTo.Console();
+
+        // Seq sink (if URL configured)
+        if (!string.IsNullOrWhiteSpace(obsOptions.SeqUrl))
+        {
+            loggerConfig.WriteTo.Seq(obsOptions.SeqUrl);
+        }
+    });
+
+    return hostBuilder;
 }
 ```
+
+**Key differences from original spec:**
+- Uses `Serilog.Sinks.Elasticsearch` (archived package), NOT `Elastic.Serilog.Sinks`
+- Console + Seq only (no conditional Elasticsearch in current implementation)
+- Uses `Enrich.WithThreadId()` not `Enrich.WithExceptionDetails()`
+- Does NOT include `Serilog.Exceptions` or `Serilog.Sinks.Async`
+- Includes `Serilog.Enrichers.Thread` (not originally documented)
 
 ### 9.2 OpenTelemetry Setup
 
@@ -1284,101 +1454,127 @@ public static IServiceCollection AddHotBoxObservability(
 
 ```dockerfile
 # Stage 1: Build
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-COPY *.sln .
-COPY src/HotBox.Core/*.csproj src/HotBox.Core/
-COPY src/HotBox.Infrastructure/*.csproj src/HotBox.Infrastructure/
-COPY src/HotBox.Application/*.csproj src/HotBox.Application/
-COPY src/HotBox.Client/*.csproj src/HotBox.Client/
-RUN dotnet restore
+# Copy solution and project files first for layer caching
+COPY HotBox.sln ./
+COPY src/HotBox.Core/HotBox.Core.csproj src/HotBox.Core/
+COPY src/HotBox.Infrastructure/HotBox.Infrastructure.csproj src/HotBox.Infrastructure/
+COPY src/HotBox.Application/HotBox.Application.csproj src/HotBox.Application/
+COPY src/HotBox.Client/HotBox.Client.csproj src/HotBox.Client/
 
+# Restore dependencies (app only, skip test projects)
+RUN dotnet restore src/HotBox.Application/HotBox.Application.csproj
+
+# Copy everything else and build
 COPY src/ src/
 RUN dotnet publish src/HotBox.Application/HotBox.Application.csproj \
-    -c Release -o /app/publish --no-restore
+    -c Release \
+    -o /app/publish
 
 # Stage 2: Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
+
+# Install curl for health checks
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN adduser --disabled-password --gecos '' hotbox \
+    && mkdir -p /data \
+    && chown hotbox:hotbox /data
+USER hotbox
 
 COPY --from=build /app/publish .
 
-ENV ASPNETCORE_URLS=http://+:5000
-EXPOSE 5000
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "HotBox.Application.dll"]
 ```
 
-### 10.2 docker-compose.yml (Production)
+**Key differences:**
+- Uses .NET 8.0 (not 9.0)
+- Exposes port 8080 (not 5000)
+- Installs `curl` for health checks
+- Creates non-root `hotbox` user and switches to it
+- Creates `/data` directory for SQLite database persistence
+
+### 10.2 docker-compose.yml
 
 ```yaml
 services:
   hotbox:
     build: .
+    container_name: hotbox
+    restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "8080:8080"
     environment:
+      - ASPNETCORE_ENVIRONMENT=Production
       - Database__Provider=postgresql
-      - Database__ConnectionString=Host=db;Database=hotbox;Username=hotbox;Password=${DB_PASSWORD}
-      - Auth__Jwt__Secret=${JWT_SECRET}
-      - Auth__RegistrationMode=InviteOnly
-      - Observability__Serilog__Elasticsearch__Enabled=true
-      - Observability__Serilog__Elasticsearch__NodeUrls__0=http://elasticsearch:9200
-      - Observability__OpenTelemetry__Endpoint=http://elasticsearch:4317
+      - Database__ConnectionString=Host=db;Port=5432;Database=hotbox;Username=hotbox;Password=${DB_PASSWORD:-changeme}
+      - Jwt__Secret=${JWT_SECRET:-super-secret-key-change-in-production-minimum-32-chars}
+      - Observability__SeqUrl=http://seq:5341
+      - AdminSeed__Email=${ADMIN_EMAIL:-admin@hotbox.local}
+      - AdminSeed__Password=${ADMIN_PASSWORD:-Admin123!}
+      - AdminSeed__DisplayName=${ADMIN_DISPLAY_NAME:-Admin}
     depends_on:
       db:
         condition: service_healthy
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   db:
-    image: postgres:17
+    image: postgres:16-alpine
+    container_name: hotbox-db
+    restart: unless-stopped
     environment:
-      - POSTGRES_DB=hotbox
-      - POSTGRES_USER=hotbox
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      POSTGRES_DB: hotbox
+      POSTGRES_USER: hotbox
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hotbox"]
       interval: 5s
-      timeout: 5s
+      timeout: 3s
       retries: 5
-    restart: unless-stopped
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    volumes:
-      - esdata:/usr/share/elasticsearch/data
+  seq:
+    image: datalust/seq:latest
+    container_name: hotbox-seq
     restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "5342:80"
+    volumes:
+      - seqdata:/data
 
 volumes:
   pgdata:
-  esdata:
+  seqdata:
 ```
 
-### 10.3 docker-compose.dev.yml (Development)
+**Key differences:**
+- Single `docker-compose.yml` at repo root (no separate dev file)
+- Uses PostgreSQL 16-alpine (not 17)
+- Exposes port 8080 (not 5000)
+- Includes Seq service (port 5342:80) — NOT Elasticsearch
+- Healthcheck uses `/health` endpoint
+- Environment variables have sensible defaults with `:-` syntax
+- Docker files at repo root, NOT in `docker/` directory
 
-```yaml
-services:
-  seq:
-    image: datalust/seq:latest
-    ports:
-      - "5341:80"
-    environment:
-      - ACCEPT_EULA=Y
-    restart: unless-stopped
-```
+### 10.3 Optional: TURN Server
 
-Development uses SQLite (file-based, no container needed) and Seq for log aggregation.
-
-### 10.4 Optional: TURN Server
-
-For users behind restrictive NATs, a `coturn` container can be added:
+For users behind restrictive NATs, a `coturn` container can be added to `docker-compose.yml`:
 
 ```yaml
   coturn:
@@ -1395,43 +1591,59 @@ For users behind restrictive NATs, a `coturn` container can be added:
     restart: unless-stopped
 ```
 
+Then update the `IceServers` configuration in `appsettings.json`:
+```json
+"IceServers": {
+  "StunUrls": ["stun:stun.l.google.com:19302"],
+  "TurnUrl": "turn:localhost:3478",
+  "TurnUsername": "hotbox",
+  "TurnCredential": "changeme"
+}
+```
+
 ---
 
 ## 11. NuGet Package Summary
 
 ### HotBox.Core
 ```
-(no external packages -- pure domain)
+Microsoft.Extensions.Identity.Stores
 ```
 
 ### HotBox.Infrastructure
 ```
+Microsoft.EntityFrameworkCore
 Microsoft.AspNetCore.Identity.EntityFrameworkCore
 Microsoft.EntityFrameworkCore.Sqlite
+Microsoft.Extensions.Configuration.Binder
+System.IdentityModel.Tokens.Jwt
 Npgsql.EntityFrameworkCore.PostgreSQL
 Pomelo.EntityFrameworkCore.MySql
-Microsoft.EntityFrameworkCore.Tools  (dev dependency)
 ```
 
 ### HotBox.Application
 ```
-Microsoft.AspNetCore.SignalR
-Microsoft.AspNetCore.Authentication.JwtBearer
 Microsoft.AspNetCore.Authentication.Google
+Microsoft.AspNetCore.Authentication.JwtBearer
 Microsoft.AspNetCore.Authentication.MicrosoftAccount
+Microsoft.AspNetCore.Components.WebAssembly.Server
+Microsoft.AspNetCore.OpenApi
+Microsoft.EntityFrameworkCore.Design  (dev dependency)
+Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore
+Swashbuckle.AspNetCore
 Serilog.AspNetCore
-Serilog.Sinks.Console
 Serilog.Sinks.Seq
-Serilog.Sinks.Async
 Serilog.Enrichers.Environment
-Serilog.Exceptions
-Elastic.Serilog.Sinks
+Serilog.Enrichers.Thread
+Serilog.Sinks.Elasticsearch
 OpenTelemetry.Extensions.Hosting
 OpenTelemetry.Instrumentation.AspNetCore
-OpenTelemetry.Instrumentation.Http
 OpenTelemetry.Instrumentation.EntityFrameworkCore
+OpenTelemetry.Instrumentation.Http
 OpenTelemetry.Exporter.OpenTelemetryProtocol
 ```
+
+**Note:** The Application project uses `Serilog.Sinks.Elasticsearch` (the archived package), NOT `Elastic.Serilog.Sinks`. It does NOT include `Serilog.Exceptions` or `Serilog.Sinks.Async`.
 
 ### HotBox.Client
 ```

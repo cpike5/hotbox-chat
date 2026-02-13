@@ -8,14 +8,14 @@ You are primarily an orchestrator (unless the user specifies otherwise). Try to 
 
 HotBox is an open-source, self-hosted alternative to Discord. Built for small friend groups (~10 people) who want a private, lightweight chat platform they fully control. Design target is ~100 concurrent users max.
 
-**Status**: Early development — solution scaffolded with Core/Infrastructure/Application/Client projects, EF Core multi-provider DbContext implemented, deployment scripts and guides in place. No application-layer features yet.
+**Status**: Active development — Core/Infrastructure/Application/Client projects scaffolded with EF Core multi-provider DbContext. Implemented features: authentication (JWT + OAuth + API keys), text channels, direct messages, message search (FTS), admin panel, presence/online status, voice signaling (WebRTC P2P full mesh), user profiles, MCP agent accounts. Deployment scripts and guides in place.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Backend | ASP.NET Core (API + SignalR for real-time text) |
-| Voice | WebRTC (implementation approach TBD) |
+| Voice | WebRTC P2P full mesh (SIPSorcery signaling via SignalR, JS interop for browser WebRTC) |
 | Web Client | Blazor WASM (no JS frameworks, no JS on the server — ever) |
 | Database | SQLite (dev), PostgreSQL/MySQL/MariaDB (prod) via EF Core |
 | Auth | ASP.NET Identity + optional OAuth (Google, Microsoft) |
