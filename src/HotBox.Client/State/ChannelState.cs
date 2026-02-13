@@ -93,5 +93,13 @@ public class ChannelState
         NotifyStateChanged();
     }
 
+    public void ClearActiveChannel()
+    {
+        ActiveChannel = null;
+        Messages = new();
+        TypingUsers = new();
+        NotifyStateChanged();
+    }
+
     private void NotifyStateChanged() => OnChange?.Invoke();
 }
