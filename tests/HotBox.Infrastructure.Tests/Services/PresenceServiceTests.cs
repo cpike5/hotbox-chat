@@ -44,7 +44,7 @@ public class PresenceServiceTests : IDisposable
         string? eventDisplayName = null;
         UserStatus? eventStatus = null;
 
-        _sut.OnUserStatusChanged += (uid, name, status) =>
+        _sut.OnUserStatusChanged += (uid, name, status, _) =>
         {
             eventUserId = uid;
             eventDisplayName = name;
@@ -143,7 +143,7 @@ public class PresenceServiceTests : IDisposable
         await _sut.SetOnlineAsync(userId, "conn-1", "Test User");
 
         UserStatus? eventStatus = null;
-        _sut.OnUserStatusChanged += (_, _, status) => eventStatus = status;
+        _sut.OnUserStatusChanged += (_, _, status, _) => eventStatus = status;
 
         // Act
         await _sut.SetOfflineAsync(userId);

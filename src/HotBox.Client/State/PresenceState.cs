@@ -2,7 +2,7 @@ using HotBox.Client.Models;
 
 namespace HotBox.Client.State;
 
-public record UserPresenceInfo(Guid UserId, string DisplayName, string Status);
+public record UserPresenceInfo(Guid UserId, string DisplayName, string Status, bool IsAgent);
 
 public class PresenceState
 {
@@ -55,7 +55,7 @@ public class PresenceState
         _users.Clear();
         foreach (var user in users)
         {
-            _users[user.UserId] = new UserPresenceInfo(user.UserId, user.DisplayName, user.Status);
+            _users[user.UserId] = new UserPresenceInfo(user.UserId, user.DisplayName, user.Status, user.IsAgent);
         }
 
         IsLoading = false;
@@ -65,9 +65,9 @@ public class PresenceState
     /// <summary>
     /// Updates a single user's status. Adds the user if not already tracked.
     /// </summary>
-    public void UpdateUserStatus(Guid userId, string displayName, string status)
+    public void UpdateUserStatus(Guid userId, string displayName, string status, bool isAgent = false)
     {
-        _users[userId] = new UserPresenceInfo(userId, displayName, status);
+        _users[userId] = new UserPresenceInfo(userId, displayName, status, isAgent);
         NotifyStateChanged();
     }
 

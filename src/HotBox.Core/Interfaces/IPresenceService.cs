@@ -7,7 +7,7 @@ public interface IPresenceService
     /// <summary>
     /// Registers a connection and marks the user as online.
     /// </summary>
-    Task SetOnlineAsync(Guid userId, string connectionId, string displayName);
+    Task SetOnlineAsync(Guid userId, string connectionId, string displayName, bool isAgent = false);
 
     /// <summary>
     /// Marks the user as idle (triggered by inactivity timeout).
@@ -32,7 +32,7 @@ public interface IPresenceService
     /// <summary>
     /// Gets all users currently not offline (Online, Idle, or DoNotDisturb).
     /// </summary>
-    IReadOnlyList<(Guid UserId, string DisplayName, UserStatus Status)> GetAllOnlineUsers();
+    IReadOnlyList<(Guid UserId, string DisplayName, UserStatus Status, bool IsAgent)> GetAllOnlineUsers();
 
     /// <summary>
     /// Removes a specific connection. If this was the user's last connection,

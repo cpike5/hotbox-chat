@@ -52,12 +52,12 @@ public class ChatHubService : IAsyncDisposable
     public event Action<Guid>? OnDirectMessageStoppedTyping;
 
     /// <summary>
-    /// Raised when a user's presence status changes. Parameters: userId, displayName, status.
+    /// Raised when a user's presence status changes. Parameters: userId, displayName, status, isAgent.
     /// The status parameter is a stringified <c>UserStatus</c> enum value
     /// (e.g. "Online", "Idle", "DoNotDisturb", "Offline") because SignalR serializes
     /// enums as strings in JSON by default.
     /// </summary>
-    public event Action<Guid, string, string>? OnUserStatusChanged;
+    public event Action<Guid, string, string, bool>? OnUserStatusChanged;
 
     /// <summary>Raised when the initial list of online users is received after connecting.</summary>
     public event Action<List<OnlineUserInfoModel>>? OnOnlineUsers;
@@ -263,9 +263,9 @@ public class ChatHubService : IAsyncDisposable
             OnDirectMessageStoppedTyping?.Invoke(senderId);
         });
 
-        connection.On<Guid, string, string>("UserStatusChanged", (userId, displayName, status) =>
+        connection.On<Guid, string, string, bool>("UserStatusChanged", (userId, displayName, status, isAgent) =>
         {
-            OnUserStatusChanged?.Invoke(userId, displayName, status);
+            OnUserStatusChanged?.Invoke(userId, displayName, status, isAgent);
         });
 
         connection.On<List<OnlineUserInfoModel>>("OnlineUsers", users =>

@@ -12,6 +12,8 @@ public class MessageResponse
 
     public string AuthorDisplayName { get; set; } = string.Empty;
 
+    public bool IsAgent { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime? EditedAtUtc { get; set; }

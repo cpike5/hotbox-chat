@@ -9,4 +9,6 @@ public class OnlineUserInfo
     public string DisplayName { get; set; } = string.Empty;
 
     public UserStatus Status { get; set; }
+
+    public bool IsAgent { get; set; }
 }

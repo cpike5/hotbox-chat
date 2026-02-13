@@ -42,14 +42,16 @@ public class ChatHub : Hub
     public override async Task OnConnectedAsync()
     {
         var userId = GetUserId();
-        var displayName = await GetDisplayNameAsync(userId);
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        var displayName = user?.DisplayName ?? "Unknown";
+        var isAgent = user?.IsAgent ?? false;
 
         // Register connection and mark user online
-        await _presenceService.SetOnlineAsync(userId, Context.ConnectionId, displayName);
+        await _presenceService.SetOnlineAsync(userId, Context.ConnectionId, displayName, isAgent);
 
         // Broadcast status change to all other clients
         await Clients.Others.SendAsync(
-            "UserStatusChanged", userId, displayName, UserStatus.Online);
+            "UserStatusChanged", userId, displayName, UserStatus.Online, isAgent);
 
         // Send the full list of online users to the connecting client
         var onlineUsers = _presenceService.GetAllOnlineUsers()
@@ -58,6 +60,7 @@ public class ChatHub : Hub
                 UserId = u.UserId,
                 DisplayName = u.DisplayName,
                 Status = u.Status,
+                IsAgent = u.IsAgent,
             })
             .ToList();
 
@@ -136,6 +139,7 @@ public class ChatHub : Hub
             ChannelId = message.ChannelId,
             AuthorId = message.AuthorId,
             AuthorDisplayName = authorDisplayName,
+            IsAgent = message.Author?.IsAgent ?? false,
             CreatedAtUtc = message.CreatedAtUtc,
         };
 
@@ -234,22 +238,23 @@ public class ChatHub : Hub
     {
         var userId = GetUserId();
 
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        var displayName = user?.DisplayName ?? "Unknown";
+        var isAgent = user?.IsAgent ?? false;
+
         switch (status)
         {
             case UserStatus.Online:
-                var displayName = await GetDisplayNameAsync(userId);
-                await _presenceService.SetOnlineAsync(userId, Context.ConnectionId, displayName);
-                await Clients.Others.SendAsync("UserStatusChanged", userId, displayName, UserStatus.Online);
+                await _presenceService.SetOnlineAsync(userId, Context.ConnectionId, displayName, isAgent);
+                await Clients.Others.SendAsync("UserStatusChanged", userId, displayName, UserStatus.Online, isAgent);
                 break;
             case UserStatus.DoNotDisturb:
                 await _presenceService.SetDoNotDisturbAsync(userId);
-                var dndDisplayName = await GetDisplayNameAsync(userId);
-                await Clients.Others.SendAsync("UserStatusChanged", userId, dndDisplayName, UserStatus.DoNotDisturb);
+                await Clients.Others.SendAsync("UserStatusChanged", userId, displayName, UserStatus.DoNotDisturb, isAgent);
                 break;
             case UserStatus.Idle:
                 await _presenceService.SetIdleAsync(userId);
-                var idleDisplayName = await GetDisplayNameAsync(userId);
-                await Clients.Others.SendAsync("UserStatusChanged", userId, idleDisplayName, UserStatus.Idle);
+                await Clients.Others.SendAsync("UserStatusChanged", userId, displayName, UserStatus.Idle, isAgent);
                 break;
             default:
                 throw new HubException("Cannot manually set status to Offline. Disconnect instead.");
