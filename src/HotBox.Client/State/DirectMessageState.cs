@@ -4,6 +4,8 @@ namespace HotBox.Client.State;
 
 public class DirectMessageState
 {
+    public const int MessageWindowSize = 200;
+
     public List<ConversationSummaryResponse> Conversations { get; private set; } = new();
 
     public Guid? ActiveConversationUserId { get; private set; }
@@ -19,6 +21,10 @@ public class DirectMessageState
     public IReadOnlyList<string> TypingDisplayNames => TypingUsers.Values.ToList();
 
     public bool IsLoadingMessages { get; private set; }
+
+    public bool IsLoadingOlderMessages { get; private set; }
+
+    public bool HasMoreMessages { get; private set; } = true;
 
     public Guid? CurrentUserId { get; private set; }
 
@@ -38,6 +44,7 @@ public class DirectMessageState
         ActiveConversationDisplayName = displayName;
         Messages = new();
         TypingUsers = new();
+        HasMoreMessages = true;
         NotifyStateChanged();
     }
 
@@ -81,7 +88,9 @@ public class DirectMessageState
 
     public void PrependMessages(List<DirectMessageResponse> olderMessages)
     {
-        Messages.InsertRange(0, olderMessages);
+        var existingIds = Messages.Select(m => m.Id).ToHashSet();
+        var newMessages = olderMessages.Where(m => !existingIds.Contains(m.Id)).ToList();
+        Messages.InsertRange(0, newMessages);
         NotifyStateChanged();
     }
 
@@ -112,6 +121,38 @@ public class DirectMessageState
     {
         IsLoadingMessages = loading;
         NotifyStateChanged();
+    }
+
+    public void SetLoadingOlderMessages(bool loading)
+    {
+        IsLoadingOlderMessages = loading;
+        NotifyStateChanged();
+    }
+
+    public void SetHasMoreMessages(bool value)
+    {
+        HasMoreMessages = value;
+        NotifyStateChanged();
+    }
+
+    public void PurgeOldMessages(int maxCount)
+    {
+        if (Messages.Count > maxCount)
+        {
+            var excessCount = Messages.Count - maxCount;
+            Messages.RemoveRange(0, excessCount);
+            NotifyStateChanged();
+        }
+    }
+
+    public void PurgeNewMessages(int maxCount)
+    {
+        if (Messages.Count > maxCount)
+        {
+            var excessCount = Messages.Count - maxCount;
+            Messages.RemoveRange(Messages.Count - excessCount, excessCount);
+            NotifyStateChanged();
+        }
     }
 
     private void NotifyStateChanged() => OnChange?.Invoke();
