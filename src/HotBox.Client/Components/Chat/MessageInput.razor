@@ -15,6 +15,7 @@
                     var index = i;
                     var user = _autocompleteResults[i];
                     <div class="mention-autocomplete-item @(i == _selectedIndex ? "selected" : "")"
+                         id="mention-option-@index"
                          role="option"
                          aria-selected="@(i == _selectedIndex ? "true" : "false")"
                          @onmousedown="() => SelectMention(index)"
@@ -29,7 +30,7 @@
             </div>
         }
         <input type="text"
-               @bind="MessageText"
+               @bind="_displayText"
                @bind:event="oninput"
                @bind:after="OnInput"
                @onkeydown="HandleKeyDown"
@@ -38,7 +39,8 @@
                disabled="@(ChannelState.ActiveChannel is null)"
                aria-autocomplete="list"
                aria-expanded="@_showAutocomplete"
-               aria-controls="mention-autocomplete" />
+               aria-controls="mention-autocomplete"
+               aria-activedescendant="@(_showAutocomplete && _selectedIndex >= 0 ? $"mention-option-{_selectedIndex}" : null)" />
         <button @onclick="SendMessage"
                 disabled="@(ChannelState.ActiveChannel is null)"
                 aria-label="Send message">
@@ -52,7 +54,8 @@
 </div>
 
 @code {
-    private string MessageText { get; set; } = string.Empty;
+    private string _displayText = string.Empty;
+    private List<MentionEntry> _mentions = new();
     private DateTime _lastTypingSignal = DateTime.MinValue;
     private static readonly TimeSpan TypingDebounceInterval = TimeSpan.FromSeconds(3);
 
@@ -63,6 +66,8 @@
     private List<UserPresenceInfo> _autocompleteResults = new();
     private int _selectedIndex;
     private bool _preventKeyDefault;
+
+    private record MentionEntry(string DisplayName, Guid UserId);
 
     protected override void OnInitialized()
     {
@@ -79,17 +84,23 @@
 
     private void OnInput()
     {
+        PruneMentions();
         UpdateAutocomplete();
+    }
+
+    private void PruneMentions()
+    {
+        _mentions.RemoveAll(m => !_displayText.Contains($"@{m.DisplayName}", StringComparison.Ordinal));
     }
 
     private void UpdateAutocomplete()
     {
         // Find last '@' in the text
-        var lastAtIndex = MessageText.LastIndexOf('@');
+        var lastAtIndex = _displayText.LastIndexOf('@');
 
-        if (lastAtIndex >= 0 && (lastAtIndex == 0 || char.IsWhiteSpace(MessageText[lastAtIndex - 1])))
+        if (lastAtIndex >= 0 && (lastAtIndex == 0 || char.IsWhiteSpace(_displayText[lastAtIndex - 1])))
         {
-            var query = MessageText[(lastAtIndex + 1)..];
+            var query = _displayText[(lastAtIndex + 1)..];
 
             if (!query.Contains(' '))
             {
@@ -153,11 +164,13 @@
             return;
 
         var user = _autocompleteResults[index];
-        var mentionMarker = $"@[{user.DisplayName}]({user.UserId}) ";
+        var displayMention = $"@{user.DisplayName} ";
 
-        // Replace from the '@' to the end of the query with the mention marker
+        // Replace from the '@' to the end of the query with the display mention
         var endOfQuery = _mentionStartIndex + 1 + _autocompleteQuery.Length;
-        MessageText = MessageText[.._mentionStartIndex] + mentionMarker + MessageText[endOfQuery..];
+        _displayText = _displayText[.._mentionStartIndex] + displayMention + _displayText[endOfQuery..];
+
+        _mentions.Add(new MentionEntry(user.DisplayName, user.UserId));
 
         CloseAutocomplete();
         StateHasChanged();
@@ -171,14 +184,47 @@
         _selectedIndex = 0;
     }
 
+    private string BuildSubmissionText()
+    {
+        var text = _displayText;
+        var replacements = new List<(int Index, string DisplayName, Guid UserId)>();
+
+        foreach (var mention in _mentions)
+        {
+            var searchFrom = 0;
+            var target = $"@{mention.DisplayName}";
+            while (true)
+            {
+                var idx = text.IndexOf(target, searchFrom, StringComparison.Ordinal);
+                if (idx < 0) break;
+                if (!replacements.Any(r => r.Index == idx))
+                {
+                    replacements.Add((idx, mention.DisplayName, mention.UserId));
+                    break;
+                }
+                searchFrom = idx + 1;
+            }
+        }
+
+        foreach (var r in replacements.OrderByDescending(r => r.Index))
+        {
+            var displayMention = $"@{r.DisplayName}";
+            var structuredMention = $"@[{r.DisplayName}]({r.UserId})";
+            text = text[..r.Index] + structuredMention + text[(r.Index + displayMention.Length)..];
+        }
+
+        return text.Trim();
+    }
+
     private async Task SendMessage()
     {
-        var content = MessageText.Trim();
+        var content = BuildSubmissionText();
         if (string.IsNullOrEmpty(content) || ChannelState.ActiveChannel is null)
             return;
 
         var channelId = ChannelState.ActiveChannel.Id;
-        MessageText = string.Empty;
+        _displayText = string.Empty;
+        _mentions.Clear();
 
         if (ChatHub.IsConnected)
         {
