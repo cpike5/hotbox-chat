@@ -293,10 +293,26 @@
         PresenceState.SetOnlineUsers(users);
     }
 
-    private void HandleConnectionChanged(bool connected)
+    private async void HandleConnectionChanged(bool connected)
     {
         if (connected)
         {
+            // Seed all registered users as Offline so they appear in the members panel
+            // even if they have never connected via SignalR. The subsequent OnOnlineUsers
+            // event will overlay actual online statuses on top.
+            try
+            {
+                var allUsers = await Api.GetAllUsersAsync();
+                if (allUsers is not null)
+                {
+                    PresenceState.SeedAllUsers(allUsers);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to seed all users for presence state");
+            }
+
             // Start heartbeat timer when connected (fires every 60 seconds)
             _heartbeatTimer?.Dispose();
             _heartbeatTimer = new System.Threading.Timer(
