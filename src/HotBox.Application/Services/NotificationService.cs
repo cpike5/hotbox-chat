@@ -115,8 +115,8 @@ public partial class NotificationService : INotificationService
         string messageContent,
         CancellationToken ct = default)
     {
-        var mentionedUsernames = ExtractMentions(messageContent);
-        if (mentionedUsernames.Count == 0)
+        var mentionedUserIds = ExtractMentions(messageContent);
+        if (mentionedUserIds.Count == 0)
             return;
 
         var preview = messageContent.Length > 100
@@ -124,7 +124,7 @@ public partial class NotificationService : INotificationService
             : messageContent;
 
         var mentionedUsers = await _userManager.Users
-            .Where(u => u.UserName != null && mentionedUsernames.Contains(u.UserName))
+            .Where(u => mentionedUserIds.Contains(u.Id))
             .ToListAsync(ct);
 
         foreach (var user in mentionedUsers)
@@ -142,15 +142,18 @@ public partial class NotificationService : INotificationService
         }
     }
 
-    private static List<string> ExtractMentions(string content)
+    private static List<Guid> ExtractMentions(string content)
     {
         var matches = MentionRegex().Matches(content);
-        var usernames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var userIds = new HashSet<Guid>();
         foreach (Match match in matches)
-            usernames.Add(match.Groups[1].Value);
-        return usernames.ToList();
+        {
+            if (Guid.TryParse(match.Groups[2].Value, out var userId))
+                userIds.Add(userId);
+        }
+        return userIds.ToList();
     }
 
-    [GeneratedRegex(@"@(\w+)", RegexOptions.Compiled)]
+    [GeneratedRegex(@"@\[([^\]]+)\]\(([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\)", RegexOptions.Compiled)]
     private static partial Regex MentionRegex();
 }

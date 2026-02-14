@@ -1,6 +1,8 @@
 @using HotBox.Client.State
 @using HotBox.Client.Models
+@using System.Text.RegularExpressions
 @inject ChannelState ChannelState
+@inject AuthState AuthState
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -57,7 +59,7 @@
 
                 if (isNewAuthor)
                 {
-                    <div class="message-group new-author">
+                    <div class="message-group new-author @(ContainsMentionOfCurrentUser(msg.Content) ? "mentioned" : "")">
                         <div class="msg-avatar" style="background: @GetAvatarColor(msg.AuthorDisplayName);">
                             @GetInitials(msg.AuthorDisplayName)
                         </div>
@@ -76,16 +78,16 @@
                                 }
                                 <span class="msg-timestamp">@FormatTime(msg.CreatedAtUtc)</span>
                             </div>
-                            <div class="msg-body">@msg.Content</div>
+                            <div class="msg-body">@RenderMessageContent(msg.Content)</div>
                         </div>
                     </div>
                 }
                 else
                 {
-                    <div class="message-group">
+                    <div class="message-group @(ContainsMentionOfCurrentUser(msg.Content) ? "mentioned" : "")">
                         <div style="width: 34px; flex-shrink: 0;"></div>
                         <div class="msg-content">
-                            <div class="msg-body">@msg.Content</div>
+                            <div class="msg-body">@RenderMessageContent(msg.Content)</div>
                         </div>
                     </div>
                 }
@@ -218,6 +220,51 @@
     private void ClosePopover()
     {
         _selectedAuthorId = null;
+    }
+
+    private static readonly Regex MentionRegex = new(@"@\[([^\]]+)\]\(([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\)", RegexOptions.Compiled);
+
+    private RenderFragment RenderMessageContent(string content) => builder =>
+    {
+        var lastIndex = 0;
+        var seq = 0;
+
+        foreach (Match match in MentionRegex.Matches(content))
+        {
+            if (match.Index > lastIndex)
+            {
+                builder.AddContent(seq++, content[lastIndex..match.Index]);
+            }
+
+            var displayName = match.Groups[1].Value;
+            var userId = match.Groups[2].Value;
+            var isSelf = AuthState.CurrentUser?.Id.ToString() == userId;
+
+            builder.OpenElement(seq++, "span");
+            builder.AddAttribute(seq++, "class", isSelf ? "mention mention-self" : "mention");
+            builder.AddContent(seq++, $"@{displayName}");
+            builder.CloseElement();
+
+            lastIndex = match.Index + match.Length;
+        }
+
+        if (lastIndex < content.Length)
+        {
+            builder.AddContent(seq++, content[lastIndex..]);
+        }
+    };
+
+    private bool ContainsMentionOfCurrentUser(string content)
+    {
+        var currentUserId = AuthState.CurrentUser?.Id.ToString();
+        if (currentUserId is null) return false;
+
+        foreach (Match match in MentionRegex.Matches(content))
+        {
+            if (match.Groups[2].Value == currentUserId)
+                return true;
+        }
+        return false;
     }
 
     public void Dispose()

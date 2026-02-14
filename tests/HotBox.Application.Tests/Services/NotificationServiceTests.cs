@@ -258,7 +258,7 @@ public class NotificationServiceTests
         var channelId = Guid.NewGuid();
         var user1Id = Guid.NewGuid();
         var user2Id = Guid.NewGuid();
-        var content = "Hey @alice and @bob, check this out!";
+        var content = $"Hey @[Alice]({user1Id}) and @[Bob]({user2Id}), check this out!";
 
         var users = new List<AppUser>
         {
@@ -293,7 +293,7 @@ public class NotificationServiceTests
         // Arrange
         var senderId = Guid.NewGuid();
         var channelId = Guid.NewGuid();
-        var content = "I'm @sender mentioning myself";
+        var content = $"I'm @[Sender Name]({senderId}) mentioning myself";
 
         var users = new List<AppUser>
         {
@@ -324,7 +324,7 @@ public class NotificationServiceTests
         var senderId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var channelId = Guid.NewGuid();
-        var longContent = new string('a', 150) + " @alice";
+        var longContent = new string('a', 150) + $" @[Alice]({userId})";
 
         var users = new List<AppUser>
         {
@@ -381,7 +381,7 @@ public class NotificationServiceTests
         var senderId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var channelId = Guid.NewGuid();
-        var content = "Hey @alice, @alice, and @ALICE!"; // Multiple mentions of same user, different case
+        var content = $"Hey @[Alice]({userId}), @[Alice]({userId}), and @[Alice]({userId})!";
 
         var users = new List<AppUser>
         {
@@ -407,6 +407,63 @@ public class NotificationServiceTests
         // Assert
         await Task.Delay(50);
         await _notificationRepository.Received(1).CreateAsync(Arg.Any<Notification>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessMentionNotificationsAsync_WithOldAtMentionFormat_DoesNotMatch()
+    {
+        // Arrange
+        var content = "Hey @alice, check this out";
+
+        // Act
+        await _sut.ProcessMentionNotificationsAsync(
+            Guid.NewGuid(),
+            "Sender",
+            Guid.NewGuid(),
+            "test-channel",
+            content);
+
+        // Assert
+        await _notificationRepository.DidNotReceiveWithAnyArgs()
+            .CreateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task ProcessMentionNotificationsAsync_WithEmailInMessage_DoesNotFalsePositive()
+    {
+        // Arrange
+        var content = "Send it to user@example.com";
+
+        // Act
+        await _sut.ProcessMentionNotificationsAsync(
+            Guid.NewGuid(),
+            "Sender",
+            Guid.NewGuid(),
+            "test-channel",
+            content);
+
+        // Assert
+        await _notificationRepository.DidNotReceiveWithAnyArgs()
+            .CreateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task ProcessMentionNotificationsAsync_WithInvalidGuid_DoesNotMatch()
+    {
+        // Arrange
+        var content = "Hey @[Alice](not-a-guid), check this";
+
+        // Act
+        await _sut.ProcessMentionNotificationsAsync(
+            Guid.NewGuid(),
+            "Sender",
+            Guid.NewGuid(),
+            "test-channel",
+            content);
+
+        // Assert
+        await _notificationRepository.DidNotReceiveWithAnyArgs()
+            .CreateAsync(default!, default);
     }
 
     private static UserManager<AppUser> SubstituteUserManager()

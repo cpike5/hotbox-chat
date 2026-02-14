@@ -2,16 +2,43 @@
 @using HotBox.Client.Services
 @inject DirectMessageState DirectMessageState
 @inject ChatHubService ChatHub
+@inject PresenceState PresenceState
 @implements IDisposable
 
 <div class="message-input-wrapper">
-    <div class="message-input">
+    <div class="message-input" style="position: relative;">
+        @if (_showAutocomplete && _autocompleteResults.Count > 0)
+        {
+            <div class="mention-autocomplete" id="mention-autocomplete" role="listbox" aria-label="User suggestions">
+                @for (var i = 0; i < _autocompleteResults.Count; i++)
+                {
+                    var index = i;
+                    var user = _autocompleteResults[i];
+                    <div class="mention-autocomplete-item @(i == _selectedIndex ? "selected" : "")"
+                         role="option"
+                         aria-selected="@(i == _selectedIndex ? "true" : "false")"
+                         @onmousedown="() => SelectMention(index)"
+                         @onmousedown:preventDefault>
+                        <span class="mention-display-name">@user.DisplayName</span>
+                        @if (user.IsAgent)
+                        {
+                            <span class="mention-badge">BOT</span>
+                        }
+                    </div>
+                }
+            </div>
+        }
         <input type="text"
                @bind="MessageText"
                @bind:event="oninput"
+               @bind:after="OnInput"
                @onkeydown="HandleKeyDown"
+               @onkeydown:preventDefault="_preventKeyDefault"
                placeholder="@GetPlaceholder()"
-               disabled="@(DirectMessageState.ActiveConversationUserId is null)" />
+               disabled="@(DirectMessageState.ActiveConversationUserId is null)"
+               aria-autocomplete="list"
+               aria-expanded="@_showAutocomplete"
+               aria-controls="mention-autocomplete" />
         <button @onclick="SendMessage"
                 disabled="@(DirectMessageState.ActiveConversationUserId is null)"
                 aria-label="Send message">
@@ -34,6 +61,14 @@
     private DateTime _lastTypingSignal = DateTime.MinValue;
     private static readonly TimeSpan TypingDebounceInterval = TimeSpan.FromSeconds(3);
 
+    // Mention autocomplete state
+    private bool _showAutocomplete;
+    private string _autocompleteQuery = string.Empty;
+    private int _mentionStartIndex;
+    private List<UserPresenceInfo> _autocompleteResults = new();
+    private int _selectedIndex;
+    private bool _preventKeyDefault;
+
     protected override void OnInitialized()
     {
         DirectMessageState.OnChange += StateHasChanged;
@@ -47,16 +82,96 @@
         return $"Message @{DirectMessageState.ActiveConversationDisplayName}";
     }
 
+    private void OnInput()
+    {
+        UpdateAutocomplete();
+    }
+
+    private void UpdateAutocomplete()
+    {
+        var lastAtIndex = MessageText.LastIndexOf('@');
+
+        if (lastAtIndex >= 0 && (lastAtIndex == 0 || char.IsWhiteSpace(MessageText[lastAtIndex - 1])))
+        {
+            var query = MessageText[(lastAtIndex + 1)..];
+
+            if (!query.Contains(' '))
+            {
+                _mentionStartIndex = lastAtIndex;
+                _autocompleteQuery = query;
+                _autocompleteResults = PresenceState.GetAllUsers()
+                    .Where(u => u.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase))
+                    .Take(8)
+                    .ToList();
+                _showAutocomplete = _autocompleteResults.Count > 0;
+                _selectedIndex = 0;
+                return;
+            }
+        }
+
+        CloseAutocomplete();
+    }
+
     private async Task HandleKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
     {
+        _preventKeyDefault = false;
+
+        if (_showAutocomplete && _autocompleteResults.Count > 0)
+        {
+            switch (e.Key)
+            {
+                case "ArrowUp":
+                    _selectedIndex = (_selectedIndex - 1 + _autocompleteResults.Count) % _autocompleteResults.Count;
+                    _preventKeyDefault = true;
+                    return;
+                case "ArrowDown":
+                    _selectedIndex = (_selectedIndex + 1) % _autocompleteResults.Count;
+                    _preventKeyDefault = true;
+                    return;
+                case "Enter":
+                case "Tab":
+                    SelectMention(_selectedIndex);
+                    _preventKeyDefault = true;
+                    return;
+                case "Escape":
+                    CloseAutocomplete();
+                    _preventKeyDefault = true;
+                    return;
+            }
+        }
+
         if (e.Key == "Enter" && !e.ShiftKey)
         {
+            _preventKeyDefault = true;
             await SendMessage();
             return;
         }
 
         // Debounced typing indicator
         await SendTypingSignalAsync();
+    }
+
+    private void SelectMention(int index)
+    {
+        if (index < 0 || index >= _autocompleteResults.Count)
+            return;
+
+        var user = _autocompleteResults[index];
+        var mentionMarker = $"@[{user.DisplayName}]({user.UserId}) ";
+
+        var endOfQuery = _mentionStartIndex + 1 + _autocompleteQuery.Length;
+        MessageText = MessageText[.._mentionStartIndex] + mentionMarker + MessageText[endOfQuery..];
+
+        CloseAutocomplete();
+        StateHasChanged();
+    }
+
+    private void CloseAutocomplete()
+    {
+        _showAutocomplete = false;
+        _autocompleteQuery = string.Empty;
+        _autocompleteResults.Clear();
+        _selectedIndex = 0;
     }
 
     private async Task SendMessage()
