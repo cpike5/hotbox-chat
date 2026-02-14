@@ -3,13 +3,13 @@ using Microsoft.JSInterop;
 
 namespace HotBox.Client.Services;
 
-public class NotificationService
+public class BrowserNotificationService
 {
     private readonly IJSRuntime _jsRuntime;
-    private readonly ILogger<NotificationService> _logger;
+    private readonly ILogger<BrowserNotificationService> _logger;
     private bool _permissionRequested;
 
-    public NotificationService(IJSRuntime jsRuntime, ILogger<NotificationService> logger)
+    public BrowserNotificationService(IJSRuntime jsRuntime, ILogger<BrowserNotificationService> logger)
     {
         _jsRuntime = jsRuntime;
         _logger = logger;

@@ -14,7 +14,8 @@
             _ => ""
         };
 
-        <div class="toast-item @typeCss">
+        <div class="toast-item @typeCss @(toast.NavigateUrl != null ? "clickable" : "")"
+             @onclick="() => HandleToastClick(toast)">
             @switch (toast.Type)
             {
                 case ToastType.Success:
@@ -57,6 +58,8 @@
     }
 </div>
 
+@inject NavigationManager Navigation
+
 @code {
     protected override void OnInitialized()
     {
@@ -66,6 +69,15 @@
     private void HandleToastChange()
     {
         InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleToastClick(ToastItem toast)
+    {
+        if (toast.NavigateUrl is not null)
+        {
+            Navigation.NavigateTo(toast.NavigateUrl);
+            ToastService.RemoveToast(toast.Id);
+        }
     }
 
     public void Dispose()

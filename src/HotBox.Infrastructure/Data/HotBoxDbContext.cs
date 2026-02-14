@@ -28,6 +28,10 @@ public class HotBoxDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Gu
 
     public DbSet<UserChannelRead> UserChannelReads => Set<UserChannelRead>();
 
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<UserNotificationPreference> UserNotificationPreferences => Set<UserNotificationPreference>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

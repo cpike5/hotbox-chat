@@ -1,0 +1,149 @@
+@page "/notifications"
+@using HotBox.Client.State
+@using HotBox.Client.Models
+@using HotBox.Core.Enums
+@inject NotificationState NotificationState
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>HotBox - Notifications</PageTitle>
+
+<div class="notifications-page">
+    <div class="notifications-header">
+        <div class="notifications-header-left">
+            <button class="notifications-back" @onclick="NavigateBack">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <h2 class="notifications-title">Notifications</h2>
+        </div>
+        @if (NotificationState.Notifications.Count > 0)
+        {
+            <button class="btn btn-secondary" @onclick="MarkAllAsRead">Mark all as read</button>
+        }
+    </div>
+
+    @if (_loading)
+    {
+        <div class="notifications-loading">Loading notifications...</div>
+    }
+    else if (NotificationState.Notifications.Count == 0)
+    {
+        <EmptyState Title="No notifications"
+                    Description="@_emptyStateDescription" />
+    }
+    else
+    {
+        <div class="notifications-list">
+            @foreach (var notification in NotificationState.Notifications)
+            {
+                var isUnread = notification.ReadAtUtc is null;
+                <div class="notification-item @(isUnread ? "unread" : "")"
+                     @onclick="() => NavigateToSource(notification)">
+                    <div class="notification-avatar">
+                        @(string.IsNullOrEmpty(notification.SenderDisplayName) ? "?" : notification.SenderDisplayName[..1].ToUpper())
+                    </div>
+                    <div class="notification-content">
+                        <div class="notification-context">
+                            <span class="notification-sender">@notification.SenderDisplayName</span>
+                            @switch (notification.Type)
+                            {
+                                case NotificationType.Mention:
+                                    <span class="notification-action">mentioned you in</span>
+                                    <span class="notification-source">#@notification.SourceName</span>
+                                    break;
+                                case NotificationType.DirectMessage:
+                                    <span class="notification-action">sent you a message</span>
+                                    break;
+                            }
+                        </div>
+                        @if (!string.IsNullOrEmpty(notification.MessagePreview))
+                        {
+                            <div class="notification-preview">@notification.MessagePreview</div>
+                        }
+                        <div class="notification-time">@FormatTime(notification.CreatedAtUtc)</div>
+                    </div>
+                    @if (isUnread)
+                    {
+                        <div class="notification-unread-dot"></div>
+                    }
+                </div>
+            }
+
+            @if (_hasMore)
+            {
+                <div class="notifications-load-more">
+                    <button class="btn btn-secondary" @onclick="LoadMore" disabled="@_loadingMore">
+                        @(_loadingMore ? "Loading..." : "Load more")
+                    </button>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool _loading = true;
+    private bool _loadingMore;
+    private bool _hasMore = true;
+    private const int PageSize = 50;
+
+    protected override async Task OnInitializedAsync()
+    {
+        NotificationState.OnChange += StateHasChanged;
+
+        await NotificationState.LoadHistoryAsync();
+        _hasMore = NotificationState.Notifications.Count >= PageSize;
+        _loading = false;
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private async Task MarkAllAsRead()
+    {
+        await NotificationState.MarkAllAsReadAsync();
+    }
+
+    private void NavigateToSource(NotificationResponseModel notification)
+    {
+        var url = notification.SourceType switch
+        {
+            NotificationSourceType.Channel => $"/channels/{notification.SourceId}",
+            NotificationSourceType.DirectMessage => $"/dm/{notification.SourceId}",
+            _ => "/notifications"
+        };
+        Navigation.NavigateTo(url);
+    }
+
+    private async Task LoadMore()
+    {
+        if (_loadingMore || !_hasMore || NotificationState.Notifications.Count == 0) return;
+
+        _loadingMore = true;
+        var countBefore = NotificationState.Notifications.Count;
+        var oldest = NotificationState.Notifications[^1];
+        await NotificationState.LoadHistoryAsync(oldest.CreatedAtUtc);
+        var loaded = NotificationState.Notifications.Count - countBefore;
+        _hasMore = loaded >= PageSize;
+        _loadingMore = false;
+    }
+
+    private const string _emptyStateDescription = "You're all caught up! Notifications for @mentions and direct messages will appear here.";
+
+    private static string FormatTime(DateTime utc)
+    {
+        var diff = DateTime.UtcNow - utc;
+        if (diff.TotalMinutes < 1) return "just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
+        return utc.ToString("MMM d");
+    }
+
+    public void Dispose()
+    {
+        NotificationState.OnChange -= StateHasChanged;
+    }
+}
