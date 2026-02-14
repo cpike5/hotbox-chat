@@ -334,6 +334,51 @@ public class ApiClient
         await PostNoContentAsync($"api/dm/{userId}/read", ct);
     }
 
+    // ── Notifications ─────────────────────────────────────────────────────
+
+    public async Task<List<NotificationResponseModel>?> GetNotificationsAsync(
+        DateTime? before = null, int limit = 50, CancellationToken ct = default)
+    {
+        var url = $"api/notifications?limit={limit}";
+        if (before.HasValue)
+            url += $"&before={before.Value:O}";
+        return await GetAsync<List<NotificationResponseModel>>(url, ct);
+    }
+
+    public async Task<int> GetNotificationUnreadCountAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            SetAuthHeader();
+            var response = await _http.GetAsync("api/notifications/unread-count", ct);
+            if (!response.IsSuccessStatusCode) return 0;
+            var content = await response.Content.ReadAsStringAsync(ct);
+            return int.TryParse(content, out var count) ? count : 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    public async Task MarkAllNotificationsReadAsync(CancellationToken ct = default)
+    {
+        await PostNoContentAsync("api/notifications/mark-all-read", ct);
+    }
+
+    public async Task<List<NotificationPreferenceModel>?> GetNotificationPreferencesAsync(
+        CancellationToken ct = default)
+    {
+        return await GetAsync<List<NotificationPreferenceModel>>("api/notifications/preferences", ct);
+    }
+
+    public async Task SetNotificationPreferenceAsync(
+        NotificationSourceType sourceType, Guid sourceId, bool isMuted, CancellationToken ct = default)
+    {
+        var request = new { SourceType = sourceType, SourceId = sourceId, IsMuted = isMuted };
+        await PutAsync("api/notifications/preferences", request, ct);
+    }
+
     // ── HTTP Helpers ────────────────────────────────────────────────────
 
     private void SetAuthHeader()

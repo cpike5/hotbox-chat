@@ -1,7 +1,10 @@
+@using HotBox.Client.Models
 @using HotBox.Client.State
+@using HotBox.Client.Services
 @using HotBox.Core.Enums
 @inject ChannelState ChannelState
 @inject DirectMessageState DirectMessageState
+@inject ApiClient Api
 @implements IDisposable
 
 @if (ChannelState.ActiveChannel is not null)
@@ -14,23 +17,123 @@
         <span class="channel-info-divider"></span>
         <span class="channel-info-topic">@channel.Topic</span>
     }
+    <button class="mute-toggle @(_channelMuted ? "muted" : "")"
+            title="@(_channelMuted ? "Unmute notifications" : "Mute notifications")"
+            @onclick="ToggleChannelMute">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            @if (_channelMuted)
+            {
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+            }
+            else
+            {
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            }
+        </svg>
+    </button>
 }
 else if (DirectMessageState.ActiveConversationUserId.HasValue)
 {
     <span class="channel-info-icon">@@</span>
     <span class="channel-info-name">@DirectMessageState.ActiveConversationDisplayName</span>
+    <button class="mute-toggle @(_dmMuted ? "muted" : "")"
+            title="@(_dmMuted ? "Unmute notifications" : "Mute notifications")"
+            @onclick="ToggleDmMute">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            @if (_dmMuted)
+            {
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+            }
+            else
+            {
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            }
+        </svg>
+    </button>
 }
 
 @code {
+    private bool _channelMuted;
+    private bool _dmMuted;
+    private Guid? _lastChannelId;
+    private Guid? _lastDmUserId;
+
     protected override void OnInitialized()
     {
-        ChannelState.OnChange += StateHasChanged;
-        DirectMessageState.OnChange += StateHasChanged;
+        ChannelState.OnChange += HandleChannelChange;
+        DirectMessageState.OnChange += HandleDmChange;
+    }
+
+    private async void HandleChannelChange()
+    {
+        if (ChannelState.ActiveChannel is not null && ChannelState.ActiveChannel.Id != _lastChannelId)
+        {
+            _lastChannelId = ChannelState.ActiveChannel.Id;
+            await LoadMuteStatus();
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadMuteStatus()
+    {
+        if (ChannelState.ActiveChannel is null) return;
+        var prefs = await Api.GetNotificationPreferencesAsync();
+        _channelMuted = prefs?.Any(p =>
+            p.SourceType == NotificationSourceType.Channel &&
+            p.SourceId == ChannelState.ActiveChannel.Id &&
+            p.IsMuted) ?? false;
+    }
+
+    private async void HandleDmChange()
+    {
+        if (DirectMessageState.ActiveConversationUserId.HasValue &&
+            DirectMessageState.ActiveConversationUserId != _lastDmUserId)
+        {
+            _lastDmUserId = DirectMessageState.ActiveConversationUserId;
+            await LoadDmMuteStatus();
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadDmMuteStatus()
+    {
+        if (!DirectMessageState.ActiveConversationUserId.HasValue) return;
+        var prefs = await Api.GetNotificationPreferencesAsync();
+        _dmMuted = prefs?.Any(p =>
+            p.SourceType == NotificationSourceType.DirectMessage &&
+            p.SourceId == DirectMessageState.ActiveConversationUserId.Value &&
+            p.IsMuted) ?? false;
+    }
+
+    private async Task ToggleDmMute()
+    {
+        if (!DirectMessageState.ActiveConversationUserId.HasValue) return;
+        _dmMuted = !_dmMuted;
+        await Api.SetNotificationPreferenceAsync(
+            NotificationSourceType.DirectMessage,
+            DirectMessageState.ActiveConversationUserId.Value,
+            _dmMuted);
+    }
+
+    private async Task ToggleChannelMute()
+    {
+        if (ChannelState.ActiveChannel is null) return;
+        _channelMuted = !_channelMuted;
+        await Api.SetNotificationPreferenceAsync(
+            NotificationSourceType.Channel,
+            ChannelState.ActiveChannel.Id,
+            _channelMuted);
     }
 
     public void Dispose()
     {
-        ChannelState.OnChange -= StateHasChanged;
-        DirectMessageState.OnChange -= StateHasChanged;
+        ChannelState.OnChange -= HandleChannelChange;
+        DirectMessageState.OnChange -= HandleDmChange;
     }
 }

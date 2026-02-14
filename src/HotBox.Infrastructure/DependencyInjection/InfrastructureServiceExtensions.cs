@@ -89,6 +89,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IDirectMessageRepository, DirectMessageRepository>();
         services.AddScoped<IInviteRepository, InviteRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
 
         // Register services
         services.AddScoped<ITokenService, TokenService>();

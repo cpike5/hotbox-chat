@@ -8,7 +8,7 @@
 @inject PresenceState PresenceState
 @inject VoiceState VoiceState
 @inject ChatHubService ChatHubService
-@inject NotificationService NotificationService
+@inject NotificationState NotificationState
 @inject VoiceConnectionManager VoiceConnectionManager
 @inject NavigationManager Navigation
 @inject DirectMessageState DirectMessageState
@@ -100,6 +100,20 @@
                     }
                 </div>
             </div>
+
+            <!-- Notifications -->
+            <button class="topbar-icon-btn" aria-label="Notifications" @onclick="NavigateToNotifications"
+                    style="position: relative;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                @if (NotificationState.UnreadCount > 0)
+                {
+                    <span class="notification-badge">@(NotificationState.UnreadCount > 99 ? "99+" : NotificationState.UnreadCount.ToString())</span>
+                }
+            </button>
 
             <!-- Search -->
             <button class="topbar-icon-btn" aria-label="Search" @onclick="OpenSearch">
@@ -243,8 +257,8 @@
         // Subscribe to presence events from ChatHubService
         ChatHubService.OnUserStatusChanged += HandleUserStatusChanged;
         ChatHubService.OnOnlineUsers += HandleOnlineUsers;
-        ChatHubService.OnNotificationReceived += HandleNotificationReceived;
         ChatHubService.OnConnectionChanged += HandleConnectionChanged;
+        NotificationState.OnChange += StateHasChanged;
 
         // Load channels into state so the sidebar and voice dropdown are populated immediately
         var channels = await Api.GetChannelsAsync();
@@ -260,6 +274,9 @@
 
             // Load initial unread counts
             await UnreadState.InitializeAsync();
+
+            // Load initial notification unread count
+            await NotificationState.InitializeAsync();
         }
 
         // Heartbeat timer is started/stopped via HandleConnectionChanged
@@ -274,13 +291,6 @@
     private void HandleOnlineUsers(List<HotBox.Client.Models.OnlineUserInfoModel> users)
     {
         PresenceState.SetOnlineUsers(users);
-    }
-
-    private async void HandleNotificationReceived(HotBox.Client.Models.NotificationPayloadModel payload)
-    {
-        await NotificationService.ShowNotificationIfHiddenAsync(
-            payload.SenderDisplayName,
-            payload.MessagePreview);
     }
 
     private void HandleConnectionChanged(bool connected)
@@ -320,6 +330,11 @@
         {
             Logger.LogError(ex, "Failed to send heartbeat");
         }
+    }
+
+    private void NavigateToNotifications()
+    {
+        Navigation.NavigateTo("/notifications");
     }
 
     private void OpenSearch()
@@ -442,8 +457,8 @@
         VoiceState.OnChange -= StateHasChanged;
         ChatHubService.OnUserStatusChanged -= HandleUserStatusChanged;
         ChatHubService.OnOnlineUsers -= HandleOnlineUsers;
-        ChatHubService.OnNotificationReceived -= HandleNotificationReceived;
         ChatHubService.OnConnectionChanged -= HandleConnectionChanged;
+        NotificationState.OnChange -= StateHasChanged;
         _heartbeatTimer?.Dispose();
     }
 }

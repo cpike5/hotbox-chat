@@ -16,7 +16,8 @@ public static class ClientServiceExtensions
         services.AddScoped<SearchState>();
         services.AddScoped<AppState>();
         services.AddScoped<ChatHubService>();
-        services.AddScoped<NotificationService>();
+        services.AddScoped<BrowserNotificationService>();
+        services.AddScoped<NotificationState>();
         services.AddScoped<VoiceHubService>();
         services.AddScoped<WebRtcService>();
         services.AddScoped<VoiceConnectionManager>();

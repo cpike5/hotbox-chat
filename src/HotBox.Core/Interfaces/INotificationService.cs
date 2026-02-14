@@ -1,15 +1,25 @@
+using HotBox.Core.Enums;
+
 namespace HotBox.Core.Interfaces;
 
 public interface INotificationService
 {
-    /// <summary>
-    /// Checks the message content for @mentions and sends notifications
-    /// to mentioned users who are not the sender.
-    /// </summary>
-    Task ProcessMessageNotificationsAsync(
+    Task CreateAsync(
+        NotificationType type,
+        Guid senderId,
+        Guid recipientId,
+        string senderDisplayName,
+        string messagePreview,
+        Guid sourceId,
+        NotificationSourceType sourceType,
+        string sourceName,
+        CancellationToken ct = default);
+
+    Task ProcessMentionNotificationsAsync(
         Guid senderId,
         string senderDisplayName,
         Guid channelId,
         string channelName,
-        string messageContent);
+        string messageContent,
+        CancellationToken ct = default);
 }

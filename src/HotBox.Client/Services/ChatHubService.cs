@@ -63,7 +63,7 @@ public class ChatHubService : IAsyncDisposable
     public event Action<List<OnlineUserInfoModel>>? OnOnlineUsers;
 
     /// <summary>Raised when a notification payload is received from the server.</summary>
-    public event Action<NotificationPayloadModel>? OnNotificationReceived;
+    public event Action<NotificationResponseModel>? OnNotificationReceived;
 
     /// <summary>Raised when a channel has a new unread message. Parameter: channelId.</summary>
     public event Action<Guid>? OnUnreadCountUpdated;
@@ -279,9 +279,9 @@ public class ChatHubService : IAsyncDisposable
             OnOnlineUsers?.Invoke(users);
         });
 
-        connection.On<NotificationPayloadModel>("ReceiveNotification", payload =>
+        connection.On<NotificationResponseModel>("ReceiveNotification", notification =>
         {
-            OnNotificationReceived?.Invoke(payload);
+            OnNotificationReceived?.Invoke(notification);
         });
 
         connection.On<Guid>("UnreadCountUpdated", channelId =>

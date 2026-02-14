@@ -8,7 +8,7 @@ public enum ToastType
     Info
 }
 
-public record ToastItem(Guid Id, string Message, ToastType Type, DateTime CreatedAt);
+public record ToastItem(Guid Id, string Message, ToastType Type, DateTime CreatedAt, string? NavigateUrl = null);
 
 public class ToastService : IDisposable
 {
@@ -33,6 +33,9 @@ public class ToastService : IDisposable
     public void ShowInfo(string message, int? durationMs = null)
         => Show(message, ToastType.Info, durationMs);
 
+    public void ShowInfo(string message, string? navigateUrl, int? durationMs = null)
+        => Show(message, ToastType.Info, durationMs, navigateUrl);
+
     public void RemoveToast(Guid id)
     {
         var removed = _toasts.RemoveAll(t => t.Id == id);
@@ -50,9 +53,9 @@ public class ToastService : IDisposable
         }
     }
 
-    private void Show(string message, ToastType type, int? durationMs)
+    private void Show(string message, ToastType type, int? durationMs, string? navigateUrl = null)
     {
-        var toast = new ToastItem(Guid.NewGuid(), message, type, DateTime.UtcNow);
+        var toast = new ToastItem(Guid.NewGuid(), message, type, DateTime.UtcNow, navigateUrl);
         _toasts.Add(toast);
         OnChange?.Invoke();
 

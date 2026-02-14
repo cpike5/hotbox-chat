@@ -150,7 +150,7 @@ public class ChatHub : Hub
         var channel = await _channelService.GetByIdAsync(channelId);
         var channelName = channel?.Name ?? "Unknown";
 
-        await _notificationService.ProcessMessageNotificationsAsync(
+        await _notificationService.ProcessMentionNotificationsAsync(
             userId,
             authorDisplayName,
             channelId,
@@ -211,6 +211,18 @@ public class ChatHub : Hub
         // The client increments its local count — avoids unnecessary DB query.
         await Clients.User(recipientId.ToString())
             .SendAsync("DmUnreadCountUpdated", senderId);
+
+        // Create DM notification for the recipient
+        await _notificationService.CreateAsync(
+            NotificationType.DirectMessage,
+            senderId,
+            recipientId,
+            senderDisplayName,
+            content.Length > 100 ? content[..100] : content,
+            senderId,
+            NotificationSourceType.DirectMessage,
+            senderDisplayName,
+            default);
     }
 
     public async Task DirectMessageTyping(Guid recipientId)
