@@ -4362,3 +4362,89 @@ input, textarea {
   border: 1px solid var(--border-subtle);
   color: var(--accent-hover);
 }
+
+/* ========================================
+   @mention Autocomplete
+   ======================================== */
+.mention-autocomplete {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 4px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 4px 0;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.mention-autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 14px;
+  transition: background 0.1s ease;
+}
+
+.mention-autocomplete-item:hover,
+.mention-autocomplete-item.selected {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.mention-autocomplete-item .mention-display-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-autocomplete-item .mention-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 2px 5px;
+  border-radius: var(--radius-xs);
+  background: var(--bot-badge-bg);
+  color: var(--bot-badge-color);
+  flex-shrink: 0;
+}
+
+/* ========================================
+   Mention Rendering (in message content)
+   ======================================== */
+.mention {
+  color: var(--accent);
+  background: var(--accent-muted);
+  border-radius: var(--radius-xs);
+  padding: 0 2px;
+  font-weight: 500;
+  transition: background var(--transition-fast);
+}
+
+.mention:hover {
+  background: rgba(93, 228, 199, 0.18);
+}
+
+.mention.mention-self {
+  color: var(--accent-strong);
+  background: rgba(93, 228, 199, 0.15);
+}
+
+/* Message group mentioned indicator */
+.message-group.mentioned {
+  background: rgba(93, 228, 199, 0.04);
+  border-left: 2px solid var(--accent);
+  padding-left: 6px;
+}
+
+.message-group.mentioned:hover {
+  background: rgba(93, 228, 199, 0.06);
+}
