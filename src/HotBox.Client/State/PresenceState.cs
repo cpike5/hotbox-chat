@@ -48,11 +48,36 @@ public class PresenceState
     }
 
     /// <summary>
+    /// Seeds all registered users as "Offline". Called before SetOnlineUsers so that
+    /// users who have never connected still appear in the members panel.
+    /// Does not overwrite existing entries.
+    /// </summary>
+    public void SeedAllUsers(List<UserProfileResponse> users)
+    {
+        foreach (var user in users)
+        {
+            if (!_users.ContainsKey(user.Id))
+            {
+                _users[user.Id] = new UserPresenceInfo(user.Id, user.DisplayName, "Offline", user.IsAgent);
+            }
+        }
+
+        NotifyStateChanged();
+    }
+
+    /// <summary>
     /// Sets the initial list of online users, typically received when first connecting.
+    /// Updates existing entries rather than clearing, so seeded offline users are preserved.
     /// </summary>
     public void SetOnlineUsers(List<OnlineUserInfoModel> users)
     {
-        _users.Clear();
+        // Mark all existing users as Offline first
+        foreach (var userId in _users.Keys.ToList())
+        {
+            _users[userId] = _users[userId] with { Status = "Offline" };
+        }
+
+        // Now overlay the actual online statuses
         foreach (var user in users)
         {
             _users[user.UserId] = new UserPresenceInfo(user.UserId, user.DisplayName, user.Status, user.IsAgent);

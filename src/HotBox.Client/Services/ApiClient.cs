@@ -272,6 +272,11 @@ public class ApiClient
 
     // ── Users ──────────────────────────────────────────────────────────────
 
+    public async Task<List<UserProfileResponse>> GetAllUsersAsync(CancellationToken ct = default)
+    {
+        return await GetAsync<List<UserProfileResponse>>("api/users", ct) ?? new List<UserProfileResponse>();
+    }
+
     public async Task<List<UserSearchResult>> SearchUsersAsync(string? query = null, CancellationToken ct = default)
     {
         var url = "api/users/search";
