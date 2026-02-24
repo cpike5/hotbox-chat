@@ -51,9 +51,17 @@
 
             string? lastAuthor = null;
             DateTime? lastTime = null;
+            DateTime? lastDate = null;
 
             @foreach (var msg in ChannelState.Messages)
             {
+                var messageDate = msg.CreatedAtUtc.ToLocalTime().Date;
+                if (lastDate is null || messageDate != lastDate.Value)
+                {
+                    <div class="date-separator"><span>@FormatDateSeparator(msg.CreatedAtUtc)</span></div>
+                }
+                lastDate = messageDate;
+
                 var isNewAuthor = msg.AuthorDisplayName != lastAuthor
                     || (lastTime.HasValue && (msg.CreatedAtUtc - lastTime.Value).TotalMinutes > 5);
 
@@ -85,7 +93,9 @@
                 else
                 {
                     <div id="msg-@msg.Id" class="message-group @(ContainsMentionOfCurrentUser(msg.Content) ? "mentioned" : "")">
-                        <div style="width: 34px; flex-shrink: 0;"></div>
+                        <div class="msg-gutter-time">
+                            <span class="msg-hover-timestamp">@(msg.CreatedAtUtc.ToLocalTime().ToString("h:mm tt"))</span>
+                        </div>
                         <div class="msg-content">
                             <div class="msg-body">@RenderMessageContent(msg.Content)</div>
                         </div>
@@ -179,7 +189,35 @@
     private static string FormatTime(DateTime utc)
     {
         var local = utc.ToLocalTime();
-        return local.ToString("h:mm tt");
+        var now = DateTime.Now;
+        var today = now.Date;
+        var messageDate = local.Date;
+
+        if (messageDate == today)
+            return local.ToString("h:mm tt");
+        if (messageDate == today.AddDays(-1))
+            return "Yesterday " + local.ToString("h:mm tt");
+        if (messageDate > today.AddDays(-7))
+            return local.ToString("ddd h:mm tt");
+        if (messageDate.Year == now.Year)
+            return local.ToString("MMM d, h:mm tt");
+        return local.ToString("MMM d, yyyy h:mm tt");
+    }
+
+    private static string FormatDateSeparator(DateTime utc)
+    {
+        var local = utc.ToLocalTime();
+        var now = DateTime.Now;
+        var today = now.Date;
+        var messageDate = local.Date;
+
+        if (messageDate == today)
+            return "Today";
+        if (messageDate == today.AddDays(-1))
+            return "Yesterday";
+        if (messageDate.Year == now.Year)
+            return local.ToString("MMMM d");
+        return local.ToString("MMMM d, yyyy");
     }
 
     private static string GetAvatarColor(string name)
