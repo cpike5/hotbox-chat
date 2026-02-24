@@ -53,7 +53,7 @@
         DirectMessageState.OnChange += StateHasChanged;
         UnreadState.OnChange += StateHasChanged;
 
-        if (!_loaded)
+        if (!_loaded && DirectMessageState.Conversations.Count == 0)
         {
             _loaded = true;
             var conversations = await Api.GetConversationsAsync();

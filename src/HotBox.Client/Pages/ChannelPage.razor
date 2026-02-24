@@ -62,7 +62,11 @@
 
         _currentChannelId = Id;
 
-        // Set active channel from the already-loaded channel list
+        // Set loading FIRST so the skeleton shows during the channel switch
+        ChannelState.SetLoadingMessages(true);
+        ChannelState.SetHasMoreMessages(true);
+
+        // Now set active channel (clears messages, but skeleton is already showing)
         var channel = ChannelState.Channels.FirstOrDefault(c => c.Id == Id);
         if (channel is not null)
         {
@@ -77,10 +81,6 @@
                 ChannelState.SetActiveChannel(fetched);
             }
         }
-
-        // Load messages for this channel
-        ChannelState.SetLoadingMessages(true);
-        ChannelState.SetHasMoreMessages(true);
         try
         {
             List<MessageResponse> messages;
