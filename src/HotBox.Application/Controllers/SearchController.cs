@@ -1,4 +1,5 @@
 using HotBox.Application.Models;
+using HotBox.Core.Enums;
 using HotBox.Core.Interfaces;
 using HotBox.Core.Models;
 using HotBox.Core.Options;
@@ -31,6 +32,8 @@ public class SearchController : ControllerBase
     public async Task<IActionResult> SearchMessages(
         [FromQuery(Name = "q")] string? query,
         [FromQuery] Guid? channelId = null,
+        [FromQuery] string? scope = null,
+        [FromQuery] Guid? senderId = null,
         [FromQuery] string? cursor = null,
         [FromQuery] int? limit = null,
         CancellationToken ct = default)
@@ -51,17 +54,26 @@ public class SearchController : ControllerBase
             return BadRequest(new { error = "Limit must be between 1 and 100." });
         }
 
+        var parsedScope = SearchScope.All;
+        if (!string.IsNullOrWhiteSpace(scope))
+        {
+            Enum.TryParse<SearchScope>(scope, ignoreCase: true, out parsedScope);
+        }
+
         var searchQuery = new SearchQuery
         {
             QueryText = query,
             ChannelId = channelId,
+            SenderId = senderId,
             Cursor = cursor,
             Limit = effectiveLimit,
+            Scope = parsedScope,
+            CallerUserId = GetUserId(),
         };
 
         _logger.LogInformation(
-            "Search request: Query={Query}, ChannelId={ChannelId}, Cursor={Cursor}, Limit={Limit}",
-            query, channelId, cursor, effectiveLimit);
+            "Search request: Query={Query}, ChannelId={ChannelId}, Scope={Scope}, Cursor={Cursor}, Limit={Limit}",
+            query, channelId, parsedScope, cursor, effectiveLimit);
 
         var result = await _searchService.SearchMessagesAsync(searchQuery, ct);
 
@@ -77,6 +89,9 @@ public class SearchController : ControllerBase
                 AuthorDisplayName = item.AuthorDisplayName,
                 CreatedAtUtc = item.CreatedAtUtc,
                 RelevanceScore = item.RelevanceScore,
+                IsDirectMessage = item.IsDirectMessage,
+                OtherParticipantId = item.OtherParticipantId,
+                OtherParticipantDisplayName = item.OtherParticipantDisplayName,
             }).ToList(),
             Cursor = result.Cursor,
             TotalEstimate = result.TotalEstimate,
@@ -95,6 +110,16 @@ public class SearchController : ControllerBase
         };
 
         return Ok(response);
+    }
+
+    private Guid? GetUserId()
+    {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return null;
+        }
+        return userId;
     }
 
     [HttpPost("reindex")]

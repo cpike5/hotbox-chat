@@ -66,4 +66,16 @@ public class MessageService : IMessageService
     {
         return await _messageRepository.GetByIdAsync(id, ct);
     }
+
+    public async Task<IReadOnlyList<Message>> GetAroundAsync(
+        Guid channelId,
+        Guid messageId,
+        int context = 25,
+        CancellationToken ct = default)
+    {
+        var channel = await _channelRepository.GetByIdAsync(channelId, ct)
+            ?? throw new KeyNotFoundException($"Channel {channelId} not found.");
+
+        return await _messageRepository.GetAroundAsync(channelId, messageId, context, ct);
+    }
 }

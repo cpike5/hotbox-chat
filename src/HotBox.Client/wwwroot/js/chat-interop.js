@@ -45,5 +45,16 @@ window.chatInterop = {
 
         const thresholdValue = threshold !== undefined ? threshold : 100;
         return el.scrollTop <= thresholdValue;
+    },
+
+    scrollToElement: function (elementId) {
+        const el = document.getElementById(elementId);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('message-highlight');
+            setTimeout(function () {
+                el.classList.remove('message-highlight');
+            }, 2000);
+        }
     }
 };

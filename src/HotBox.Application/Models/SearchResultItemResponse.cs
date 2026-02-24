@@ -17,4 +17,10 @@ public class SearchResultItemResponse
     public DateTime CreatedAtUtc { get; set; }
 
     public double RelevanceScore { get; set; }
+
+    public bool IsDirectMessage { get; set; }
+
+    public Guid? OtherParticipantId { get; set; }
+
+    public string? OtherParticipantDisplayName { get; set; }
 }

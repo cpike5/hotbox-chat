@@ -1,3 +1,5 @@
+using HotBox.Core.Enums;
+
 namespace HotBox.Core.Models;
 
 public class SearchQuery
@@ -11,4 +13,8 @@ public class SearchQuery
     public string? Cursor { get; set; }
 
     public int Limit { get; set; } = 20;
+
+    public SearchScope Scope { get; set; } = SearchScope.All;
+
+    public Guid? CallerUserId { get; set; }
 }

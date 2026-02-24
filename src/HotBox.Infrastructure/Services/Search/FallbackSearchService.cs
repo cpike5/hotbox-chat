@@ -1,4 +1,5 @@
 using System.Net;
+using HotBox.Core.Enums;
 using HotBox.Core.Interfaces;
 using HotBox.Core.Models;
 using HotBox.Core.Options;
@@ -53,53 +54,36 @@ public class FallbackSearchService : ISearchService
             }
 
             var limit = Math.Min(query.Limit, _options.MaxResults);
-            // Escape LIKE wildcards to prevent pattern injection
-            var escapedQuery = query.QueryText
-                .Replace("\\", "\\\\")
-                .Replace("%", "\\%")
-                .Replace("_", "\\_");
-            var likePattern = $"%{escapedQuery}%";
+            var searchChannels = query.Scope is SearchScope.All or SearchScope.Channels;
+            var searchDms = (query.Scope is SearchScope.All or SearchScope.DirectMessages)
+                            && query.CallerUserId.HasValue;
 
-            var messagesQuery = _context.Messages
-                .Include(m => m.Channel)
-                .Include(m => m.Author)
-                .Where(m => EF.Functions.Like(m.Content, likePattern));
+            var allItems = new List<SearchResultItem>();
+            var totalEstimate = 0;
 
-            if (query.ChannelId.HasValue)
+            if (searchChannels)
             {
-                messagesQuery = messagesQuery.Where(m => m.ChannelId == query.ChannelId.Value);
+                var (channelItems, channelCount) = await SearchChannelMessagesAsync(query, offset, limit, ct);
+                allItems.AddRange(channelItems);
+                totalEstimate += channelCount;
             }
 
-            if (query.SenderId.HasValue)
+            if (searchDms)
             {
-                messagesQuery = messagesQuery.Where(m => m.AuthorId == query.SenderId.Value);
+                var (dmItems, dmCount) = await SearchDirectMessagesAsync(query, offset, limit, ct);
+                allItems.AddRange(dmItems);
+                totalEstimate += dmCount;
             }
 
-            var totalEstimate = await messagesQuery.CountAsync(ct);
+            if (query.Scope == SearchScope.All)
+            {
+                allItems = allItems
+                    .OrderByDescending(i => i.CreatedAtUtc)
+                    .ToList();
+            }
 
-            var messages = await messagesQuery
-                .OrderByDescending(m => m.CreatedAtUtc)
-                .Skip(offset)
-                .Take(limit + 1)
-                .ToListAsync(ct);
-
-            var hasMore = messages.Count > limit;
-            var snippetLength = _options.SnippetLength;
-
-            var resultItems = messages
-                .Take(limit)
-                .Select(m => new SearchResultItem
-                {
-                    MessageId = m.Id,
-                    Snippet = GenerateSnippet(m.Content, query.QueryText, snippetLength),
-                    ChannelId = m.ChannelId,
-                    ChannelName = m.Channel?.Name ?? "Unknown",
-                    AuthorId = m.AuthorId,
-                    AuthorDisplayName = m.Author?.DisplayName ?? "Unknown",
-                    CreatedAtUtc = m.CreatedAtUtc,
-                    RelevanceScore = 0.0,
-                })
-                .ToList();
+            var hasMore = allItems.Count > limit;
+            var resultItems = allItems.Take(limit).ToList();
 
             return new SearchResult
             {
@@ -113,6 +97,112 @@ public class FallbackSearchService : ISearchService
             _logger.LogError(ex, "Fallback search failed for query {Query}", query.QueryText);
             return new SearchResult { Items = [], Cursor = null, TotalEstimate = 0 };
         }
+    }
+
+    private async Task<(List<SearchResultItem> Items, int Count)> SearchChannelMessagesAsync(
+        SearchQuery query, int offset, int limit, CancellationToken ct)
+    {
+        // Escape LIKE wildcards to prevent pattern injection
+        var escapedQuery = query.QueryText
+            .Replace("\\", "\\\\")
+            .Replace("%", "\\%")
+            .Replace("_", "\\_");
+        var likePattern = $"%{escapedQuery}%";
+
+        var messagesQuery = _context.Messages
+            .Include(m => m.Channel)
+            .Include(m => m.Author)
+            .Where(m => EF.Functions.Like(m.Content, likePattern));
+
+        if (query.ChannelId.HasValue)
+        {
+            messagesQuery = messagesQuery.Where(m => m.ChannelId == query.ChannelId.Value);
+        }
+
+        if (query.SenderId.HasValue)
+        {
+            messagesQuery = messagesQuery.Where(m => m.AuthorId == query.SenderId.Value);
+        }
+
+        var totalEstimate = await messagesQuery.CountAsync(ct);
+
+        var messages = await messagesQuery
+            .OrderByDescending(m => m.CreatedAtUtc)
+            .Skip(offset)
+            .Take(limit + 1)
+            .ToListAsync(ct);
+
+        var snippetLength = _options.SnippetLength;
+
+        var resultItems = messages
+            .Select(m => new SearchResultItem
+            {
+                MessageId = m.Id,
+                Snippet = GenerateSnippet(m.Content, query.QueryText, snippetLength),
+                ChannelId = m.ChannelId,
+                ChannelName = m.Channel?.Name ?? "Unknown",
+                AuthorId = m.AuthorId,
+                AuthorDisplayName = m.Author?.DisplayName ?? "Unknown",
+                CreatedAtUtc = m.CreatedAtUtc,
+                RelevanceScore = 0.0,
+            })
+            .ToList();
+
+        return (resultItems, totalEstimate);
+    }
+
+    private async Task<(List<SearchResultItem> Items, int Count)> SearchDirectMessagesAsync(
+        SearchQuery query, int offset, int limit, CancellationToken ct)
+    {
+        var callerUserId = query.CallerUserId!.Value;
+
+        // Escape LIKE wildcards to prevent pattern injection
+        var escapedQuery = query.QueryText
+            .Replace("\\", "\\\\")
+            .Replace("%", "\\%")
+            .Replace("_", "\\_");
+        var likePattern = $"%{escapedQuery}%";
+
+        var dmQuery = _context.DirectMessages
+            .Include(dm => dm.Sender)
+            .Include(dm => dm.Recipient)
+            .Where(dm => EF.Functions.Like(dm.Content, likePattern))
+            .Where(dm => dm.SenderId == callerUserId || dm.RecipientId == callerUserId);
+
+        var totalEstimate = await dmQuery.CountAsync(ct);
+
+        var messages = await dmQuery
+            .OrderByDescending(dm => dm.CreatedAtUtc)
+            .Skip(offset)
+            .Take(limit + 1)
+            .ToListAsync(ct);
+
+        var snippetLength = _options.SnippetLength;
+
+        var resultItems = messages
+            .Select(dm =>
+            {
+                var isCallerSender = dm.SenderId == callerUserId;
+                return new SearchResultItem
+                {
+                    MessageId = dm.Id,
+                    Snippet = GenerateSnippet(dm.Content, query.QueryText, snippetLength),
+                    ChannelId = Guid.Empty,
+                    ChannelName = "",
+                    AuthorId = dm.SenderId,
+                    AuthorDisplayName = dm.Sender?.DisplayName ?? "Unknown",
+                    CreatedAtUtc = dm.CreatedAtUtc,
+                    RelevanceScore = 0.0,
+                    IsDirectMessage = true,
+                    OtherParticipantId = isCallerSender ? dm.RecipientId : dm.SenderId,
+                    OtherParticipantDisplayName = isCallerSender
+                        ? (dm.Recipient?.DisplayName ?? "Unknown")
+                        : (dm.Sender?.DisplayName ?? "Unknown"),
+                };
+            })
+            .ToList();
+
+        return (resultItems, totalEstimate);
     }
 
     private static string GenerateSnippet(string content, string queryText, int snippetLength)

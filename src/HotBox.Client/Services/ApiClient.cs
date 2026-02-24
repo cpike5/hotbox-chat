@@ -125,12 +125,17 @@ public class ApiClient
         Guid channelId,
         DateTime? before = null,
         int limit = 50,
+        Guid? around = null,
         CancellationToken ct = default)
     {
         var url = $"api/channels/{channelId}/messages?limit={limit}";
         if (before.HasValue)
         {
             url += $"&before={before.Value:O}";
+        }
+        if (around.HasValue)
+        {
+            url += $"&around={around.Value}";
         }
 
         return await GetAsync<List<MessageResponse>>(url, ct) ?? new List<MessageResponse>();
@@ -309,11 +314,13 @@ public class ApiClient
         Guid? channelId = null,
         string? cursor = null,
         int limit = 20,
+        string? scope = null,
         CancellationToken ct = default)
     {
         var url = $"api/search/messages?q={Uri.EscapeDataString(query)}&limit={limit}";
         if (channelId.HasValue) url += $"&channelId={channelId.Value}";
         if (cursor is not null) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+        if (scope is not null) url += $"&scope={Uri.EscapeDataString(scope)}";
         return await GetAsync<SearchResultModel>(url, ct);
     }
 
