@@ -1,27 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-You are primarily an orchestrator (unless the user specifies otherwise). Try to delegate your tasks to specialized sub-agents, domain agents, or generic agents, and run in parallel or in the background whenever possible. 
-
 ## Project Overview
-
-HotBox is an open-source, self-hosted alternative to Discord. Built for small friend groups (~10 people) who want a private, lightweight chat platform they fully control. Design target is ~100 concurrent users max.
-
-**Status**: Active development — Core/Infrastructure/Application/Client projects scaffolded with EF Core multi-provider DbContext. Implemented features: authentication (JWT + OAuth + API keys), text channels, direct messages, message search (FTS), admin panel, presence/online status, voice signaling (WebRTC P2P full mesh), user profiles, MCP agent accounts. Deployment scripts and guides in place.
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Backend | ASP.NET Core (API + SignalR for real-time text) |
-| Voice | WebRTC P2P full mesh (SIPSorcery signaling via SignalR, JS interop for browser WebRTC) |
-| Web Client | Blazor WASM (no JS frameworks, no JS on the server — ever) |
-| Database | SQLite (dev), PostgreSQL/MySQL/MariaDB (prod) via EF Core |
-| Auth | ASP.NET Identity + optional OAuth (Google, Microsoft) |
-| Logging | Serilog → Seq (dev), Elasticsearch (prod) |
-| Observability | OpenTelemetry for tracing and metrics |
-| Containerization | Docker / Docker Compose |
 
 ## Architecture
 
@@ -36,28 +15,6 @@ Key patterns:
 - Configuration via `appsettings.json` and environment variables
 - Docker-first deployment (see `deploy/` scripts and `docs/deployment/`)
 
-## Project Structure
-
-```
-deploy/              # Deployment scripts (docker-deploy.sh, bare-metal-deploy.sh)
-docs/
-  requirements/      # Product requirements
-  deployment/        # Docker and bare-metal deployment guides
-  architecture/      # Architecture decisions (empty, to be populated)
-  designs/           # Design documents (empty, to be populated)
-  research/          # Technical research (empty, to be populated)
-prototypes/          # HTML prototypes for UI exploration
-src/
-  HotBox.Core/       # Domain models, interfaces, enums
-  HotBox.Infrastructure/ # EF Core DbContext, configurations, DI
-  HotBox.Application/    # ASP.NET Core host (API entry point)
-  HotBox.Client/         # Blazor WASM client
-tests/               # Unit/integration test projects
-temp/                # Drafts — move to docs/ when finalized
-Dockerfile           # Multi-stage build (SDK → runtime)
-docker-compose.yml   # App + PostgreSQL
-```
-
 ## Core MVP Features
 
 - Text channels (flat list, plain text, no markdown/reactions/threads)
@@ -67,20 +24,6 @@ docker-compose.yml   # App + PostgreSQL
 - Auth with configurable registration modes (open, invite-only, closed)
 - Basic roles (admin, moderator, member)
 - Desktop/browser notifications
-
-## Design Direction
-
-- Dark mode by default
-- Fast and responsive — no loading screens, no Electron-like sluggishness
-- Cleaner and less noisy than Discord
-- UI prototype is at `prototypes/main-ui-proposal.html` — design tokens and CSS custom properties are defined there
-
-## Explicit Constraints
-
-- No JavaScript on the server (non-negotiable)
-- No Electron-based desktop client (native Avalonia client is a future goal)
-- No per-voice-channel text chat
-- Observability (Serilog + OpenTelemetry) must be built in from day one, not bolted on later
 
 ## Domain Agents
 
