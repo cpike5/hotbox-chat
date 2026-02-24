@@ -4,7 +4,7 @@ services:
     container_name: hotbox
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "7200:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Database__Provider=postgresql
@@ -47,7 +47,7 @@ services:
     environment:
       ACCEPT_EULA: "Y"
     ports:
-      - "5342:80"
+      - "7201:80"
     volumes:
       - seqdata:/data
 

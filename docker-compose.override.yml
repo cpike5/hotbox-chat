@@ -30,8 +30,8 @@ services:
       - ACCEPT_EULA=Y
       - SEQ_FIRSTRUN_NOAUTHENTICATION=true
     ports:
-      - "5341:5341"   # Ingestion API
-      - "8081:80"     # Web UI
+      - "7241:5341"   # Ingestion API
+      - "7201:80"     # Web UI
     volumes:
       - seqdata:/data
 

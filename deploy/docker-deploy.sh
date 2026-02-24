@@ -34,7 +34,7 @@ cmd_up() {
     echo "Starting HotBox..."
     docker compose -f "$PROJECT_DIR/docker-compose.yml" up -d --build
     echo ""
-    echo "HotBox is running at http://localhost:8080"
+    echo "HotBox is running at http://localhost:7200"
 }
 
 cmd_down() {

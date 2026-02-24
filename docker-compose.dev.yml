@@ -1,7 +1,7 @@
 # Development overlay — use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 #
 # Adds:
-#   - Seq for log aggregation (UI at http://localhost:8081)
+#   - Seq for log aggregation (UI at http://localhost:7201)
 #   - SQLite instead of PostgreSQL
 #   - Development environment variables
 #
@@ -28,8 +28,8 @@ services:
       - ACCEPT_EULA=Y
       - SEQ_FIRSTRUN_NOAUTHENTICATION=true
     ports:
-      - "5341:5341"   # Ingestion API
-      - "8081:80"     # Web UI
+      - "7241:5341"   # Ingestion API
+      - "7201:80"     # Web UI
     volumes:
       - seqdata:/data
 
