@@ -151,9 +151,12 @@
     </header>
 
     <!-- ============ Channel Info Sub-bar ============ -->
-    <div class="channel-info-bar">
-        <ChannelHeader />
-    </div>
+    @if (ChannelState.ActiveChannel is not null || DirectMessageState.ActiveConversationUserId.HasValue)
+    {
+        <div class="channel-info-bar">
+            <ChannelHeader />
+        </div>
+    }
 
     <!-- ============ Main Content ============ -->
     <main class="main-content">
@@ -260,9 +263,20 @@
         ChatHubService.OnConnectionChanged += HandleConnectionChanged;
         NotificationState.OnChange += StateHasChanged;
 
+        // Set loading flags for skeleton UI
+        ChannelState.SetLoadingChannels(true);
+        PresenceState.SetLoading(true);
+
         // Load channels into state so the sidebar and voice dropdown are populated immediately
-        var channels = await Api.GetChannelsAsync();
-        ChannelState.SetChannels(channels);
+        try
+        {
+            var channels = await Api.GetChannelsAsync();
+            ChannelState.SetChannels(channels);
+        }
+        finally
+        {
+            ChannelState.SetLoadingChannels(false);
+        }
 
         // Start the SignalR hub connection so we receive presence and real-time events
         if (AuthState.AccessToken is not null)
@@ -392,9 +406,18 @@
             DirectMessageState.ClearActiveConversation();
 
             if (ChannelState.ActiveChannel is not null)
+            {
                 Navigation.NavigateTo($"/channels/{ChannelState.ActiveChannel.Id}");
+            }
             else
-                Navigation.NavigateTo("/");
+            {
+                var first = ChannelState.Channels
+                    .Where(c => c.Type == ChannelType.Text)
+                    .OrderBy(c => c.SortOrder)
+                    .FirstOrDefault();
+                if (first is not null)
+                    Navigation.NavigateTo($"/channels/{first.Id}");
+            }
         }
     }
 

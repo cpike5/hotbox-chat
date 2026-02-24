@@ -1,19 +1,55 @@
 @page "/"
+@using HotBox.Client.State
+@using HotBox.Core.Enums
 @inject NavigationManager Navigation
+@inject ChannelState ChannelState
+@implements IDisposable
 
 <PageTitle>HotBox</PageTitle>
 
-<div class="page-placeholder">
-    <h2>Welcome to HotBox</h2>
-    <p>Select a channel or direct message to get started.</p>
-</div>
+@if (!_redirected)
+{
+    <div class="page-placeholder">
+        <h2>Welcome to HotBox</h2>
+        <p>Select a channel or direct message to get started.</p>
+    </div>
+}
 
 @code {
-    // Future: redirect to first available channel once channel list is loaded.
-    // For now, show a welcome placeholder since we don't have channel data yet.
-    //
-    // protected override void OnInitialized()
-    // {
-    //     Navigation.NavigateTo("/channels/{firstChannelId}", replace: true);
-    // }
+    private bool _redirected;
+
+    protected override void OnInitialized()
+    {
+        if (TryRedirectToFirstChannel())
+            return;
+
+        // Channels may not be loaded yet — subscribe to state changes
+        ChannelState.OnChange += OnChannelsChanged;
+    }
+
+    private void OnChannelsChanged()
+    {
+        TryRedirectToFirstChannel();
+    }
+
+    private bool TryRedirectToFirstChannel()
+    {
+        var first = ChannelState.Channels
+            .Where(c => c.Type == ChannelType.Text)
+            .OrderBy(c => c.SortOrder)
+            .FirstOrDefault();
+
+        if (first is null)
+            return false;
+
+        _redirected = true;
+        ChannelState.OnChange -= OnChannelsChanged;
+        Navigation.NavigateTo($"/channels/{first.Id}", replace: true);
+        return true;
+    }
+
+    public void Dispose()
+    {
+        ChannelState.OnChange -= OnChannelsChanged;
+    }
 }
