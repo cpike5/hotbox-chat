@@ -33,6 +33,7 @@
         ChatHub.OnMessageReceived += HandleMessageReceived;
         ChatHub.OnUserTyping += HandleUserTyping;
         ChatHub.OnUserStoppedTyping += HandleUserStoppedTyping;
+        ChatHub.OnConnectionChanged += HandleConnectionChanged;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -158,6 +159,22 @@
         }
     }
 
+    private async void HandleConnectionChanged(bool connected)
+    {
+        // Re-join the channel group after SignalR reconnects (new ConnectionId loses group memberships)
+        if (connected && _currentChannelId != Guid.Empty)
+        {
+            try
+            {
+                await ChatHub.JoinChannelAsync(_currentChannelId);
+            }
+            catch (Exception)
+            {
+                // Connection may have dropped again before we could join
+            }
+        }
+    }
+
     private void HandleUserStoppedTyping(Guid channelId, Guid userId)
     {
         if (channelId == _currentChannelId)
@@ -254,6 +271,7 @@
         ChatHub.OnMessageReceived -= HandleMessageReceived;
         ChatHub.OnUserTyping -= HandleUserTyping;
         ChatHub.OnUserStoppedTyping -= HandleUserStoppedTyping;
+        ChatHub.OnConnectionChanged -= HandleConnectionChanged;
 
         // Dispose all typing expiry timers
         foreach (var timer in _typingExpiryTimers.Values)
