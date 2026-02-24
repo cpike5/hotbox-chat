@@ -10,4 +10,7 @@ public class SearchResultItemModel
     public string AuthorDisplayName { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
     public double RelevanceScore { get; set; }
+    public bool IsDirectMessage { get; set; }
+    public Guid? OtherParticipantId { get; set; }
+    public string? OtherParticipantDisplayName { get; set; }
 }

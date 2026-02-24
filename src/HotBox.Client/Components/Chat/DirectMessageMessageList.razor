@@ -43,7 +43,7 @@
 
                 if (isNewAuthor)
                 {
-                    <div class="message-group new-author @(ContainsMentionOfCurrentUser(msg.Content) ? "mentioned" : "")">
+                    <div id="msg-@msg.Id" class="message-group new-author @(ContainsMentionOfCurrentUser(msg.Content) ? "mentioned" : "")">
                         <div class="msg-avatar" style="background: @GetAvatarColor(msg.SenderDisplayName);">
                             @GetInitials(msg.SenderDisplayName)
                         </div>
@@ -60,7 +60,7 @@
                 }
                 else
                 {
-                    <div class="message-group @(ContainsMentionOfCurrentUser(msg.Content) ? "mentioned" : "")">
+                    <div id="msg-@msg.Id" class="message-group @(ContainsMentionOfCurrentUser(msg.Content) ? "mentioned" : "")">
                         <div style="width: 34px; flex-shrink: 0;"></div>
                         <div class="msg-content">
                             <div class="msg-body">@RenderMessageContent(msg.Content)</div>

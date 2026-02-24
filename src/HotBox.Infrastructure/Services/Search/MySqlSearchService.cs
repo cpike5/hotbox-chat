@@ -1,4 +1,5 @@
 using System.Net;
+using HotBox.Core.Enums;
 using HotBox.Core.Interfaces;
 using HotBox.Core.Models;
 using HotBox.Core.Options;
@@ -33,11 +34,11 @@ public class MySqlSearchService : ISearchService
     {
         try
         {
-            _logger.LogInformation("Initializing MySQL FULLTEXT index on Messages.Content");
+            _logger.LogInformation("Initializing MySQL FULLTEXT indexes on Messages.Content and DirectMessages.Content");
 
             // MySQL doesn't support CREATE INDEX IF NOT EXISTS directly,
             // so check if it exists first via information_schema
-            var indexExists = await _context.Database
+            var messagesIndexExists = await _context.Database
                 .SqlQueryRaw<int>(
                     """
                     SELECT COUNT(*) AS `Value`
@@ -48,18 +49,36 @@ public class MySqlSearchService : ISearchService
                     """)
                 .FirstOrDefaultAsync(ct);
 
-            if (indexExists == 0)
+            if (messagesIndexExists == 0)
             {
                 await _context.Database.ExecuteSqlRawAsync(
                     "CREATE FULLTEXT INDEX `IX_Messages_Content_FTS` ON `Messages` (`Content`)",
                     ct);
             }
 
-            _logger.LogInformation("MySQL FULLTEXT index initialized successfully");
+            var dmIndexExists = await _context.Database
+                .SqlQueryRaw<int>(
+                    """
+                    SELECT COUNT(*) AS `Value`
+                    FROM information_schema.STATISTICS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                      AND TABLE_NAME = 'DirectMessages'
+                      AND INDEX_NAME = 'IX_DirectMessages_Content_FTS'
+                    """)
+                .FirstOrDefaultAsync(ct);
+
+            if (dmIndexExists == 0)
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "CREATE FULLTEXT INDEX `IX_DirectMessages_Content_FTS` ON `DirectMessages` (`Content`)",
+                    ct);
+            }
+
+            _logger.LogInformation("MySQL FULLTEXT indexes initialized successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to initialize MySQL FULLTEXT index");
+            _logger.LogError(ex, "Failed to initialize MySQL FULLTEXT indexes");
             throw;
         }
     }
@@ -68,18 +87,21 @@ public class MySqlSearchService : ISearchService
     {
         try
         {
-            _logger.LogInformation("Rebuilding MySQL FULLTEXT index on Messages.Content");
+            _logger.LogInformation("Rebuilding MySQL FULLTEXT indexes");
 
-            // MySQL rebuilds fulltext indexes via OPTIMIZE TABLE
             await _context.Database.ExecuteSqlRawAsync(
                 "OPTIMIZE TABLE `Messages`",
                 ct);
 
-            _logger.LogInformation("MySQL FULLTEXT index rebuilt successfully");
+            await _context.Database.ExecuteSqlRawAsync(
+                "OPTIMIZE TABLE `DirectMessages`",
+                ct);
+
+            _logger.LogInformation("MySQL FULLTEXT indexes rebuilt successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to rebuild MySQL FULLTEXT index");
+            _logger.LogError(ex, "Failed to rebuild MySQL FULLTEXT indexes");
             throw;
         }
     }
@@ -95,102 +117,37 @@ public class MySqlSearchService : ISearchService
             }
 
             var limit = Math.Min(query.Limit, _options.MaxResults);
+            var searchChannels = query.Scope is SearchScope.All or SearchScope.Channels;
+            var searchDms = (query.Scope is SearchScope.All or SearchScope.DirectMessages)
+                            && query.CallerUserId.HasValue;
 
-            // Build filter clauses and parameters dynamically
-            var filters = new List<string>();
-            var parameters = new List<object> { query.QueryText }; // {0} = query text
-            var paramIndex = 1;
+            var allItems = new List<SearchResultItem>();
+            var totalEstimate = 0;
 
-            if (query.ChannelId.HasValue)
+            if (searchChannels)
             {
-                filters.Add($"AND m.`ChannelId` = {{{paramIndex}}}");
-                parameters.Add(query.ChannelId.Value);
-                paramIndex++;
+                var (channelItems, channelCount) = await SearchChannelMessagesAsync(query, offset, limit, ct);
+                allItems.AddRange(channelItems);
+                totalEstimate += channelCount;
             }
 
-            if (query.SenderId.HasValue)
+            if (searchDms)
             {
-                filters.Add($"AND m.`AuthorId` = {{{paramIndex}}}");
-                parameters.Add(query.SenderId.Value);
-                paramIndex++;
+                var (dmItems, dmCount) = await SearchDirectMessagesAsync(query, offset, limit, ct);
+                allItems.AddRange(dmItems);
+                totalEstimate += dmCount;
             }
 
-            var filterClause = filters.Count > 0 ? string.Join(" ", filters) : "";
-
-            var offsetParamIndex = paramIndex;
-            parameters.Add(offset);
-            paramIndex++;
-            var limitParamIndex = paramIndex;
-            parameters.Add(limit + 1);
-
-            var sql = @$"SELECT
-    m.`Id` AS `MessageId`,
-    m.`Content` AS `Snippet`,
-    m.`ChannelId`,
-    c.`Name` AS `ChannelName`,
-    m.`AuthorId`,
-    u.`DisplayName` AS `AuthorDisplayName`,
-    m.`CreatedAtUtc`,
-    MATCH(m.`Content`) AGAINST({{0}} IN NATURAL LANGUAGE MODE) AS `RelevanceScore`
-FROM `Messages` m
-INNER JOIN `Channels` c ON c.`Id` = m.`ChannelId`
-INNER JOIN `AspNetUsers` u ON u.`Id` = m.`AuthorId`
-WHERE MATCH(m.`Content`) AGAINST({{0}} IN NATURAL LANGUAGE MODE)
-    {filterClause}
-ORDER BY `RelevanceScore` DESC, m.`CreatedAtUtc` DESC
-LIMIT {{{limitParamIndex}}} OFFSET {{{offsetParamIndex}}}";
-
-            var items = await _context.Database
-                .SqlQueryRaw<SearchResultItemRaw>(sql, parameters.ToArray())
-                .ToListAsync(ct);
-
-            var hasMore = items.Count > limit;
-            var snippetLength = _options.SnippetLength;
-
-            var resultItems = items
-                .Take(limit)
-                .Select(r => new SearchResultItem
-                {
-                    MessageId = r.MessageId,
-                    Snippet = GenerateSnippet(r.Snippet, query.QueryText, snippetLength),
-                    ChannelId = r.ChannelId,
-                    ChannelName = r.ChannelName,
-                    AuthorId = r.AuthorId,
-                    AuthorDisplayName = r.AuthorDisplayName,
-                    CreatedAtUtc = r.CreatedAtUtc,
-                    RelevanceScore = r.RelevanceScore,
-                })
-                .ToList();
-
-            // Count total estimate
-            var countParams = new List<object> { query.QueryText };
-            var countFilters = new List<string>();
-            var countParamIdx = 1;
-
-            if (query.ChannelId.HasValue)
+            if (query.Scope == SearchScope.All)
             {
-                countFilters.Add($"AND m.`ChannelId` = {{{countParamIdx}}}");
-                countParams.Add(query.ChannelId.Value);
-                countParamIdx++;
+                allItems = allItems
+                    .OrderByDescending(i => i.RelevanceScore)
+                    .ThenByDescending(i => i.CreatedAtUtc)
+                    .ToList();
             }
 
-            if (query.SenderId.HasValue)
-            {
-                countFilters.Add($"AND m.`AuthorId` = {{{countParamIdx}}}");
-                countParams.Add(query.SenderId.Value);
-                countParamIdx++;
-            }
-
-            var countFilterClause = countFilters.Count > 0 ? string.Join(" ", countFilters) : "";
-
-            var countSql = @$"SELECT COUNT(*) AS `Value`
-FROM `Messages` m
-WHERE MATCH(m.`Content`) AGAINST({{0}} IN NATURAL LANGUAGE MODE)
-    {countFilterClause}";
-
-            var totalEstimate = await _context.Database
-                .SqlQueryRaw<int>(countSql, countParams.ToArray())
-                .FirstOrDefaultAsync(ct);
+            var hasMore = allItems.Count > limit;
+            var resultItems = allItems.Take(limit).ToList();
 
             return new SearchResult
             {
@@ -204,6 +161,176 @@ WHERE MATCH(m.`Content`) AGAINST({{0}} IN NATURAL LANGUAGE MODE)
             _logger.LogError(ex, "MySQL full-text search failed for query {Query}", query.QueryText);
             return new SearchResult { Items = [], Cursor = null, TotalEstimate = 0 };
         }
+    }
+
+    private async Task<(List<SearchResultItem> Items, int Count)> SearchChannelMessagesAsync(
+        SearchQuery query, int offset, int limit, CancellationToken ct)
+    {
+        var filters = new List<string>();
+        var parameters = new List<object> { query.QueryText }; // {0} = query text
+        var paramIndex = 1;
+
+        if (query.ChannelId.HasValue)
+        {
+            filters.Add($"AND m.`ChannelId` = {{{paramIndex}}}");
+            parameters.Add(query.ChannelId.Value);
+            paramIndex++;
+        }
+
+        if (query.SenderId.HasValue)
+        {
+            filters.Add($"AND m.`AuthorId` = {{{paramIndex}}}");
+            parameters.Add(query.SenderId.Value);
+            paramIndex++;
+        }
+
+        var filterClause = filters.Count > 0 ? string.Join(" ", filters) : "";
+
+        var offsetParamIndex = paramIndex;
+        parameters.Add(offset);
+        paramIndex++;
+        var limitParamIndex = paramIndex;
+        parameters.Add(limit + 1);
+
+        var sql = @$"SELECT
+    m.`Id` AS `MessageId`,
+    m.`Content` AS `Snippet`,
+    m.`ChannelId`,
+    c.`Name` AS `ChannelName`,
+    m.`AuthorId`,
+    u.`DisplayName` AS `AuthorDisplayName`,
+    m.`CreatedAtUtc`,
+    MATCH(m.`Content`) AGAINST({{{0}}} IN NATURAL LANGUAGE MODE) AS `RelevanceScore`
+FROM `Messages` m
+INNER JOIN `Channels` c ON c.`Id` = m.`ChannelId`
+INNER JOIN `AspNetUsers` u ON u.`Id` = m.`AuthorId`
+WHERE MATCH(m.`Content`) AGAINST({{{0}}} IN NATURAL LANGUAGE MODE)
+    {filterClause}
+ORDER BY `RelevanceScore` DESC, m.`CreatedAtUtc` DESC
+LIMIT {{{limitParamIndex}}} OFFSET {{{offsetParamIndex}}}";
+
+        var items = await _context.Database
+            .SqlQueryRaw<SearchResultItemRaw>(sql, parameters.ToArray())
+            .ToListAsync(ct);
+
+        var snippetLength = _options.SnippetLength;
+        var resultItems = items
+            .Select(r => new SearchResultItem
+            {
+                MessageId = r.MessageId,
+                Snippet = GenerateSnippet(r.Snippet, query.QueryText, snippetLength),
+                ChannelId = r.ChannelId,
+                ChannelName = r.ChannelName,
+                AuthorId = r.AuthorId,
+                AuthorDisplayName = r.AuthorDisplayName,
+                CreatedAtUtc = r.CreatedAtUtc,
+                RelevanceScore = r.RelevanceScore,
+            })
+            .ToList();
+
+        // Count
+        var countParams = new List<object> { query.QueryText };
+        var countFilters = new List<string>();
+        var countParamIdx = 1;
+
+        if (query.ChannelId.HasValue)
+        {
+            countFilters.Add($"AND m.`ChannelId` = {{{countParamIdx}}}");
+            countParams.Add(query.ChannelId.Value);
+            countParamIdx++;
+        }
+
+        if (query.SenderId.HasValue)
+        {
+            countFilters.Add($"AND m.`AuthorId` = {{{countParamIdx}}}");
+            countParams.Add(query.SenderId.Value);
+            countParamIdx++;
+        }
+
+        var countFilterClause = countFilters.Count > 0 ? string.Join(" ", countFilters) : "";
+
+        var countSql = @$"SELECT COUNT(*) AS `Value`
+FROM `Messages` m
+WHERE MATCH(m.`Content`) AGAINST({{{0}}} IN NATURAL LANGUAGE MODE)
+    {countFilterClause}";
+
+        var totalEstimate = await _context.Database
+            .SqlQueryRaw<int>(countSql, countParams.ToArray())
+            .FirstOrDefaultAsync(ct);
+
+        return (resultItems, totalEstimate);
+    }
+
+    private async Task<(List<SearchResultItem> Items, int Count)> SearchDirectMessagesAsync(
+        SearchQuery query, int offset, int limit, CancellationToken ct)
+    {
+        var callerUserId = query.CallerUserId!.Value;
+
+        var parameters = new List<object> { query.QueryText, callerUserId }; // {0} = query text, {1} = callerUserId
+        var paramIndex = 2;
+
+        var offsetParamIndex = paramIndex;
+        parameters.Add(offset);
+        paramIndex++;
+        var limitParamIndex = paramIndex;
+        parameters.Add(limit + 1);
+
+        var sql = @$"SELECT
+    dm.`Id` AS `MessageId`,
+    dm.`Content` AS `Snippet`,
+    dm.`SenderId`,
+    dm.`RecipientId`,
+    sender.`DisplayName` AS `SenderDisplayName`,
+    recipient.`DisplayName` AS `RecipientDisplayName`,
+    dm.`CreatedAtUtc`,
+    MATCH(dm.`Content`) AGAINST({{{0}}} IN NATURAL LANGUAGE MODE) AS `RelevanceScore`
+FROM `DirectMessages` dm
+INNER JOIN `AspNetUsers` sender ON sender.`Id` = dm.`SenderId`
+INNER JOIN `AspNetUsers` recipient ON recipient.`Id` = dm.`RecipientId`
+WHERE MATCH(dm.`Content`) AGAINST({{{0}}} IN NATURAL LANGUAGE MODE)
+    AND (dm.`SenderId` = {{{1}}} OR dm.`RecipientId` = {{{1}}})
+ORDER BY `RelevanceScore` DESC, dm.`CreatedAtUtc` DESC
+LIMIT {{{limitParamIndex}}} OFFSET {{{offsetParamIndex}}}";
+
+        var items = await _context.Database
+            .SqlQueryRaw<DmSearchResultItemRaw>(sql, parameters.ToArray())
+            .ToListAsync(ct);
+
+        var snippetLength = _options.SnippetLength;
+        var resultItems = items
+            .Select(r => MapDmResult(r, callerUserId, GenerateSnippet(r.Snippet, query.QueryText, snippetLength)))
+            .ToList();
+
+        // Count
+        var countSql = @$"SELECT COUNT(*) AS `Value`
+FROM `DirectMessages` dm
+WHERE MATCH(dm.`Content`) AGAINST({{{0}}} IN NATURAL LANGUAGE MODE)
+    AND (dm.`SenderId` = {{{1}}} OR dm.`RecipientId` = {{{1}}})";
+
+        var totalEstimate = await _context.Database
+            .SqlQueryRaw<int>(countSql, [query.QueryText, callerUserId])
+            .FirstOrDefaultAsync(ct);
+
+        return (resultItems, totalEstimate);
+    }
+
+    private static SearchResultItem MapDmResult(DmSearchResultItemRaw r, Guid callerUserId, string snippet)
+    {
+        var isCallerSender = r.SenderId == callerUserId;
+        return new SearchResultItem
+        {
+            MessageId = r.MessageId,
+            Snippet = snippet,
+            ChannelId = Guid.Empty,
+            ChannelName = "",
+            AuthorId = r.SenderId,
+            AuthorDisplayName = r.SenderDisplayName,
+            CreatedAtUtc = r.CreatedAtUtc,
+            RelevanceScore = r.RelevanceScore,
+            IsDirectMessage = true,
+            OtherParticipantId = isCallerSender ? r.RecipientId : r.SenderId,
+            OtherParticipantDisplayName = isCallerSender ? r.RecipientDisplayName : r.SenderDisplayName,
+        };
     }
 
     private static string GenerateSnippet(string content, string queryText, int snippetLength)
@@ -280,6 +407,18 @@ WHERE MATCH(m.`Content`) AGAINST({{0}} IN NATURAL LANGUAGE MODE)
         public string ChannelName { get; set; } = string.Empty;
         public Guid AuthorId { get; set; }
         public string AuthorDisplayName { get; set; } = string.Empty;
+        public DateTime CreatedAtUtc { get; set; }
+        public double RelevanceScore { get; set; }
+    }
+
+    private class DmSearchResultItemRaw
+    {
+        public Guid MessageId { get; set; }
+        public string Snippet { get; set; } = string.Empty;
+        public Guid SenderId { get; set; }
+        public Guid RecipientId { get; set; }
+        public string SenderDisplayName { get; set; } = string.Empty;
+        public string RecipientDisplayName { get; set; } = string.Empty;
         public DateTime CreatedAtUtc { get; set; }
         public double RelevanceScore { get; set; }
     }

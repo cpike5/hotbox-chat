@@ -33,9 +33,14 @@
                 </div>
             </div>
 
-            <!-- Channel filter -->
+            <!-- Filter bar -->
             <div class="search-filter-bar">
-                <select class="search-channel-filter" @onchange="HandleChannelFilterChange">
+                <select class="search-scope-filter" @onchange="HandleScopeChange">
+                    <option value="All" selected="@(_scope == "All")">All messages</option>
+                    <option value="Channels" selected="@(_scope == "Channels")">Channels only</option>
+                    <option value="DirectMessages" selected="@(_scope == "DirectMessages")">DMs only</option>
+                </select>
+                <select class="search-channel-filter" @onchange="HandleChannelFilterChange" disabled="@(_scope == "DirectMessages")">
                     <option value="">All channels</option>
                     @foreach (var channel in ChannelState.Channels.Where(c => c.Type == HotBox.Core.Enums.ChannelType.Text).OrderBy(c => c.SortOrder))
                     {
@@ -60,6 +65,17 @@
                         <span>Type to search messages</span>
                     </div>
                 }
+                else if (SearchState.HasError)
+                {
+                    <div class="search-error-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <span>@(SearchState.ErrorMessage ?? "Search failed. Please try again.")</span>
+                    </div>
+                }
                 else if (!SearchState.IsSearching && SearchState.Results.Count == 0 && _hasSearched)
                 {
                     <div class="search-empty-state">
@@ -77,11 +93,32 @@
                                 @onmouseenter="() => _selectedIndex = index">
                             <div class="search-result-header">
                                 <span class="search-result-author">@item.AuthorDisplayName</span>
-                                <span class="search-result-channel"># @item.ChannelName</span>
+                                @if (item.IsDirectMessage)
+                                {
+                                    <span class="search-result-channel search-result-dm">DM with @item.OtherParticipantDisplayName</span>
+                                }
+                                else
+                                {
+                                    <span class="search-result-channel"># @item.ChannelName</span>
+                                }
                                 <span class="search-result-time">@FormatRelativeTime(item.CreatedAtUtc)</span>
                             </div>
                             <div class="search-result-snippet">@((MarkupString)item.Snippet)</div>
                         </button>
+                    }
+
+                    @if (SearchState.Cursor is not null && !SearchState.IsSearching)
+                    {
+                        <button class="search-load-more" @onclick="LoadMore">
+                            Load more results
+                        </button>
+                    }
+
+                    @if (SearchState.IsSearching && SearchState.Results.Count > 0)
+                    {
+                        <div class="search-loading-more">
+                            <div class="spinner"></div>
+                        </div>
                     }
                 }
             </div>
@@ -96,6 +133,7 @@
     private int _selectedIndex;
     private bool _hasSearched;
     private Guid? _filterChannelId;
+    private string _scope = "All";
 
     protected override async Task OnInitializedAsync()
     {
@@ -181,22 +219,82 @@
     {
         SearchState.SetSearching(true);
 
-        var result = await ApiClient.SearchMessagesAsync(query, _filterChannelId, null, 20, ct);
-
-        if (ct.IsCancellationRequested) return;
-
-        _hasSearched = true;
-
-        if (result is not null)
+        try
         {
-            SearchState.SetResults(result.Items, result.TotalEstimate, result.Cursor);
+            var effectiveChannelId = _scope == "DirectMessages" ? null : _filterChannelId;
+            var result = await ApiClient.SearchMessagesAsync(query, effectiveChannelId, null, 20, _scope, ct);
+
+            if (ct.IsCancellationRequested) return;
+
+            _hasSearched = true;
+
+            if (result is not null)
+            {
+                SearchState.SetResults(result.Items, result.TotalEstimate, result.Cursor);
+            }
+            else
+            {
+                SearchState.SetResults(new(), 0, null);
+            }
+
+            SearchState.SetSearching(false);
         }
-        else
+        catch (TaskCanceledException)
         {
-            SearchState.SetResults(new(), 0, null);
+            throw; // Re-throw so the debounce handler catches it
+        }
+        catch (Exception)
+        {
+            if (!ct.IsCancellationRequested)
+            {
+                SearchState.SetError("Search failed. Please try again.");
+            }
+        }
+    }
+
+    private async Task LoadMore()
+    {
+        if (SearchState.Cursor is null || SearchState.IsSearching) return;
+
+        SearchState.SetSearching(true);
+
+        try
+        {
+            var effectiveChannelId = _scope == "DirectMessages" ? null : _filterChannelId;
+            var result = await ApiClient.SearchMessagesAsync(
+                SearchState.Query, effectiveChannelId, SearchState.Cursor, 20, _scope);
+
+            if (result is not null)
+            {
+                SearchState.AppendResults(result.Items, result.TotalEstimate, result.Cursor);
+            }
+
+            SearchState.SetSearching(false);
+        }
+        catch (Exception)
+        {
+            SearchState.SetError("Failed to load more results.");
+        }
+    }
+
+    private async Task HandleScopeChange(ChangeEventArgs e)
+    {
+        _scope = e.Value?.ToString() ?? "All";
+        _selectedIndex = 0;
+
+        // Clear channel filter when switching to DMs
+        if (_scope == "DirectMessages")
+        {
+            _filterChannelId = null;
         }
 
-        SearchState.SetSearching(false);
+        if (SearchState.Query.Length >= 2)
+        {
+            _debounceCts?.Cancel();
+            _debounceCts?.Dispose();
+            _debounceCts = new CancellationTokenSource();
+            await PerformSearchAsync(SearchState.Query, _debounceCts.Token);
+        }
     }
 
     private async Task HandleChannelFilterChange(ChangeEventArgs e)
@@ -245,7 +343,15 @@
     private void JumpToMessage(SearchResultItemModel item)
     {
         CloseSearch();
-        Navigation.NavigateTo($"/channels/{item.ChannelId}");
+
+        if (item.IsDirectMessage && item.OtherParticipantId.HasValue)
+        {
+            Navigation.NavigateTo($"/dm/{item.OtherParticipantId.Value}?messageId={item.MessageId}");
+        }
+        else
+        {
+            Navigation.NavigateTo($"/channels/{item.ChannelId}?messageId={item.MessageId}");
+        }
     }
 
     private void CloseSearch()
@@ -254,6 +360,7 @@
         _hasSearched = false;
         _selectedIndex = 0;
         _filterChannelId = null;
+        _scope = "All";
         SearchState.Close();
     }
 

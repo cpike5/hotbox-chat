@@ -18,7 +18,11 @@
     [Parameter]
     public Guid Id { get; set; }
 
+    [SupplyParameterFromQuery]
+    public Guid? MessageId { get; set; }
+
     private Guid _currentChannelId;
+    private Guid? _pendingJumpToMessage;
     private double _previousScrollHeight;
     private bool _pendingScrollRestore;
     private readonly Dictionary<Guid, Timer> _typingExpiryTimers = new();
@@ -33,6 +37,24 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        // If same channel but different message target, reload messages around that message
+        if (_currentChannelId == Id && MessageId.HasValue)
+        {
+            _pendingJumpToMessage = MessageId.Value;
+            ChannelState.SetLoadingMessages(true);
+            try
+            {
+                var messages = await Api.GetMessagesAsync(Id, around: MessageId.Value);
+                ChannelState.SetMessages(messages);
+                ChannelState.SetHasMoreMessages(true);
+            }
+            finally
+            {
+                ChannelState.SetLoadingMessages(false);
+            }
+            return;
+        }
+
         // Avoid reloading if navigating to the same channel
         if (_currentChannelId == Id)
             return;
@@ -60,7 +82,16 @@
         ChannelState.SetHasMoreMessages(true);
         try
         {
-            var messages = await Api.GetMessagesAsync(Id);
+            List<MessageResponse> messages;
+            if (MessageId.HasValue)
+            {
+                messages = await Api.GetMessagesAsync(Id, around: MessageId.Value);
+                _pendingJumpToMessage = MessageId.Value;
+            }
+            else
+            {
+                messages = await Api.GetMessagesAsync(Id);
+            }
             ChannelState.SetMessages(messages);
 
             // If we got less than the default limit (50), we've loaded all messages
@@ -196,7 +227,13 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_pendingScrollRestore)
+        if (_pendingJumpToMessage.HasValue)
+        {
+            var targetId = _pendingJumpToMessage.Value;
+            _pendingJumpToMessage = null;
+            await JS.InvokeVoidAsync("chatInterop.scrollToElement", $"msg-{targetId}");
+        }
+        else if (_pendingScrollRestore)
         {
             _pendingScrollRestore = false;
 

@@ -8,5 +8,7 @@ public interface IMessageRepository
 
     Task<IReadOnlyList<Message>> GetByChannelAsync(Guid channelId, DateTime? before, int limit = 50, CancellationToken ct = default);
 
+    Task<IReadOnlyList<Message>> GetAroundAsync(Guid channelId, Guid messageId, int context = 25, CancellationToken ct = default);
+
     Task<Message> CreateAsync(Message message, CancellationToken ct = default);
 }

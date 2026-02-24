@@ -19,7 +19,11 @@
     [Parameter]
     public Guid UserId { get; set; }
 
+    [SupplyParameterFromQuery]
+    public Guid? MessageId { get; set; }
+
     private Guid _currentUserId;
+    private Guid? _pendingJumpToMessage;
     private double _previousScrollHeight;
     private bool _pendingScrollRestore;
     private readonly Dictionary<Guid, Timer> _typingExpiryTimers = new();
@@ -40,6 +44,14 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        // If same conversation but different message target, just set the jump target
+        if (_currentUserId == UserId && MessageId.HasValue)
+        {
+            _pendingJumpToMessage = MessageId.Value;
+            StateHasChanged();
+            return;
+        }
+
         // Avoid reloading if navigating to the same conversation
         if (_currentUserId == UserId)
             return;
@@ -70,6 +82,12 @@
             if (messages.Count < 50)
             {
                 DirectMessageState.SetHasMoreMessages(false);
+            }
+
+            // If we navigated here with a messageId, scroll to it after render
+            if (MessageId.HasValue)
+            {
+                _pendingJumpToMessage = MessageId.Value;
             }
         }
         finally
@@ -196,7 +214,13 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_pendingScrollRestore)
+        if (_pendingJumpToMessage.HasValue)
+        {
+            var targetId = _pendingJumpToMessage.Value;
+            _pendingJumpToMessage = null;
+            await JS.InvokeVoidAsync("chatInterop.scrollToElement", $"msg-{targetId}");
+        }
+        else if (_pendingScrollRestore)
         {
             _pendingScrollRestore = false;
 

@@ -32,6 +32,7 @@ public class MessagesController : ControllerBase
         Guid channelId,
         [FromQuery] DateTime? before = null,
         [FromQuery] int limit = 50,
+        [FromQuery] Guid? around = null,
         CancellationToken ct = default)
     {
         if (limit is < 1 or > 100)
@@ -39,7 +40,9 @@ public class MessagesController : ControllerBase
             return BadRequest(new { error = "Limit must be between 1 and 100." });
         }
 
-        var messages = await _messageService.GetByChannelAsync(channelId, before, limit, ct);
+        var messages = around.HasValue
+            ? await _messageService.GetAroundAsync(channelId, around.Value, ct: ct)
+            : await _messageService.GetByChannelAsync(channelId, before, limit, ct);
 
         var response = messages.Select(m => new MessageResponse
         {

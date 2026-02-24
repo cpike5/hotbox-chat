@@ -1,4 +1,5 @@
 using System.Net;
+using HotBox.Core.Enums;
 using HotBox.Core.Interfaces;
 using HotBox.Core.Models;
 using HotBox.Core.Options;
@@ -35,7 +36,7 @@ public class SqliteSearchService : ISearchService
         {
             _logger.LogInformation("Initializing SQLite FTS5 virtual table and triggers");
 
-            // Create the FTS5 virtual table if it doesn't exist
+            // Create the FTS5 virtual table for Messages if it doesn't exist
             await _context.Database.ExecuteSqlRawAsync(
                 """
                 CREATE VIRTUAL TABLE IF NOT EXISTS "MessagesFts"
@@ -72,11 +73,47 @@ public class SqliteSearchService : ISearchService
                 """,
                 ct);
 
-            _logger.LogInformation("SQLite FTS5 virtual table and triggers initialized successfully");
+            // Create the FTS5 virtual table for DirectMessages if it doesn't exist
+            await _context.Database.ExecuteSqlRawAsync(
+                """
+                CREATE VIRTUAL TABLE IF NOT EXISTS "DirectMessagesFts"
+                USING fts5(content, content="DirectMessages", content_rowid="rowid")
+                """,
+                ct);
+
+            // Insert trigger for DirectMessages
+            await _context.Database.ExecuteSqlRawAsync(
+                """
+                CREATE TRIGGER IF NOT EXISTS "DirectMessages_ai" AFTER INSERT ON "DirectMessages" BEGIN
+                    INSERT INTO "DirectMessagesFts"(rowid, content) VALUES (new.rowid, new."Content");
+                END
+                """,
+                ct);
+
+            // Delete trigger for DirectMessages
+            await _context.Database.ExecuteSqlRawAsync(
+                """
+                CREATE TRIGGER IF NOT EXISTS "DirectMessages_ad" AFTER DELETE ON "DirectMessages" BEGIN
+                    INSERT INTO "DirectMessagesFts"("DirectMessagesFts", rowid, content) VALUES('delete', old.rowid, old."Content");
+                END
+                """,
+                ct);
+
+            // Update trigger for DirectMessages
+            await _context.Database.ExecuteSqlRawAsync(
+                """
+                CREATE TRIGGER IF NOT EXISTS "DirectMessages_au" AFTER UPDATE ON "DirectMessages" BEGIN
+                    INSERT INTO "DirectMessagesFts"("DirectMessagesFts", rowid, content) VALUES('delete', old.rowid, old."Content");
+                    INSERT INTO "DirectMessagesFts"(rowid, content) VALUES (new.rowid, new."Content");
+                END
+                """,
+                ct);
+
+            _logger.LogInformation("SQLite FTS5 virtual tables and triggers initialized successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to initialize SQLite FTS5 virtual table");
+            _logger.LogError(ex, "Failed to initialize SQLite FTS5 virtual tables");
             throw;
         }
     }
@@ -85,18 +122,21 @@ public class SqliteSearchService : ISearchService
     {
         try
         {
-            _logger.LogInformation("Rebuilding SQLite FTS5 index");
+            _logger.LogInformation("Rebuilding SQLite FTS5 indexes");
 
-            // Rebuild the FTS5 index by repopulating from the content table
             await _context.Database.ExecuteSqlRawAsync(
                 """INSERT INTO "MessagesFts"("MessagesFts") VALUES('rebuild')""",
                 ct);
 
-            _logger.LogInformation("SQLite FTS5 index rebuilt successfully");
+            await _context.Database.ExecuteSqlRawAsync(
+                """INSERT INTO "DirectMessagesFts"("DirectMessagesFts") VALUES('rebuild')""",
+                ct);
+
+            _logger.LogInformation("SQLite FTS5 indexes rebuilt successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to rebuild SQLite FTS5 index");
+            _logger.LogError(ex, "Failed to rebuild SQLite FTS5 indexes");
             throw;
         }
     }
@@ -112,35 +152,83 @@ public class SqliteSearchService : ISearchService
             }
 
             var limit = Math.Min(query.Limit, _options.MaxResults);
+            var searchChannels = query.Scope is SearchScope.All or SearchScope.Channels;
+            var searchDms = (query.Scope is SearchScope.All or SearchScope.DirectMessages)
+                            && query.CallerUserId.HasValue;
 
-            // Build filter clauses and parameters dynamically
-            var filters = new List<string>();
-            var parameters = new List<object> { query.QueryText }; // {0} = query text
-            var paramIndex = 1;
+            var allItems = new List<SearchResultItem>();
+            var totalEstimate = 0;
 
-            if (query.ChannelId.HasValue)
+            if (searchChannels)
             {
-                filters.Add($@"AND m.""ChannelId"" = {{{paramIndex}}}");
-                parameters.Add(query.ChannelId.Value);
-                paramIndex++;
+                var (channelItems, channelCount) = await SearchChannelMessagesAsync(query, offset, limit, ct);
+                allItems.AddRange(channelItems);
+                totalEstimate += channelCount;
             }
 
-            if (query.SenderId.HasValue)
+            if (searchDms)
             {
-                filters.Add($@"AND m.""AuthorId"" = {{{paramIndex}}}");
-                parameters.Add(query.SenderId.Value);
-                paramIndex++;
+                var (dmItems, dmCount) = await SearchDirectMessagesAsync(query, offset, limit, ct);
+                allItems.AddRange(dmItems);
+                totalEstimate += dmCount;
             }
 
-            var filterClause = filters.Count > 0 ? string.Join(" ", filters) : "";
+            // For "All" scope, sort merged results by relevance then time
+            if (query.Scope == SearchScope.All)
+            {
+                allItems = allItems
+                    .OrderByDescending(i => i.RelevanceScore)
+                    .ThenByDescending(i => i.CreatedAtUtc)
+                    .ToList();
+            }
 
-            var offsetParamIndex = paramIndex;
-            parameters.Add(offset);
+            var hasMore = allItems.Count > limit;
+            var resultItems = allItems.Take(limit).ToList();
+
+            return new SearchResult
+            {
+                Items = resultItems,
+                Cursor = hasMore ? (offset + limit).ToString() : null,
+                TotalEstimate = totalEstimate,
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SQLite FTS5 search failed for query {Query}", query.QueryText);
+            return new SearchResult { Items = [], Cursor = null, TotalEstimate = 0 };
+        }
+    }
+
+    private async Task<(List<SearchResultItem> Items, int Count)> SearchChannelMessagesAsync(
+        SearchQuery query, int offset, int limit, CancellationToken ct)
+    {
+        var filters = new List<string>();
+        var parameters = new List<object> { query.QueryText }; // {0} = query text
+        var paramIndex = 1;
+
+        if (query.ChannelId.HasValue)
+        {
+            filters.Add($@"AND m.""ChannelId"" = {{{paramIndex}}}");
+            parameters.Add(query.ChannelId.Value);
             paramIndex++;
-            var limitParamIndex = paramIndex;
-            parameters.Add(limit + 1);
+        }
 
-            var sql = @$"SELECT
+        if (query.SenderId.HasValue)
+        {
+            filters.Add($@"AND m.""AuthorId"" = {{{paramIndex}}}");
+            parameters.Add(query.SenderId.Value);
+            paramIndex++;
+        }
+
+        var filterClause = filters.Count > 0 ? string.Join(" ", filters) : "";
+
+        var offsetParamIndex = paramIndex;
+        parameters.Add(offset);
+        paramIndex++;
+        var limitParamIndex = paramIndex;
+        parameters.Add(limit + 1);
+
+        var sql = @$"SELECT
     m.""Id"" AS ""MessageId"",
     snippet(""MessagesFts"", 0, X'01', X'02', '...', 32) AS ""Snippet"",
     m.""ChannelId"",
@@ -158,70 +246,129 @@ WHERE ""MessagesFts"" MATCH {{0}}
 ORDER BY ""MessagesFts"".rank
 LIMIT {{{limitParamIndex}}} OFFSET {{{offsetParamIndex}}}";
 
-            var items = await _context.Database
-                .SqlQueryRaw<SearchResultItemRaw>(sql, parameters.ToArray())
-                .ToListAsync(ct);
+        var items = await _context.Database
+            .SqlQueryRaw<SearchResultItemRaw>(sql, parameters.ToArray())
+            .ToListAsync(ct);
 
-            var hasMore = items.Count > limit;
-
-            var resultItems = items
-                .Take(limit)
-                .Select(r => new SearchResultItem
-                {
-                    MessageId = r.MessageId,
-                    Snippet = SanitizeSnippet(r.Snippet),
-                    ChannelId = r.ChannelId,
-                    ChannelName = r.ChannelName,
-                    AuthorId = r.AuthorId,
-                    AuthorDisplayName = r.AuthorDisplayName,
-                    CreatedAtUtc = r.CreatedAtUtc,
-                    RelevanceScore = r.RelevanceScore,
-                })
-                .ToList();
-
-            // Count total estimate
-            var countParams = new List<object> { query.QueryText };
-            var countFilters = new List<string>();
-            var countParamIdx = 1;
-
-            if (query.ChannelId.HasValue)
+        var resultItems = items
+            .Select(r => new SearchResultItem
             {
-                countFilters.Add($@"AND m.""ChannelId"" = {{{countParamIdx}}}");
-                countParams.Add(query.ChannelId.Value);
-                countParamIdx++;
-            }
+                MessageId = r.MessageId,
+                Snippet = SanitizeSnippet(r.Snippet),
+                ChannelId = r.ChannelId,
+                ChannelName = r.ChannelName,
+                AuthorId = r.AuthorId,
+                AuthorDisplayName = r.AuthorDisplayName,
+                CreatedAtUtc = r.CreatedAtUtc,
+                RelevanceScore = r.RelevanceScore,
+            })
+            .ToList();
 
-            if (query.SenderId.HasValue)
-            {
-                countFilters.Add($@"AND m.""AuthorId"" = {{{countParamIdx}}}");
-                countParams.Add(query.SenderId.Value);
-                countParamIdx++;
-            }
+        // Count total
+        var countParams = new List<object> { query.QueryText };
+        var countFilters = new List<string>();
+        var countParamIdx = 1;
 
-            var countFilterClause = countFilters.Count > 0 ? string.Join(" ", countFilters) : "";
+        if (query.ChannelId.HasValue)
+        {
+            countFilters.Add($@"AND m.""ChannelId"" = {{{countParamIdx}}}");
+            countParams.Add(query.ChannelId.Value);
+            countParamIdx++;
+        }
 
-            var countSql = @$"SELECT COUNT(*) AS ""Value""
+        if (query.SenderId.HasValue)
+        {
+            countFilters.Add($@"AND m.""AuthorId"" = {{{countParamIdx}}}");
+            countParams.Add(query.SenderId.Value);
+            countParamIdx++;
+        }
+
+        var countFilterClause = countFilters.Count > 0 ? string.Join(" ", countFilters) : "";
+
+        var countSql = @$"SELECT COUNT(*) AS ""Value""
 FROM ""MessagesFts""
 INNER JOIN ""Messages"" m ON m.rowid = ""MessagesFts"".rowid
 WHERE ""MessagesFts"" MATCH {{0}}
     {countFilterClause}";
 
-            var totalEstimate = await _context.Database
-                .SqlQueryRaw<int>(countSql, countParams.ToArray())
-                .FirstOrDefaultAsync(ct);
+        var totalEstimate = await _context.Database
+            .SqlQueryRaw<int>(countSql, countParams.ToArray())
+            .FirstOrDefaultAsync(ct);
 
-            return new SearchResult
-            {
-                Items = resultItems,
-                Cursor = hasMore ? (offset + limit).ToString() : null,
-                TotalEstimate = totalEstimate,
-            };
-        }
-        catch (Exception ex)
+        return (resultItems, totalEstimate);
+    }
+
+    private async Task<(List<SearchResultItem> Items, int Count)> SearchDirectMessagesAsync(
+        SearchQuery query, int offset, int limit, CancellationToken ct)
+    {
+        var callerUserId = query.CallerUserId!.Value;
+
+        var parameters = new List<object> { query.QueryText, callerUserId }; // {0} = query text, {1} = callerUserId
+        var paramIndex = 2;
+
+        var offsetParamIndex = paramIndex;
+        parameters.Add(offset);
+        paramIndex++;
+        var limitParamIndex = paramIndex;
+        parameters.Add(limit + 1);
+
+        var sql = @$"SELECT
+    dm.""Id"" AS ""MessageId"",
+    snippet(""DirectMessagesFts"", 0, X'01', X'02', '...', 32) AS ""Snippet"",
+    dm.""SenderId"",
+    dm.""RecipientId"",
+    sender.""DisplayName"" AS ""SenderDisplayName"",
+    recipient.""DisplayName"" AS ""RecipientDisplayName"",
+    dm.""CreatedAtUtc"",
+    CAST(-""DirectMessagesFts"".rank AS REAL) AS ""RelevanceScore""
+FROM ""DirectMessagesFts""
+INNER JOIN ""DirectMessages"" dm ON dm.rowid = ""DirectMessagesFts"".rowid
+INNER JOIN ""AspNetUsers"" sender ON sender.""Id"" = dm.""SenderId""
+INNER JOIN ""AspNetUsers"" recipient ON recipient.""Id"" = dm.""RecipientId""
+WHERE ""DirectMessagesFts"" MATCH {{0}}
+    AND (dm.""SenderId"" = {{1}} OR dm.""RecipientId"" = {{1}})
+ORDER BY ""DirectMessagesFts"".rank
+LIMIT {{{limitParamIndex}}} OFFSET {{{offsetParamIndex}}}";
+
+        var items = await _context.Database
+            .SqlQueryRaw<DmSearchResultItemRaw>(sql, parameters.ToArray())
+            .ToListAsync(ct);
+
+        var resultItems = items
+            .Select(r => MapDmResult(r, callerUserId, SanitizeSnippet(r.Snippet)))
+            .ToList();
+
+        // Count
+        var countSql = @$"SELECT COUNT(*) AS ""Value""
+FROM ""DirectMessagesFts""
+INNER JOIN ""DirectMessages"" dm ON dm.rowid = ""DirectMessagesFts"".rowid
+WHERE ""DirectMessagesFts"" MATCH {{0}}
+    AND (dm.""SenderId"" = {{1}} OR dm.""RecipientId"" = {{1}})";
+
+        var totalEstimate = await _context.Database
+            .SqlQueryRaw<int>(countSql, [query.QueryText, callerUserId])
+            .FirstOrDefaultAsync(ct);
+
+        return (resultItems, totalEstimate);
+    }
+
+    private static SearchResultItem MapDmResult(DmSearchResultItemRaw r, Guid callerUserId, string snippet)
+    {
+        var isCallerSender = r.SenderId == callerUserId;
+        return new SearchResultItem
         {
-            _logger.LogError(ex, "SQLite FTS5 search failed for query {Query}", query.QueryText);
-            return new SearchResult { Items = [], Cursor = null, TotalEstimate = 0 };
-        }
+            MessageId = r.MessageId,
+            Snippet = snippet,
+            ChannelId = Guid.Empty,
+            ChannelName = "",
+            AuthorId = r.SenderId,
+            AuthorDisplayName = r.SenderDisplayName,
+            CreatedAtUtc = r.CreatedAtUtc,
+            RelevanceScore = r.RelevanceScore,
+            IsDirectMessage = true,
+            OtherParticipantId = isCallerSender ? r.RecipientId : r.SenderId,
+            OtherParticipantDisplayName = isCallerSender ? r.RecipientDisplayName : r.SenderDisplayName,
+        };
     }
 
     private static string SanitizeSnippet(string snippet)
@@ -243,6 +390,18 @@ WHERE ""MessagesFts"" MATCH {{0}}
         public string ChannelName { get; set; } = string.Empty;
         public Guid AuthorId { get; set; }
         public string AuthorDisplayName { get; set; } = string.Empty;
+        public DateTime CreatedAtUtc { get; set; }
+        public double RelevanceScore { get; set; }
+    }
+
+    private class DmSearchResultItemRaw
+    {
+        public Guid MessageId { get; set; }
+        public string Snippet { get; set; } = string.Empty;
+        public Guid SenderId { get; set; }
+        public Guid RecipientId { get; set; }
+        public string SenderDisplayName { get; set; } = string.Empty;
+        public string RecipientDisplayName { get; set; } = string.Empty;
         public DateTime CreatedAtUtc { get; set; }
         public double RelevanceScore { get; set; }
     }

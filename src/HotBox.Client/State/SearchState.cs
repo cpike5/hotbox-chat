@@ -10,6 +10,8 @@ public class SearchState
     public bool IsOpen { get; private set; }
     public int TotalEstimate { get; private set; }
     public string? Cursor { get; private set; }
+    public bool HasError { get; private set; }
+    public string? ErrorMessage { get; private set; }
 
     public event Action? OnChange;
 
@@ -30,6 +32,24 @@ public class SearchState
         Results = results;
         TotalEstimate = totalEstimate;
         Cursor = cursor;
+        HasError = false;
+        ErrorMessage = null;
+        NotifyStateChanged();
+    }
+
+    public void AppendResults(List<SearchResultItemModel> results, int totalEstimate, string? cursor)
+    {
+        Results.AddRange(results);
+        TotalEstimate = totalEstimate;
+        Cursor = cursor;
+        NotifyStateChanged();
+    }
+
+    public void SetError(string message)
+    {
+        HasError = true;
+        ErrorMessage = message;
+        IsSearching = false;
         NotifyStateChanged();
     }
 
@@ -52,6 +72,8 @@ public class SearchState
         IsSearching = false;
         TotalEstimate = 0;
         Cursor = null;
+        HasError = false;
+        ErrorMessage = null;
         NotifyStateChanged();
     }
 
