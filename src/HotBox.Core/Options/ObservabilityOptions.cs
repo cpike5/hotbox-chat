@@ -8,5 +8,11 @@ public class ObservabilityOptions
 
     public string OtlpEndpoint { get; set; } = string.Empty;
 
+    public string OtlpApiKey { get; set; } = string.Empty;
+
+    public string ElasticsearchUrl { get; set; } = string.Empty;
+
+    public string ElasticsearchApiKey { get; set; } = string.Empty;
+
     public string LogLevel { get; set; } = "Information";
 }

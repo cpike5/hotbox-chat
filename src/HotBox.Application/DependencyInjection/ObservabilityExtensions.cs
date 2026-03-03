@@ -3,6 +3,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
+using Serilog.Sinks.Elasticsearch;
 
 namespace HotBox.Application.DependencyInjection;
 
@@ -38,6 +39,24 @@ public static class ObservabilityExtensions
             {
                 loggerConfig.WriteTo.Seq(obsOptions.SeqUrl);
             }
+
+            // Elasticsearch sink (if URL configured)
+            if (!string.IsNullOrWhiteSpace(obsOptions.ElasticsearchUrl))
+            {
+                var esSinkOptions = new ElasticsearchSinkOptions(new Uri(obsOptions.ElasticsearchUrl))
+                {
+                    AutoRegisterTemplate = true,
+                    IndexFormat = "hotbox-logs-{0:yyyy.MM.dd}"
+                };
+
+                if (!string.IsNullOrWhiteSpace(obsOptions.ElasticsearchApiKey))
+                {
+                    esSinkOptions.ModifyConnectionSettings = conn =>
+                        conn.ApiKeyAuthentication(new Elasticsearch.Net.ApiKeyAuthenticationCredentials(obsOptions.ElasticsearchApiKey));
+                }
+
+                loggerConfig.WriteTo.Elasticsearch(esSinkOptions);
+            }
         });
 
         return hostBuilder;
@@ -63,7 +82,11 @@ public static class ObservabilityExtensions
                 if (!string.IsNullOrWhiteSpace(obsOptions.OtlpEndpoint))
                 {
                     tracing.AddOtlpExporter(opts =>
-                        opts.Endpoint = new Uri(obsOptions.OtlpEndpoint));
+                    {
+                        opts.Endpoint = new Uri(obsOptions.OtlpEndpoint);
+                        if (!string.IsNullOrWhiteSpace(obsOptions.OtlpApiKey))
+                            opts.Headers = $"Authorization=ApiKey {obsOptions.OtlpApiKey}";
+                    });
                 }
             })
             .WithMetrics(metrics =>
@@ -75,7 +98,11 @@ public static class ObservabilityExtensions
                 if (!string.IsNullOrWhiteSpace(obsOptions.OtlpEndpoint))
                 {
                     metrics.AddOtlpExporter(opts =>
-                        opts.Endpoint = new Uri(obsOptions.OtlpEndpoint));
+                    {
+                        opts.Endpoint = new Uri(obsOptions.OtlpEndpoint);
+                        if (!string.IsNullOrWhiteSpace(obsOptions.OtlpApiKey))
+                            opts.Headers = $"Authorization=ApiKey {obsOptions.OtlpApiKey}";
+                    });
                 }
             });
 

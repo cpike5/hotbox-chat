@@ -9,12 +9,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - Database__Provider=sqlite
       - Database__ConnectionString=Data Source=/data/hotbox.db
       - Jwt__Secret=${JWT_SECRET:-ThisIsADevelopmentSecretKeyThatIsLongEnoughForHMACSHA256!}
       - Observability__SeqUrl=http://seq:5341
+      - Observability__OtlpEndpoint=http://host.docker.internal:8200
+      - Observability__OtlpApiKey=${APM_API_KEY:-}
+      - Observability__ElasticsearchUrl=http://host.docker.internal:9200
+      - Observability__ElasticsearchApiKey=${ELASTICSEARCH_API_KEY:-}
       - Observability__LogLevel=Debug
     volumes:
       - hotbox-data:/data

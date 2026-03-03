@@ -5,12 +5,18 @@ services:
     restart: unless-stopped
     ports:
       - "7200:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Database__Provider=postgresql
       - Database__ConnectionString=Host=db;Port=5432;Database=hotbox;Username=hotbox;Password=${DB_PASSWORD:-changeme}
       - Jwt__Secret=${JWT_SECRET:-super-secret-key-change-in-production-minimum-32-chars}
       - Observability__SeqUrl=http://seq:5341
+      - Observability__OtlpEndpoint=${APM_OTLP_ENDPOINT:-}
+      - Observability__OtlpApiKey=${APM_API_KEY:-}
+      - Observability__ElasticsearchUrl=${ELASTICSEARCH_URL:-}
+      - Observability__ElasticsearchApiKey=${ELASTICSEARCH_API_KEY:-}
       - AdminSeed__Email=${ADMIN_EMAIL:-admin@hotbox.local}
       - AdminSeed__Password=${ADMIN_PASSWORD:-Admin123!}
       - AdminSeed__DisplayName=${ADMIN_DISPLAY_NAME:-Admin}
