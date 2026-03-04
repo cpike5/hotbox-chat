@@ -68,13 +68,13 @@
                 if (isNewAuthor)
                 {
                     <div id="msg-@msg.Id" class="message-group new-author @(ContainsMentionOfCurrentUser(msg.Content) ? "mentioned" : "")">
-                        <div class="msg-avatar" style="background: @GetAvatarColor(msg.AuthorDisplayName);">
+                        <div class="msg-avatar" style="background: @GetAvatarGradient(msg.AuthorDisplayName);">
                             @GetInitials(msg.AuthorDisplayName)
                         </div>
                         <div class="msg-content">
                             <div class="msg-header">
                                 <span class="msg-author"
-                                      style="color: @GetAvatarColor(msg.AuthorDisplayName);"
+                                      style="color: @GetAuthorColor(msg.AuthorDisplayName);"
                                       @onclick="(e) => ToggleAuthorProfile(msg.AuthorId, e)"
                                       @onclick:stopPropagation="true">
                                     @msg.AuthorDisplayName
@@ -88,14 +88,62 @@
                             </div>
                             <div class="msg-body">@RenderMessageContent(msg.Content)</div>
                         </div>
+                        <div class="message-actions">
+                            <button class="action-btn" aria-label="React" title="React">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                                </svg>
+                            </button>
+                            <button class="action-btn" aria-label="Reply" title="Reply">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="9 17 4 12 9 7"></polyline>
+                                    <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+                                </svg>
+                            </button>
+                            <button class="action-btn" aria-label="More" title="More">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="1"></circle>
+                                    <circle cx="19" cy="12" r="1"></circle>
+                                    <circle cx="5" cy="12" r="1"></circle>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 }
                 else
                 {
                     <div id="msg-@msg.Id" class="message-group @(ContainsMentionOfCurrentUser(msg.Content) ? "mentioned" : "")">
-                        <div style="width: 34px; flex-shrink: 0;"></div>
+                        <div class="continuation-gutter">
+                            <span class="cont-time">@msg.CreatedAtUtc.ToLocalTime().ToString("h:mm")</span>
+                        </div>
                         <div class="msg-content">
                             <div class="msg-body">@RenderMessageContent(msg.Content)</div>
+                        </div>
+                        <div class="message-actions">
+                            <button class="action-btn" aria-label="React" title="React">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                                </svg>
+                            </button>
+                            <button class="action-btn" aria-label="Reply" title="Reply">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="9 17 4 12 9 7"></polyline>
+                                    <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+                                </svg>
+                            </button>
+                            <button class="action-btn" aria-label="More" title="More">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="1"></circle>
+                                    <circle cx="19" cy="12" r="1"></circle>
+                                    <circle cx="5" cy="12" r="1"></circle>
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 }
@@ -218,15 +266,27 @@
         return local.ToString("MMMM d, yyyy");
     }
 
-    private static string GetAvatarColor(string name)
+    private static int GetNameHue(string name)
     {
         int hash = 0;
         foreach (char c in name)
         {
             hash = c + ((hash << 5) - hash);
         }
-        int hue = Math.Abs(hash) % 360;
-        return $"hsl({hue}, 32%, 38%)";
+        return Math.Abs(hash) % 360;
+    }
+
+    private static string GetAvatarGradient(string name)
+    {
+        int hue = GetNameHue(name);
+        int hue2 = (hue + 15) % 360;
+        return $"linear-gradient(135deg, hsl({hue}, 55%, 42%), hsl({hue2}, 55%, 48%))";
+    }
+
+    private static string GetAuthorColor(string name)
+    {
+        int hue = GetNameHue(name);
+        return $"hsl({hue}, 55%, 65%)";
     }
 
     private static string GetInitials(string displayName)

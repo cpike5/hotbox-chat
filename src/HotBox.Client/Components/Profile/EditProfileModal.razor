@@ -371,7 +371,7 @@
     .edit-profile-modal {
         background: var(--bg-deep);
         border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg);
+        border-radius: var(--r-lg);
         box-shadow: var(--shadow-lg);
         width: 100%;
         max-width: 440px;
@@ -402,11 +402,11 @@
         color: var(--text-secondary);
         cursor: pointer;
         padding: 4px;
-        border-radius: var(--radius-md);
+        border-radius: var(--r-md);
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all var(--transition-base);
+        transition: all var(--t-base);
     }
 
     .edit-profile-close-btn:hover {
@@ -471,7 +471,7 @@
         color: var(--status-dnd);
         padding: 10px 14px;
         background: rgba(199, 96, 96, 0.08);
-        border-radius: var(--radius-md);
+        border-radius: var(--r-md);
         border: 1px solid rgba(199, 96, 96, 0.15);
     }
 
@@ -485,12 +485,12 @@
 
     .edit-profile-btn {
         padding: 8px 20px;
-        border-radius: var(--radius-md);
+        border-radius: var(--r-md);
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         border: none;
-        transition: all var(--transition-base);
+        transition: all var(--t-base);
         display: flex;
         align-items: center;
         gap: 6px;
@@ -518,7 +518,7 @@
     }
 
     .edit-profile-btn-save:hover:not(:disabled) {
-        background: var(--accent-hover);
+        background: var(--accent-bright);
     }
 
     /* Form styles - these use global .form-input, .form-label, .form-error */
@@ -534,8 +534,8 @@
         color: var(--text-primary);
         background: var(--bg-base);
         border: 1px solid var(--border-light);
-        border-radius: var(--radius-md);
-        transition: all var(--transition-base);
+        border-radius: var(--r-md);
+        transition: all var(--t-base);
     }
 
     .edit-profile-body .form-input:focus {

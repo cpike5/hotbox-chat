@@ -38,15 +38,15 @@
         @switch (Shape)
         {
             case SkeletonShape.Line:
-                <div class="skeleton" style="width: @(Width ?? "100%"); height: @(Height ?? "14px"); border-radius: var(--radius-sm);"></div>
+                <div class="skeleton" style="width: @(Width ?? "100%"); height: @(Height ?? "14px"); border-radius: var(--r-sm);"></div>
                 break;
 
             case SkeletonShape.Circle:
-                <div class="skeleton" style="width: @(Width ?? "32px"); height: @(Height ?? Width ?? "32px"); border-radius: var(--radius-pill);"></div>
+                <div class="skeleton" style="width: @(Width ?? "32px"); height: @(Height ?? Width ?? "32px"); border-radius: var(--r-pill);"></div>
                 break;
 
             case SkeletonShape.Rectangle:
-                <div class="skeleton" style="width: @(Width ?? "100%"); height: @(Height ?? "40px"); border-radius: var(--radius-md);"></div>
+                <div class="skeleton" style="width: @(Width ?? "100%"); height: @(Height ?? "40px"); border-radius: var(--r-md);"></div>
                 break;
 
             case SkeletonShape.Custom:

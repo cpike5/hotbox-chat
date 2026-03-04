@@ -1,0 +1,2360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HotBox — Redesign Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  /* Background depth scale — cool slate with blue undertone */
+  --bg-void: #08080b;
+  --bg-deepest: #0b0b10;
+  --bg-deep: #0f0f16;
+  --bg-base: #13131c;
+  --bg-raised: #191924;
+  --bg-surface: #1f1f2c;
+  --bg-hover: #262635;
+  --bg-active: #2e2e3f;
+  --bg-elevated: #35354a;
+
+  /* Glass layers */
+  --glass-subtle: rgba(255, 255, 255, 0.02);
+  --glass-light: rgba(255, 255, 255, 0.04);
+  --glass-medium: rgba(255, 255, 255, 0.06);
+  --glass-strong: rgba(255, 255, 255, 0.08);
+
+  /* Text hierarchy */
+  --text-primary: #e8e8f0;
+  --text-secondary: #9898ac;
+  --text-muted: #5e5e74;
+  --text-faint: #3a3a4e;
+  --text-ghost: #2a2a3c;
+
+  /* Accent — mint/teal spectrum */
+  --accent: #5de4c7;
+  --accent-bright: #7aecd5;
+  --accent-soft: #4dc4ab;
+  --accent-dim: rgba(93, 228, 199, 0.15);
+  --accent-wash: rgba(93, 228, 199, 0.08);
+  --accent-ghost: rgba(93, 228, 199, 0.04);
+  --accent-glow: 0 0 20px rgba(93, 228, 199, 0.15);
+  --accent-glow-strong: 0 0 30px rgba(93, 228, 199, 0.25);
+
+  /* Status */
+  --online: #5ec269;
+  --idle: #d4a843;
+  --dnd: #d45555;
+  --offline: #4a4a5c;
+
+  /* Semantic */
+  --danger: #d45555;
+  --warning: #d4a843;
+  --success: #5ec269;
+  --info: #5586d4;
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-light: rgba(255, 255, 255, 0.07);
+  --border-medium: rgba(255, 255, 255, 0.10);
+  --border-accent: rgba(93, 228, 199, 0.25);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 16px 64px rgba(0, 0, 0, 0.6);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+  /* Radius */
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-pill: 9999px;
+
+  /* Transitions */
+  --t-fast: 80ms ease;
+  --t-base: 150ms ease;
+  --t-smooth: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --t-spring: 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Typography */
+  --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+
+  /* Topbar height */
+  --topbar-h: 52px;
+  --infobar-h: 38px;
+  --voicebar-h: 50px;
+  --input-area-h: 72px;
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%; width: 100%;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-void);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  user-select: none;
+}
+
+::selection {
+  background: rgba(93, 228, 199, 0.25);
+  color: var(--text-primary);
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--glass-medium); border-radius: var(--r-pill); }
+::-webkit-scrollbar-thumb:hover { background: var(--glass-strong); }
+
+a { color: var(--accent); text-decoration: none; }
+button { font-family: inherit; border: none; cursor: pointer; background: none; color: inherit; }
+input, textarea { font-family: inherit; border: none; outline: none; color: inherit; background: none; }
+
+/* ============================================================
+   UTILITY CLASSES
+   ============================================================ */
+.mono { font-family: var(--font-mono); }
+.uppercase { text-transform: uppercase; letter-spacing: 0.08em; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 2px; }
+.gap-4 { gap: 4px; }
+.gap-6 { gap: 6px; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.flex-1 { flex: 1; min-width: 0; }
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: var(--bg-deepest);
+  position: relative;
+}
+
+/* Subtle noise texture overlay */
+.app::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Ambient glow at top */
+.app::after {
+  content: '';
+  position: fixed;
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 400px;
+  background: radial-gradient(ellipse, rgba(93, 228, 199, 0.04) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+.topbar {
+  height: var(--topbar-h);
+  min-height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border-subtle);
+  position: relative;
+  z-index: 100;
+  gap: 4px;
+}
+
+/* Subtle bottom glow line */
+.topbar::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(93, 228, 199, 0.08) 50%, transparent 100%);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 0 4px;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.brand-icon {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--bg-deepest);
+  box-shadow: var(--accent-glow);
+}
+
+.brand-name {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-light);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+
+/* Section Switcher */
+.section-switcher {
+  display: flex;
+  gap: 1px;
+  padding: 2px;
+  background: var(--bg-raised);
+  border-radius: var(--r-md);
+  flex-shrink: 0;
+}
+
+.section-btn {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-radius: var(--r-sm);
+  transition: all var(--t-base);
+  position: relative;
+}
+
+.section-btn:hover { color: var(--text-secondary); background: var(--glass-subtle); }
+.section-btn.active {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Channel / DM Tabs */
+.tab-strip {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 4px;
+  flex: 1;
+  min-width: 0;
+}
+.tab-strip::-webkit-scrollbar { display: none; }
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  transition: all var(--t-base);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tab:hover { color: var(--text-secondary); background: var(--glass-subtle); }
+
+.tab.active {
+  color: var(--text-primary);
+  background: var(--glass-light);
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: var(--r-pill);
+  box-shadow: 0 0 8px rgba(93, 228, 199, 0.3);
+}
+
+.tab-hash {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-faint);
+  transition: color var(--t-base);
+}
+.tab:hover .tab-hash, .tab.active .tab-hash { color: var(--accent); opacity: 0.6; }
+.tab.active .tab-hash { opacity: 1; }
+
+.tab-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--bg-deepest);
+  padding: 1px 5px;
+  border-radius: var(--r-pill);
+  min-width: 16px;
+  text-align: center;
+  line-height: 14px;
+}
+
+/* DM Tab Avatars */
+.dm-tab-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 600;
+  color: white;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.dm-status-pip {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-deep);
+}
+
+/* Topbar Controls */
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.topbar-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-md);
+  color: var(--text-muted);
+  transition: all var(--t-base);
+  position: relative;
+}
+
+.topbar-btn:hover { color: var(--text-secondary); background: var(--glass-light); }
+.topbar-btn.active { color: var(--accent); background: var(--accent-wash); }
+.topbar-btn svg { width: 18px; height: 18px; }
+
+.topbar-btn .notif-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  background: var(--danger);
+  border-radius: 50%;
+  border: 2px solid var(--bg-deep);
+}
+
+/* User pill */
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+  border-radius: var(--r-pill);
+  transition: background var(--t-base);
+  cursor: pointer;
+  margin-left: 4px;
+}
+.user-pill:hover { background: var(--glass-light); }
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  position: relative;
+}
+
+.user-avatar .status-ring {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-deep);
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   CHANNEL INFO BAR
+   ============================================================ */
+.infobar {
+  height: var(--infobar-h);
+  min-height: var(--infobar-h);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 12px;
+  position: relative;
+  z-index: 50;
+}
+
+.infobar-channel {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.infobar-channel .hash { color: var(--accent); opacity: 0.7; }
+
+.infobar-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--border-light);
+  flex-shrink: 0;
+}
+
+.infobar-topic {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.infobar-members {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.infobar-members svg { width: 14px; height: 14px; opacity: 0.5; }
+
+/* ============================================================
+   MAIN CONTENT AREA
+   ============================================================ */
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  z-index: 10;
+}
+
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-base);
+  position: relative;
+}
+
+/* Subtle inner vignette */
+.chat-area::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, transparent 60%, rgba(0,0,0,0.15) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ============================================================
+   MESSAGE LIST
+   ============================================================ */
+.messages-viewport {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  z-index: 2;
+}
+
+.messages-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 16px 32px 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  justify-content: flex-end;
+}
+
+/* Date separator */
+.date-separator {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0 12px;
+  opacity: 0;
+  animation: fadeSlideIn 0.3s ease forwards;
+}
+
+.date-separator-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-light), transparent);
+}
+
+.date-separator-text {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+/* New messages divider */
+.new-messages-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 8px;
+  opacity: 0;
+  animation: fadeSlideIn 0.3s ease 0.1s forwards;
+}
+
+.new-messages-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--danger);
+  opacity: 0.4;
+}
+
+.new-messages-divider-text {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--danger);
+  white-space: nowrap;
+}
+
+/* Message */
+.message-group {
+  padding: 2px 0;
+  opacity: 0;
+  animation: messageIn 0.35s ease forwards;
+}
+
+.message {
+  display: flex;
+  gap: 12px;
+  padding: 8px 8px;
+  border-radius: var(--r-md);
+  position: relative;
+  transition: background var(--t-fast);
+  margin: 0 -8px;
+}
+
+.message:hover { background: var(--glass-subtle); }
+
+.message:hover .message-actions {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.message-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: transform var(--t-base);
+}
+
+.message:hover .message-avatar { transform: scale(1.05); }
+
+.message-body { flex: 1; min-width: 0; }
+
+.message-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.message-author {
+  font-size: 13px;
+  font-weight: 600;
+  transition: color var(--t-fast);
+  cursor: pointer;
+}
+
+.message-author:hover { text-decoration: underline; }
+
+.message-timestamp {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+  transition: color var(--t-fast);
+}
+
+.message:hover .message-timestamp { color: var(--text-muted); }
+
+.message-bot-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--accent-dim);
+  color: var(--accent);
+  padding: 1px 5px;
+  border-radius: var(--r-xs);
+}
+
+.message-text {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.message-text .mention {
+  color: var(--accent);
+  background: var(--accent-wash);
+  padding: 0 3px;
+  border-radius: var(--r-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+
+.message-text .mention:hover { background: var(--accent-dim); }
+
+.message-text code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg-raised);
+  padding: 2px 5px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Continuation message (same author) */
+.message-continuation {
+  display: flex;
+  gap: 12px;
+  padding: 1px 8px;
+  border-radius: var(--r-md);
+  position: relative;
+  transition: background var(--t-fast);
+  margin: 0 -8px;
+}
+
+.message-continuation:hover { background: var(--glass-subtle); }
+
+.message-continuation:hover .message-actions {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.message-continuation:hover .cont-time { opacity: 1; }
+
+.message-cont-gutter {
+  width: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cont-time {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-faint);
+  opacity: 0;
+  transition: opacity var(--t-fast);
+}
+
+.message-cont-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.message-cont-text {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+/* Message hover actions */
+.message-actions {
+  position: absolute;
+  top: -14px;
+  right: 8px;
+  display: flex;
+  gap: 1px;
+  padding: 2px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all var(--t-base);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.action-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  transition: all var(--t-fast);
+}
+
+.action-btn:hover { color: var(--text-primary); background: var(--glass-medium); }
+.action-btn svg { width: 15px; height: 15px; }
+
+/* ============================================================
+   TYPING INDICATOR
+   ============================================================ */
+.typing-indicator {
+  padding: 6px 8px 6px 56px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.typing-dots {
+  display: flex;
+  gap: 3px;
+}
+
+.typing-dot {
+  width: 5px;
+  height: 5px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+.typing-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.typing-text strong {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ============================================================
+   MESSAGE INPUT
+   ============================================================ */
+.input-area {
+  padding: 0 32px 16px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  position: relative;
+  z-index: 2;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-lg);
+  padding: 4px;
+  transition: all var(--t-base);
+  box-shadow: var(--shadow-inset);
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-inset), 0 0 0 3px rgba(93, 228, 199, 0.06);
+}
+
+.input-left-btns {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+}
+
+.input-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-md);
+  color: var(--text-faint);
+  transition: all var(--t-fast);
+}
+
+.input-btn:hover { color: var(--text-secondary); background: var(--glass-light); }
+.input-btn svg { width: 18px; height: 18px; }
+
+.input-field {
+  flex: 1;
+  padding: 7px 8px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-primary);
+  min-height: 32px;
+  resize: none;
+}
+
+.input-field::placeholder { color: var(--text-faint); }
+
+.input-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+}
+
+.send-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--bg-deepest);
+  transition: all var(--t-base);
+  opacity: 0.4;
+}
+
+.send-btn.has-content { opacity: 1; }
+.send-btn.has-content:hover { background: var(--accent-bright); box-shadow: var(--accent-glow); }
+.send-btn svg { width: 16px; height: 16px; }
+
+/* ============================================================
+   MEMBERS PANEL
+   ============================================================ */
+.members-panel {
+  width: 260px;
+  min-width: 260px;
+  background: var(--bg-deep);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  transition: all var(--t-smooth);
+  transform: translateX(0);
+}
+
+.members-panel.hidden {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  transform: translateX(20px);
+  overflow: hidden;
+  border-left: none;
+}
+
+.members-section {
+  padding: 16px 12px 4px;
+}
+
+.members-section-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  padding: 0 8px 8px;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--r-md);
+  transition: background var(--t-fast);
+  cursor: pointer;
+}
+
+.member-item:hover { background: var(--glass-light); }
+
+.member-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.member-status {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2.5px solid var(--bg-deep);
+}
+
+.member-info { flex: 1; min-width: 0; }
+
+.member-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-role {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: var(--r-pill);
+  flex-shrink: 0;
+}
+
+.role-admin { background: var(--accent-dim); color: var(--accent); }
+.role-mod { background: rgba(85, 134, 212, 0.15); color: var(--info); }
+.role-member { background: var(--glass-light); color: var(--text-muted); }
+
+.member-offline .member-name { color: var(--text-muted); }
+.member-offline .member-avatar { opacity: 0.5; }
+
+/* ============================================================
+   VOICE BAR
+   ============================================================ */
+.voice-bar {
+  height: var(--voicebar-h);
+  min-height: var(--voicebar-h);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  background: var(--bg-deep);
+  border-top: 1px solid var(--border-subtle);
+  gap: 12px;
+  position: relative;
+  z-index: 50;
+}
+
+.voice-connected-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-pulse {
+  width: 8px;
+  height: 8px;
+  background: var(--online);
+  border-radius: 50%;
+  animation: pulseGlow 2s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(94, 194, 105, 0.4);
+}
+
+.voice-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--online);
+}
+
+.voice-channel-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.voice-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border-light);
+}
+
+.voice-users {
+  display: flex;
+  align-items: center;
+  margin-left: -4px;
+}
+
+.voice-user-chip {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  border: 2px solid var(--bg-deep);
+  margin-left: -4px;
+  cursor: pointer;
+  transition: transform var(--t-fast);
+}
+
+.voice-user-chip:hover { transform: scale(1.15); z-index: 1; }
+
+.voice-controls {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.voice-ctrl-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  transition: all var(--t-base);
+}
+
+.voice-ctrl-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.voice-ctrl-btn.muted { background: rgba(212, 85, 85, 0.15); color: var(--danger); }
+.voice-ctrl-btn.disconnect { background: rgba(212, 85, 85, 0.15); color: var(--danger); }
+.voice-ctrl-btn.disconnect:hover { background: rgba(212, 85, 85, 0.25); }
+.voice-ctrl-btn svg { width: 16px; height: 16px; }
+
+/* ============================================================
+   SEARCH OVERLAY
+   ============================================================ */
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--t-smooth);
+}
+
+.search-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.search-dialog {
+  width: 580px;
+  max-width: 90vw;
+  max-height: 460px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(-12px) scale(0.97);
+  transition: all var(--t-smooth);
+}
+
+.search-overlay.open .search-dialog {
+  transform: translateY(0) scale(1);
+}
+
+.search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.search-input-wrap svg { width: 20px; height: 20px; color: var(--text-muted); flex-shrink: 0; }
+
+.search-input {
+  flex: 1;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.search-input::placeholder { color: var(--text-faint); }
+
+.search-kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-faint);
+  background: var(--bg-surface);
+  padding: 3px 6px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--border-subtle);
+}
+
+.search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.search-result {
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+
+.search-result:hover { background: var(--glass-light); }
+
+.search-result-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.search-result-author {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.search-result-channel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.search-result-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-left: auto;
+}
+
+.search-result-snippet {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.search-result-snippet mark {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  color: var(--text-faint);
+}
+
+.search-empty svg { width: 32px; height: 32px; margin-bottom: 12px; opacity: 0.4; }
+.search-empty-text { font-size: 13px; }
+
+/* ============================================================
+   SETTINGS MODAL
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--t-smooth);
+}
+
+.modal-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal {
+  width: 520px;
+  max-width: 90vw;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  transform: translateY(12px) scale(0.96);
+  transition: all var(--t-smooth);
+}
+
+.modal-overlay.open .modal {
+  transform: translateY(0) scale(1);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.modal-close {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-md);
+  color: var(--text-muted);
+  transition: all var(--t-fast);
+}
+
+.modal-close:hover { color: var(--text-primary); background: var(--glass-light); }
+.modal-close svg { width: 16px; height: 16px; }
+
+.modal-body { padding: 20px 24px 24px; }
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.setting-row:last-child { border-bottom: none; }
+
+.setting-label { font-size: 13px; font-weight: 500; }
+.setting-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Toggle switch */
+.toggle {
+  width: 38px;
+  height: 22px;
+  background: var(--bg-active);
+  border-radius: var(--r-pill);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--t-base);
+  flex-shrink: 0;
+}
+
+.toggle.on { background: var(--accent); }
+
+.toggle-knob {
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: transform var(--t-spring);
+  box-shadow: var(--shadow-sm);
+}
+
+.toggle.on .toggle-knob { transform: translateX(16px); }
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+.toast-container {
+  position: fixed;
+  bottom: 70px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 2000;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  pointer-events: all;
+  opacity: 0;
+  transform: translateX(20px);
+  animation: toastIn 0.35s var(--t-spring) forwards;
+  max-width: 360px;
+}
+
+.toast-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.toast-success .toast-icon { color: var(--success); }
+.toast-info .toast-icon { color: var(--info); }
+
+.toast-content { flex: 1; }
+
+.toast-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 1px;
+}
+
+.toast-message {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.toast-dismiss {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  color: var(--text-faint);
+  transition: all var(--t-fast);
+  flex-shrink: 0;
+}
+
+.toast-dismiss:hover { color: var(--text-secondary); background: var(--glass-light); }
+.toast-dismiss svg { width: 12px; height: 12px; }
+
+/* Toast auto-dismiss progress */
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  animation: toastProgress 4s linear forwards;
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes messageIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(94, 194, 105, 0.4); }
+  50% { opacity: 0.6; box-shadow: 0 0 12px rgba(94, 194, 105, 0.6); }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastProgress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Stagger message animations */
+.message-group:nth-child(1) { animation-delay: 0s; }
+.message-group:nth-child(2) { animation-delay: 0.04s; }
+.message-group:nth-child(3) { animation-delay: 0.08s; }
+.message-group:nth-child(4) { animation-delay: 0.12s; }
+.message-group:nth-child(5) { animation-delay: 0.16s; }
+.message-group:nth-child(6) { animation-delay: 0.20s; }
+.message-group:nth-child(7) { animation-delay: 0.24s; }
+.message-group:nth-child(8) { animation-delay: 0.28s; }
+.message-group:nth-child(9) { animation-delay: 0.32s; }
+.message-group:nth-child(10) { animation-delay: 0.36s; }
+.message-group:nth-child(11) { animation-delay: 0.40s; }
+.message-group:nth-child(12) { animation-delay: 0.44s; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ====== TOP BAR ====== -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-icon">H</div>
+      <span class="brand-name">HotBox</span>
+    </div>
+
+    <div class="topbar-divider"></div>
+
+    <div class="section-switcher">
+      <button class="section-btn active" data-section="channels">Channels</button>
+      <button class="section-btn" data-section="dms">Messages</button>
+    </div>
+
+    <div class="topbar-divider"></div>
+
+    <!-- Channel Tabs -->
+    <div class="tab-strip" id="channelTabs">
+      <button class="tab active" data-channel="general">
+        <span class="tab-hash">#</span>general
+      </button>
+      <button class="tab" data-channel="dev">
+        <span class="tab-hash">#</span>dev
+        <span class="tab-badge">3</span>
+      </button>
+      <button class="tab" data-channel="design">
+        <span class="tab-hash">#</span>design
+      </button>
+      <button class="tab" data-channel="random">
+        <span class="tab-hash">#</span>random
+        <span class="tab-badge">12</span>
+      </button>
+      <button class="tab" data-channel="deployments">
+        <span class="tab-hash">#</span>deployments
+      </button>
+      <button class="tab" data-channel="music">
+        <span class="tab-hash">#</span>music
+      </button>
+    </div>
+
+    <!-- DM Tabs (hidden by default) -->
+    <div class="tab-strip" id="dmTabs" style="display: none;">
+      <button class="tab active">
+        <div class="dm-tab-avatar" style="background: hsl(210, 45%, 42%);">M
+          <div class="dm-status-pip" style="background: var(--online);"></div>
+        </div>
+        Marcus
+      </button>
+      <button class="tab">
+        <div class="dm-tab-avatar" style="background: hsl(340, 45%, 42%);">S
+          <div class="dm-status-pip" style="background: var(--idle);"></div>
+        </div>
+        Sophie
+        <span class="tab-badge">2</span>
+      </button>
+      <button class="tab">
+        <div class="dm-tab-avatar" style="background: hsl(160, 40%, 38%);">A
+          <div class="dm-status-pip" style="background: var(--offline);"></div>
+        </div>
+        Alex
+      </button>
+    </div>
+
+    <div class="topbar-divider"></div>
+
+    <div class="topbar-controls">
+      <button class="topbar-btn" title="Mute" id="muteBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      </button>
+      <button class="topbar-btn active" title="Members" id="membersToggle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </button>
+      <button class="topbar-btn" title="Notifications" id="notifBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-dot"></span>
+      </button>
+      <button class="topbar-btn" title="Search" id="searchBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <button class="topbar-btn" title="Settings" id="settingsBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+
+    <div class="topbar-divider"></div>
+
+    <div class="user-pill" id="userPill">
+      <div class="user-avatar" style="background: linear-gradient(135deg, hsl(260, 50%, 45%), hsl(280, 50%, 55%));">
+        CP
+        <div class="status-ring" style="background: var(--online);"></div>
+      </div>
+      <span class="user-name">cpike</span>
+    </div>
+  </div>
+
+  <!-- ====== CHANNEL INFO BAR ====== -->
+  <div class="infobar">
+    <div class="infobar-channel">
+      <span class="hash">#</span>general
+    </div>
+    <div class="infobar-sep"></div>
+    <div class="infobar-topic">Welcome to HotBox — keep it friendly, keep it hot</div>
+    <div class="infobar-members">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>
+      14 online
+    </div>
+  </div>
+
+  <!-- ====== MAIN CONTENT ====== -->
+  <div class="main-content">
+
+    <!-- Chat Area -->
+    <div class="chat-area">
+      <div class="messages-viewport" id="messagesViewport">
+        <div class="messages-container">
+
+          <!-- Date Separator -->
+          <div class="date-separator message-group">
+            <div class="date-separator-line"></div>
+            <div class="date-separator-text">March 3, 2026</div>
+            <div class="date-separator-line"></div>
+          </div>
+
+          <!-- Message 1 -->
+          <div class="message-group">
+            <div class="message">
+              <div class="message-avatar" style="background: linear-gradient(135deg, hsl(20, 55%, 42%), hsl(35, 55%, 48%));">KR</div>
+              <div class="message-body">
+                <div class="message-header">
+                  <span class="message-author" style="color: hsl(25, 70%, 70%);">Kai Reeves</span>
+                  <span class="message-timestamp">9:14 AM</span>
+                </div>
+                <div class="message-text">Morning everyone! Just pushed the new auth flow to staging. Can someone give it a spin when you get a chance?</div>
+              </div>
+              <div class="message-actions">
+                <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+                <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+                <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message 2 -->
+          <div class="message-group">
+            <div class="message">
+              <div class="message-avatar" style="background: linear-gradient(135deg, hsl(200, 50%, 38%), hsl(220, 50%, 48%));">LN</div>
+              <div class="message-body">
+                <div class="message-header">
+                  <span class="message-author" style="color: hsl(210, 70%, 72%);">Luna Nguyen</span>
+                  <span class="message-timestamp">9:17 AM</span>
+                </div>
+                <div class="message-text">On it! Does the OAuth callback still use <code>/auth/callback</code> or did that change?</div>
+              </div>
+              <div class="message-actions">
+                <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+                <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+                <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message 3 - same author continuation -->
+          <div class="message-group">
+            <div class="message">
+              <div class="message-avatar" style="background: linear-gradient(135deg, hsl(20, 55%, 42%), hsl(35, 55%, 48%));">KR</div>
+              <div class="message-body">
+                <div class="message-header">
+                  <span class="message-author" style="color: hsl(25, 70%, 70%);">Kai Reeves</span>
+                  <span class="message-timestamp">9:18 AM</span>
+                </div>
+                <div class="message-text">Same route, but I added a <code>state</code> param for CSRF. Should be transparent to the UI.</div>
+              </div>
+              <div class="message-actions">
+                <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+                <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+                <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+            <div class="message-continuation">
+              <div class="message-cont-gutter"><span class="cont-time">9:18</span></div>
+              <div class="message-cont-body">
+                <div class="message-cont-text">Also added rate limiting on the token endpoint — 10 req/min per IP</div>
+              </div>
+              <div class="message-actions">
+                <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+                <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+                <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message 4 -->
+          <div class="message-group">
+            <div class="message">
+              <div class="message-avatar" style="background: linear-gradient(135deg, hsl(140, 40%, 35%), hsl(160, 45%, 42%));">MW</div>
+              <div class="message-body">
+                <div class="message-header">
+                  <span class="message-author" style="color: hsl(150, 55%, 68%);">Marcus Webb</span>
+                  <span class="message-timestamp">9:22 AM</span>
+                </div>
+                <div class="message-text">Nice, the rate limiting is solid. <span class="mention">@Luna Nguyen</span> I tested it last night — the redirect flow is smooth. Just make sure you clear the old session cookie first.</div>
+              </div>
+              <div class="message-actions">
+                <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+                <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+                <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message 5 - Bot message -->
+          <div class="message-group">
+            <div class="message">
+              <div class="message-avatar" style="background: linear-gradient(135deg, var(--accent-soft), var(--accent));">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--bg-deepest)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              </div>
+              <div class="message-body">
+                <div class="message-header">
+                  <span class="message-author" style="color: var(--accent);">DeployBot</span>
+                  <span class="message-bot-badge">BOT</span>
+                  <span class="message-timestamp">9:25 AM</span>
+                </div>
+                <div class="message-text" style="color: var(--text-secondary);">Staging deployment <code>v2.4.1-rc3</code> completed successfully. 14 services healthy, 0 warnings.</div>
+              </div>
+              <div class="message-actions">
+                <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+                <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+                <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message 6 -->
+          <div class="message-group">
+            <div class="message">
+              <div class="message-avatar" style="background: linear-gradient(135deg, hsl(330, 50%, 42%), hsl(350, 50%, 52%));">SP</div>
+              <div class="message-body">
+                <div class="message-header">
+                  <span class="message-author" style="color: hsl(340, 65%, 72%);">Sophie Park</span>
+                  <span class="message-timestamp">9:31 AM</span>
+                </div>
+                <div class="message-text">Quick design question — should the login page show the server name above the form? I have two versions mocked up</div>
+              </div>
+              <div class="message-actions">
+                <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+                <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+                <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- New Messages Divider -->
+          <div class="new-messages-divider message-group">
+            <div class="new-messages-divider-line"></div>
+            <div class="new-messages-divider-text">New messages</div>
+            <div class="new-messages-divider-line"></div>
+          </div>
+
+          <!-- Message 7 -->
+          <div class="message-group">
+            <div class="message">
+              <div class="message-avatar" style="background: linear-gradient(135deg, hsl(260, 45%, 42%), hsl(280, 50%, 52%));">DK</div>
+              <div class="message-body">
+                <div class="message-header">
+                  <span class="message-author" style="color: hsl(270, 60%, 74%);">Dev Kapoor</span>
+                  <span class="message-timestamp">10:05 AM</span>
+                </div>
+                <div class="message-text">Yes! Server name adds context, especially when people are on multiple instances. Keep it subtle though — maybe 12px mono above the card?</div>
+              </div>
+              <div class="message-actions">
+                <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+                <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+                <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message 8 -->
+          <div class="message-group">
+            <div class="message">
+              <div class="message-avatar" style="background: linear-gradient(135deg, hsl(45, 55%, 38%), hsl(60, 50%, 44%));">RJ</div>
+              <div class="message-body">
+                <div class="message-header">
+                  <span class="message-author" style="color: hsl(50, 65%, 70%);">Riley Jensen</span>
+                  <span class="message-timestamp">10:08 AM</span>
+                </div>
+                <div class="message-text">Anyone else getting a weird flicker on the voice channel dropdown? Happens when I switch tabs quickly</div>
+              </div>
+              <div class="message-actions">
+                <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+                <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+                <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message 9 -->
+          <div class="message-group">
+            <div class="message">
+              <div class="message-avatar" style="background: linear-gradient(135deg, hsl(200, 50%, 38%), hsl(220, 50%, 48%));">LN</div>
+              <div class="message-body">
+                <div class="message-header">
+                  <span class="message-author" style="color: hsl(210, 70%, 72%);">Luna Nguyen</span>
+                  <span class="message-timestamp">10:12 AM</span>
+                </div>
+                <div class="message-text"><span class="mention">@Riley Jensen</span> Yeah, that's a known issue — race condition in the SignalR reconnect. <span class="mention">@Kai Reeves</span> has a fix in the pipeline</div>
+              </div>
+              <div class="message-actions">
+                <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+                <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+                <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message 10 -->
+          <div class="message-group">
+            <div class="message">
+              <div class="message-avatar" style="background: linear-gradient(135deg, hsl(330, 50%, 42%), hsl(350, 50%, 52%));">SP</div>
+              <div class="message-body">
+                <div class="message-header">
+                  <span class="message-author" style="color: hsl(340, 65%, 72%);">Sophie Park</span>
+                  <span class="message-timestamp">10:15 AM</span>
+                </div>
+                <div class="message-text">Thanks <span class="mention">@Dev Kapoor</span>! Going with the subtle mono approach. Also, the voice UI polish looks amazing in staging</div>
+              </div>
+              <div class="message-actions">
+                <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+                <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+                <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+            <div class="message-continuation">
+              <div class="message-cont-gutter"><span class="cont-time">10:15</span></div>
+              <div class="message-cont-body">
+                <div class="message-cont-text">We're really close to a solid v1 here</div>
+              </div>
+              <div class="message-actions">
+                <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+                <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+                <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Typing Indicator -->
+      <div class="typing-indicator">
+        <div class="typing-dots">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+        <div class="typing-text"><strong>Kai Reeves</strong> is typing...</div>
+      </div>
+
+      <!-- Message Input -->
+      <div class="input-area">
+        <div class="input-wrapper">
+          <div class="input-left-btns">
+            <button class="input-btn" title="Attach file">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+          </div>
+          <input type="text" class="input-field" id="messageInput" placeholder="Message #general" autocomplete="off">
+          <div class="input-right">
+            <button class="input-btn" title="Emoji">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            </button>
+            <button class="send-btn" id="sendBtn" title="Send">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Members Panel -->
+    <div class="members-panel" id="membersPanel">
+      <div class="members-section">
+        <div class="members-section-label">Online — 8</div>
+
+        <div class="member-item">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(20, 55%, 42%), hsl(35, 55%, 48%));">KR
+            <div class="member-status" style="background: var(--online);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">Kai Reeves</div></div>
+          <span class="member-role role-admin">Admin</span>
+        </div>
+
+        <div class="member-item">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(200, 50%, 38%), hsl(220, 50%, 48%));">LN
+            <div class="member-status" style="background: var(--online);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">Luna Nguyen</div></div>
+          <span class="member-role role-mod">Mod</span>
+        </div>
+
+        <div class="member-item">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(140, 40%, 35%), hsl(160, 45%, 42%));">MW
+            <div class="member-status" style="background: var(--online);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">Marcus Webb</div></div>
+          <span class="member-role role-member">Member</span>
+        </div>
+
+        <div class="member-item">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(330, 50%, 42%), hsl(350, 50%, 52%));">SP
+            <div class="member-status" style="background: var(--online);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">Sophie Park</div></div>
+          <span class="member-role role-member">Member</span>
+        </div>
+
+        <div class="member-item">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(260, 45%, 42%), hsl(280, 50%, 52%));">DK
+            <div class="member-status" style="background: var(--idle);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">Dev Kapoor</div></div>
+          <span class="member-role role-member">Member</span>
+        </div>
+
+        <div class="member-item">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(45, 55%, 38%), hsl(60, 50%, 44%));">RJ
+            <div class="member-status" style="background: var(--online);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">Riley Jensen</div></div>
+          <span class="member-role role-member">Member</span>
+        </div>
+
+        <div class="member-item">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(260, 50%, 45%), hsl(280, 50%, 55%));">CP
+            <div class="member-status" style="background: var(--online);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">cpike</div></div>
+          <span class="member-role role-admin">Admin</span>
+        </div>
+
+        <div class="member-item">
+          <div class="member-avatar" style="background: linear-gradient(135deg, var(--accent-soft), var(--accent));">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--bg-deepest)" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </div>
+          <div class="member-info"><div class="member-name" style="color: var(--accent);">DeployBot</div></div>
+          <span class="member-role" style="background: var(--accent-wash); color: var(--accent);">Bot</span>
+        </div>
+      </div>
+
+      <div class="members-section">
+        <div class="members-section-label">Offline — 6</div>
+
+        <div class="member-item member-offline">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(180, 35%, 35%), hsl(195, 40%, 42%));">TM
+            <div class="member-status" style="background: var(--offline);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">Tara Mitchell</div></div>
+        </div>
+
+        <div class="member-item member-offline">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(10, 50%, 40%), hsl(25, 55%, 48%));">JC
+            <div class="member-status" style="background: var(--offline);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">Jake Chen</div></div>
+        </div>
+
+        <div class="member-item member-offline">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(290, 40%, 38%), hsl(310, 45%, 45%));">AV
+            <div class="member-status" style="background: var(--offline);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">Ava Volkov</div></div>
+        </div>
+
+        <div class="member-item member-offline">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(85, 35%, 35%), hsl(100, 40%, 42%));">NO
+            <div class="member-status" style="background: var(--offline);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">Nico Ortiz</div></div>
+        </div>
+
+        <div class="member-item member-offline">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(220, 40%, 38%), hsl(240, 45%, 45%));">EH
+            <div class="member-status" style="background: var(--offline);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">Emiko Hayashi</div></div>
+        </div>
+
+        <div class="member-item member-offline">
+          <div class="member-avatar" style="background: linear-gradient(135deg, hsl(35, 45%, 38%), hsl(50, 50%, 44%));">BR
+            <div class="member-status" style="background: var(--offline);"></div>
+          </div>
+          <div class="member-info"><div class="member-name">Ben Russo</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ====== VOICE BAR ====== -->
+  <div class="voice-bar">
+    <div class="voice-connected-indicator">
+      <div class="voice-pulse"></div>
+      <span class="voice-label">Connected</span>
+    </div>
+    <span class="voice-channel-name">Lounge</span>
+    <div class="voice-sep"></div>
+    <div class="voice-users">
+      <div class="voice-user-chip" style="background: linear-gradient(135deg, hsl(260, 50%, 45%), hsl(280, 50%, 55%));" title="cpike">CP</div>
+      <div class="voice-user-chip" style="background: linear-gradient(135deg, hsl(20, 55%, 42%), hsl(35, 55%, 48%));" title="Kai Reeves">KR</div>
+      <div class="voice-user-chip" style="background: linear-gradient(135deg, hsl(330, 50%, 42%), hsl(350, 50%, 52%));" title="Sophie Park">SP</div>
+    </div>
+    <div class="voice-controls">
+      <button class="voice-ctrl-btn" title="Mute" id="voiceMuteBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
+      <button class="voice-ctrl-btn" title="Deafen" id="voiceDeafenBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+      </button>
+      <button class="voice-ctrl-btn disconnect" title="Disconnect">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="23" y1="1" x2="1" y2="23"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ====== SEARCH OVERLAY ====== -->
+<div class="search-overlay" id="searchOverlay">
+  <div class="search-dialog">
+    <div class="search-input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="search-input" id="searchInput" placeholder="Search messages..." autocomplete="off">
+      <span class="search-kbd">ESC</span>
+    </div>
+    <div class="search-results" id="searchResults">
+      <div class="search-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="search-empty-text">Search across all channels and DMs</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== SETTINGS MODAL ====== -->
+<div class="modal-overlay" id="settingsOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Settings</span>
+      <button class="modal-close" id="settingsClose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Desktop Notifications</div>
+          <div class="setting-desc">Show browser notifications for new messages</div>
+        </div>
+        <div class="toggle on" data-toggle="notif"><div class="toggle-knob"></div></div>
+      </div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Message Sounds</div>
+          <div class="setting-desc">Play a sound when a new message arrives</div>
+        </div>
+        <div class="toggle" data-toggle="sounds"><div class="toggle-knob"></div></div>
+      </div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Compact Mode</div>
+          <div class="setting-desc">Reduce spacing between messages</div>
+        </div>
+        <div class="toggle" data-toggle="compact"><div class="toggle-knob"></div></div>
+      </div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Show Member List</div>
+          <div class="setting-desc">Display the members panel by default</div>
+        </div>
+        <div class="toggle on" data-toggle="members"><div class="toggle-knob"></div></div>
+      </div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">24-Hour Time</div>
+          <div class="setting-desc">Use 24-hour clock format for timestamps</div>
+        </div>
+        <div class="toggle" data-toggle="24hr"><div class="toggle-knob"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== TOAST CONTAINER ====== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ============================================================
+// INTERACTIVE BEHAVIORS
+// ============================================================
+
+// --- Section Switcher ---
+document.querySelectorAll('.section-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const section = btn.dataset.section;
+    document.getElementById('channelTabs').style.display = section === 'channels' ? 'flex' : 'none';
+    document.getElementById('dmTabs').style.display = section === 'dms' ? 'flex' : 'none';
+  });
+});
+
+// --- Channel Tab Switching ---
+document.querySelectorAll('#channelTabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#channelTabs .tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    // Remove badge on click
+    const badge = tab.querySelector('.tab-badge');
+    if (badge) badge.remove();
+    // Update infobar
+    const name = tab.dataset.channel;
+    document.querySelector('.infobar-channel').innerHTML = `<span class="hash">#</span>${name}`;
+    document.querySelector('.input-field').placeholder = `Message #${name}`;
+  });
+});
+
+// --- DM Tab Switching ---
+document.querySelectorAll('#dmTabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#dmTabs .tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const badge = tab.querySelector('.tab-badge');
+    if (badge) badge.remove();
+  });
+});
+
+// --- Members Panel Toggle ---
+const membersToggle = document.getElementById('membersToggle');
+const membersPanel = document.getElementById('membersPanel');
+membersToggle.addEventListener('click', () => {
+  membersToggle.classList.toggle('active');
+  membersPanel.classList.toggle('hidden');
+});
+
+// --- Search Overlay ---
+const searchBtn = document.getElementById('searchBtn');
+const searchOverlay = document.getElementById('searchOverlay');
+const searchInput = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+
+searchBtn.addEventListener('click', () => {
+  searchOverlay.classList.add('open');
+  setTimeout(() => searchInput.focus(), 100);
+});
+
+searchOverlay.addEventListener('click', (e) => {
+  if (e.target === searchOverlay) {
+    searchOverlay.classList.remove('open');
+    searchInput.value = '';
+    resetSearchResults();
+  }
+});
+
+function resetSearchResults() {
+  searchResults.innerHTML = `
+    <div class="search-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span class="search-empty-text">Search across all channels and DMs</span>
+    </div>`;
+}
+
+// Simulated search
+const sampleResults = [
+  { author: 'Kai Reeves', channel: '#general', time: '9:14 AM', text: 'Just pushed the new <mark>auth</mark> flow to staging. Can someone give it a spin?' },
+  { author: 'Luna Nguyen', channel: '#general', time: '9:17 AM', text: 'Does the OAuth callback still use /auth/callback or did that change?' },
+  { author: 'Marcus Webb', channel: '#dev', time: 'Yesterday', text: 'The <mark>auth</mark> middleware needs to handle token refresh before expiry' },
+  { author: 'Kai Reeves', channel: '#general', time: '9:18 AM', text: 'Added rate limiting on the token endpoint — 10 req/min per IP' },
+];
+
+searchInput.addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) { resetSearchResults(); return; }
+  const filtered = sampleResults.filter(r => r.text.toLowerCase().includes(q) || r.author.toLowerCase().includes(q));
+  if (filtered.length === 0) {
+    searchResults.innerHTML = `
+      <div class="search-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="search-empty-text">No results for "${q}"</span>
+      </div>`;
+    return;
+  }
+  searchResults.innerHTML = filtered.map(r => `
+    <div class="search-result">
+      <div class="search-result-header">
+        <span class="search-result-author">${r.author}</span>
+        <span class="search-result-channel">${r.channel}</span>
+        <span class="search-result-time">${r.time}</span>
+      </div>
+      <div class="search-result-snippet">${r.text}</div>
+    </div>`).join('');
+});
+
+// --- Settings Modal ---
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsOverlay = document.getElementById('settingsOverlay');
+const settingsClose = document.getElementById('settingsClose');
+
+settingsBtn.addEventListener('click', () => settingsOverlay.classList.add('open'));
+settingsClose.addEventListener('click', () => settingsOverlay.classList.remove('open'));
+settingsOverlay.addEventListener('click', (e) => {
+  if (e.target === settingsOverlay) settingsOverlay.classList.remove('open');
+});
+
+// --- Toggle Switches ---
+document.querySelectorAll('.toggle').forEach(toggle => {
+  toggle.addEventListener('click', () => toggle.classList.toggle('on'));
+});
+
+// --- Message Input ---
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+
+messageInput.addEventListener('input', () => {
+  sendBtn.classList.toggle('has-content', messageInput.value.trim().length > 0);
+});
+
+messageInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && messageInput.value.trim()) {
+    addMessage(messageInput.value.trim());
+    messageInput.value = '';
+    sendBtn.classList.remove('has-content');
+  }
+});
+
+sendBtn.addEventListener('click', () => {
+  if (messageInput.value.trim()) {
+    addMessage(messageInput.value.trim());
+    messageInput.value = '';
+    sendBtn.classList.remove('has-content');
+  }
+});
+
+function addMessage(text) {
+  const container = document.querySelector('.messages-container');
+  const viewport = document.getElementById('messagesViewport');
+  const group = document.createElement('div');
+  group.className = 'message-group';
+  group.innerHTML = `
+    <div class="message">
+      <div class="message-avatar" style="background: linear-gradient(135deg, hsl(260, 50%, 45%), hsl(280, 50%, 55%));">CP</div>
+      <div class="message-body">
+        <div class="message-header">
+          <span class="message-author" style="color: hsl(270, 60%, 74%);">cpike</span>
+          <span class="message-timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+        </div>
+        <div class="message-text">${escapeHtml(text)}</div>
+      </div>
+      <div class="message-actions">
+        <button class="action-btn" title="React"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></button>
+        <button class="action-btn" title="Reply"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>
+        <button class="action-btn" title="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+      </div>
+    </div>`;
+  container.appendChild(group);
+  viewport.scrollTop = viewport.scrollHeight;
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// --- Voice Mute/Deafen Toggle ---
+document.getElementById('voiceMuteBtn').addEventListener('click', function() {
+  this.classList.toggle('muted');
+});
+document.getElementById('voiceDeafenBtn').addEventListener('click', function() {
+  this.classList.toggle('muted');
+});
+
+// --- Mute button toggle ---
+document.getElementById('muteBtn').addEventListener('click', function() {
+  this.classList.toggle('active');
+});
+
+// --- ESC to close overlays ---
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    searchOverlay.classList.remove('open');
+    searchInput.value = '';
+    resetSearchResults();
+    settingsOverlay.classList.remove('open');
+  }
+  // Ctrl/Cmd+K for search
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    searchOverlay.classList.add('open');
+    setTimeout(() => searchInput.focus(), 100);
+  }
+});
+
+// --- Toast Notification Demo (on notification bell click) ---
+const notifBtn = document.getElementById('notifBtn');
+let toastCount = 0;
+
+const toastMessages = [
+  { type: 'success', title: 'Deployment Complete', message: 'v2.4.1 deployed to production' },
+  { type: 'info', title: 'New Member', message: 'Alex Rivera just joined the server' },
+  { type: 'success', title: 'Message Sent', message: 'Your invite was sent to 3 users' },
+];
+
+notifBtn.addEventListener('click', function() {
+  // Remove the notification dot
+  const dot = this.querySelector('.notif-dot');
+  if (dot) dot.remove();
+
+  showToast(toastMessages[toastCount % toastMessages.length]);
+  toastCount++;
+});
+
+function showToast(data) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${data.type}`;
+  toast.innerHTML = `
+    <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      ${data.type === 'success'
+        ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'
+        : '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'}
+    </svg>
+    <div class="toast-content">
+      <div class="toast-title">${data.title}</div>
+      <div class="toast-message">${data.message}</div>
+    </div>
+    <button class="toast-dismiss" onclick="this.parentElement.remove()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="toast-progress"></div>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 4500);
+}
+
+// --- Scroll to bottom on load ---
+const viewport = document.getElementById('messagesViewport');
+viewport.scrollTop = viewport.scrollHeight;
+
+// --- User pill click shows profile toast ---
+document.getElementById('userPill').addEventListener('click', () => {
+  showToast({ type: 'info', title: 'Profile', message: 'cpike — Online since 8:30 AM' });
+});
+</script>
+
+</body>
+</html>
