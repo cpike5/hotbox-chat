@@ -31,6 +31,9 @@ else
             @foreach (var conversation in DirectMessageState.Conversations)
             {
                 <button class="dms-page-item" @onclick="() => SelectConversation(conversation)">
+                    <div class="dms-page-item-avatar" style="background: @GetAvatarColor(conversation.DisplayName);">
+                        @GetInitials(conversation.DisplayName)
+                    </div>
                     <div class="dms-page-item-main">
                         <div class="dms-page-item-name">@conversation.DisplayName</div>
                         <div class="dms-page-item-preview">@(string.IsNullOrWhiteSpace(conversation.LastMessageContent) ? "No messages yet" : conversation.LastMessageContent)</div>
@@ -96,6 +99,27 @@ else
             return $"{(int)diff.TotalDays}d ago";
 
         return local.ToString("MMM d");
+    }
+
+    private static string GetAvatarColor(string name)
+    {
+        int hash = 0;
+        foreach (char c in name)
+        {
+            hash = c + ((hash << 5) - hash);
+        }
+        int hue = Math.Abs(hash) % 360;
+        return $"hsl({hue}, 32%, 38%)";
+    }
+
+    private static string GetInitials(string displayName)
+    {
+        var parts = displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return displayName.Length >= 2
+            ? displayName[..2].ToUpper()
+            : displayName.ToUpper();
     }
 
     public void Dispose()

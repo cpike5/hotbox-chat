@@ -1665,6 +1665,19 @@ input, textarea {
   background: var(--bg-hover);
 }
 
+.dms-page-item-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+}
+
 .dms-page-item-main {
   display: flex;
   flex-direction: column;
