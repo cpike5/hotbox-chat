@@ -1,0 +1,72 @@
+# Production deployment — uses pre-built image from GitHub Container Registry.
+#
+# Usage:
+#   cp .env.example .env   # then edit with real secrets
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Required environment variables (set in .env):
+#   DB_PASSWORD        — PostgreSQL password
+#   JWT_SECRET         — JWT signing key (min 32 chars)
+#   ADMIN_EMAIL        — Initial admin account email
+#   ADMIN_PASSWORD     — Initial admin account password
+
+services:
+  hotbox:
+    image: ghcr.io/cpike5/hotbox-chat:latest
+    container_name: hotbox
+    restart: unless-stopped
+    ports:
+      - "${HOTBOX_PORT:-7200}:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Database__Provider=postgresql
+      - Database__ConnectionString=Host=db;Port=5432;Database=hotbox;Username=hotbox;Password=${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      - Jwt__Secret=${JWT_SECRET:?Set JWT_SECRET in .env}
+      - Observability__SeqUrl=http://seq:5341
+      - Observability__OtlpEndpoint=${APM_OTLP_ENDPOINT:-}
+      - Observability__OtlpApiKey=${APM_API_KEY:-}
+      - Observability__ElasticsearchUrl=${ELASTICSEARCH_URL:-}
+      - Observability__ElasticsearchApiKey=${ELASTICSEARCH_API_KEY:-}
+      - AdminSeed__Email=${ADMIN_EMAIL:-admin@hotbox.local}
+      - AdminSeed__Password=${ADMIN_PASSWORD:-Admin123!}
+      - AdminSeed__DisplayName=${ADMIN_DISPLAY_NAME:-Admin}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  db:
+    image: postgres:16-alpine
+    container_name: hotbox-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hotbox
+      POSTGRES_USER: hotbox
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hotbox"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  seq:
+    image: datalust/seq:latest
+    container_name: hotbox-seq
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "${SEQ_PORT:-7201}:80"
+    volumes:
+      - seqdata:/data
+
+volumes:
+  pgdata:
+  seqdata:

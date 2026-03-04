@@ -5,45 +5,155 @@ Deploy HotBox using Docker Compose. This is the recommended approach — it hand
 ## Prerequisites
 
 - Docker Engine 24+ and Docker Compose v2
-- Git (to clone the repo)
 - A server with at least 1 GB RAM
 
-## Quick Start
+## Production Deployment (Pre-built Image)
+
+The fastest way to deploy. Uses the pre-built image from GitHub Container Registry — no need to clone the repo or build anything.
+
+### 1. Create a project directory
 
 ```bash
-git clone https://github.com/your-org/hotbox-chat.git
+mkdir hotbox && cd hotbox
+```
+
+### 2. Download the compose file and env template
+
+```bash
+curl -LO https://raw.githubusercontent.com/cpike5/hotbox-chat/main/docker-compose.prod.yml
+curl -LO https://raw.githubusercontent.com/cpike5/hotbox-chat/main/.env.example
+cp .env.example .env
+```
+
+### 3. Configure secrets
+
+Edit `.env` with real values:
+
+```bash
+# REQUIRED — generate with: openssl rand -base64 48
+DB_PASSWORD=<strong-random-password>
+JWT_SECRET=<random-string-at-least-32-characters>
+
+# Admin account created on first startup
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=<strong-admin-password>
+ADMIN_DISPLAY_NAME=Admin
+
+# Optional port overrides (defaults: 7200 for app, 7201 for Seq)
+# HOTBOX_PORT=7200
+# SEQ_PORT=7201
+```
+
+### 4. Start
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### 5. Verify
+
+```bash
+# Check containers
+docker compose -f docker-compose.prod.yml ps
+
+# Check health
+curl http://localhost:7200/health
+```
+
+**Access:**
+- HotBox: `http://localhost:7200`
+- Seq (logs): `http://localhost:7201`
+
+### Updating
+
+Pull the latest image and restart:
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+docker image prune -f
+```
+
+To pin a specific version instead of `latest`, edit `docker-compose.prod.yml`:
+
+```yaml
+image: ghcr.io/cpike5/hotbox-chat:0.4.0
+```
+
+---
+
+## Build from Source
+
+If you prefer to build the image yourself (for development or customization):
+
+```bash
+git clone https://github.com/cpike5/hotbox-chat.git
 cd hotbox-chat
+cp .env.example .env
+# Edit .env with your secrets
 ./deploy/docker-deploy.sh up
 ```
 
-HotBox will be available at `http://localhost:8080`.
+HotBox will be available at `http://localhost:7200`.
 
-The script generates a `.env` file with a random database password on first run.
+The deploy script generates a `.env` file with a random database password on first run.
+
+### Management Commands
+
+```bash
+# Start / rebuild
+./deploy/docker-deploy.sh up
+
+# Stop
+./deploy/docker-deploy.sh down
+
+# Pull latest code, rebuild, and restart
+./deploy/docker-deploy.sh update
+
+# Tail logs
+./deploy/docker-deploy.sh logs
+
+# Check status
+./deploy/docker-deploy.sh status
+```
+
+---
 
 ## What Gets Created
 
-| Container    | Purpose                     | Port |
-|--------------|-----------------------------|------|
-| `hotbox`     | ASP.NET Core app server     | 8080 |
-| `hotbox-db`  | PostgreSQL 16               | —    |
+| Container    | Purpose                     | Default Port |
+|--------------|-----------------------------|--------------|
+| `hotbox`     | ASP.NET Core app server     | 7200         |
+| `hotbox-db`  | PostgreSQL 16               | — (internal) |
+| `hotbox-seq` | Seq log aggregation         | 7201         |
 
-PostgreSQL data is persisted in a Docker volume (`pgdata`).
+PostgreSQL data is persisted in a Docker volume (`pgdata`). Seq data in `seqdata`.
 
 ## Configuration
 
 ### Environment Variables
 
-Override settings via the `.env` file or by editing `docker-compose.yml`:
+Override settings via the `.env` file:
 
-| Variable                     | Default       | Description              |
-|------------------------------|---------------|--------------------------|
-| `DB_PASSWORD`                | `changeme`    | PostgreSQL password      |
-| `Database__Provider`         | `postgresql`  | Database provider        |
-| `Database__ConnectionString` | *(see compose)* | Full connection string |
+| Variable               | Default                | Description                                  |
+|------------------------|------------------------|----------------------------------------------|
+| `DB_PASSWORD`          | *(required)*           | PostgreSQL password                          |
+| `JWT_SECRET`           | *(required)*           | JWT signing key (min 32 chars)               |
+| `ADMIN_EMAIL`          | `admin@hotbox.local`   | Initial admin account email                  |
+| `ADMIN_PASSWORD`       | `Admin123!`            | Initial admin account password               |
+| `ADMIN_DISPLAY_NAME`   | `Admin`                | Initial admin display name                   |
+| `HOTBOX_PORT`          | `7200`                 | Host port for the app                        |
+| `SEQ_PORT`             | `7201`                 | Host port for Seq web UI                     |
+| `APM_OTLP_ENDPOINT`   | *(empty)*              | OpenTelemetry OTLP endpoint (optional)       |
+| `APM_API_KEY`          | *(empty)*              | OTLP API key (optional)                      |
+| `ELASTICSEARCH_URL`    | *(empty)*              | Elasticsearch URL for log shipping (optional)|
+| `ELASTICSEARCH_API_KEY`| *(empty)*              | Elasticsearch API key (optional)             |
+
+For the full list of application settings (OAuth, WebRTC TURN servers, search tuning, etc.), see the [Configuration Reference](../architecture/configuration-reference.md).
 
 ### Using MySQL/MariaDB Instead
 
-Replace the `db` service in `docker-compose.yml`:
+Replace the `db` service in your compose file:
 
 ```yaml
 services:
@@ -80,15 +190,16 @@ For a single-file database with no separate container:
 ```yaml
 services:
   hotbox:
-    build: .
+    image: ghcr.io/cpike5/hotbox-chat:latest
     container_name: hotbox
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "7200:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Database__Provider=sqlite
       - Database__ConnectionString=Data Source=/app/data/hotbox.db
+      - Jwt__Secret=${JWT_SECRET:?Set JWT_SECRET in .env}
     volumes:
       - hotbox-data:/app/data
 
@@ -97,25 +208,6 @@ volumes:
 ```
 
 Remove the `db` service entirely.
-
-## Management Commands
-
-```bash
-# Start / rebuild
-./deploy/docker-deploy.sh up
-
-# Stop
-./deploy/docker-deploy.sh down
-
-# Pull latest code, rebuild, and restart
-./deploy/docker-deploy.sh update
-
-# Tail logs
-./deploy/docker-deploy.sh logs
-
-# Check status
-./deploy/docker-deploy.sh status
-```
 
 ## Reverse Proxy with Nginx
 
@@ -143,7 +235,7 @@ server {
 
     # Proxy everything else to HotBox while waiting for certs
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://localhost:7200;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -188,7 +280,7 @@ server {
     # add_header Strict-Transport-Security "max-age=63072000" always;
 
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://localhost:7200;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -248,12 +340,3 @@ cat backup.sql | docker exec -i hotbox-db psql -U hotbox hotbox
 # Just copy the volume file
 docker cp hotbox:/app/data/hotbox.db ./hotbox_backup_$(date +%Y%m%d).db
 ```
-
-## Updating
-
-```bash
-cd hotbox-chat
-./deploy/docker-deploy.sh update
-```
-
-This pulls the latest code, rebuilds the container, and restarts with zero-downtime for the database (the `db` container is not recreated unless its config changes).

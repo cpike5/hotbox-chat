@@ -53,7 +53,7 @@ cmd_update() {
     docker image prune -f
 
     echo ""
-    echo "Update complete. HotBox is running at http://localhost:8080"
+    echo "Update complete. HotBox is running at http://localhost:7200"
 }
 
 cmd_logs() {

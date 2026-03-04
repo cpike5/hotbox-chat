@@ -45,7 +45,7 @@ Skip this step if you want to use SQLite instead.
 ## 3. Clone and Build
 
 ```bash
-git clone https://github.com/your-org/hotbox-chat.git /opt/hotbox-src
+git clone https://github.com/cpike5/hotbox-chat.git /opt/hotbox-src
 cd /opt/hotbox-src
 ```
 
