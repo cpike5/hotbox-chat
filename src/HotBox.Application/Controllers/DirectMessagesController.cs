@@ -43,7 +43,7 @@ public class DirectMessagesController : ControllerBase
         {
             UserId = c.UserId,
             DisplayName = c.DisplayName,
-            LastMessageContent = string.Empty,
+            LastMessageContent = c.LastMessageContent,
             LastMessageAtUtc = c.LastMessageAtUtc,
             UnreadCount = unreadCounts.GetValueOrDefault(c.UserId, 0),
         }).ToList();

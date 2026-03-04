@@ -53,13 +53,15 @@ public class DirectMessageRepository : IDirectMessageRepository
             .Select(dm => new
             {
                 OtherUserId = dm.SenderId == userId ? dm.RecipientId : dm.SenderId,
-                dm.CreatedAtUtc
+                dm.CreatedAtUtc,
+                dm.Content
             })
             .GroupBy(x => x.OtherUserId)
             .Select(g => new
             {
                 UserId = g.Key,
-                LastMessageAtUtc = g.Max(x => x.CreatedAtUtc)
+                LastMessageAtUtc = g.Max(x => x.CreatedAtUtc),
+                LastMessageContent = g.OrderByDescending(x => x.CreatedAtUtc).First().Content
             })
             .Join(
                 _context.Users,
@@ -68,7 +70,8 @@ public class DirectMessageRepository : IDirectMessageRepository
                 (dm, u) => new ConversationSummary(
                     dm.UserId,
                     u.DisplayName,
-                    dm.LastMessageAtUtc))
+                    dm.LastMessageAtUtc,
+                    dm.LastMessageContent))
             .OrderByDescending(c => c.LastMessageAtUtc)
             .ToListAsync(ct);
     }
