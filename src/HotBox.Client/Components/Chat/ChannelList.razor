@@ -51,6 +51,9 @@ else
 
     private void SelectChannel(ChannelResponse channel)
     {
+        if (ChannelState.ActiveChannel?.Id == channel.Id)
+            return;
+
         ChannelState.SetActiveChannel(channel);
         Navigation.NavigateTo($"/channels/{channel.Id}");
     }
