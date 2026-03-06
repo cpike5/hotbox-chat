@@ -86,6 +86,51 @@ public class ApiClient
         }
     }
 
+    // ── Demo ──────────────────────────────────────────────────────────
+
+    public async Task<(AuthResponse? Response, int StatusCode)> DemoRegisterAsync(
+        string username,
+        string displayName,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var request = new { Username = username, DisplayName = displayName };
+            var response = await _http.PostAsJsonAsync("api/demo/register", request, ct);
+            var statusCode = (int)response.StatusCode;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("POST api/demo/register returned {StatusCode}", statusCode);
+                return (null, statusCode);
+            }
+
+            var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken: ct);
+            return (authResponse, statusCode);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP request failed for POST api/demo/register");
+            return (null, 0);
+        }
+        catch (TaskCanceledException)
+        {
+            return (null, 0);
+        }
+    }
+
+    public async Task<DemoStatusResponse?> GetDemoStatusAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<DemoStatusResponse>("api/demo/status", ct);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     // ── Channels ────────────────────────────────────────────────────────
 
     public async Task<List<ChannelResponse>> GetChannelsAsync(CancellationToken ct = default)

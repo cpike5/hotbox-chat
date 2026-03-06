@@ -23,6 +23,9 @@
     <!-- ============ Connection Status Banner ============ -->
     <ConnectionStatus />
 
+    <!-- ============ Demo Mode Banner ============ -->
+    <DemoBanner />
+
     <!-- ============ Top Bar ============ -->
     <header class="topbar">
         <div class="brand">
@@ -34,8 +37,11 @@
         <div class="section-switcher">
             <button class="section-btn @(ActiveSection == "channels" ? "active" : "")"
                     @onclick='() => SwitchSection("channels")'>Channels</button>
-            <button class="section-btn @(ActiveSection == "dms" ? "active" : "")"
-                    @onclick='() => SwitchSection("dms")'>DMs</button>
+            @if (!AuthState.IsDemo)
+            {
+                <button class="section-btn @(ActiveSection == "dms" ? "active" : "")"
+                        @onclick='() => SwitchSection("dms")'>DMs</button>
+            }
         </div>
 
         <div class="topbar-divider"></div>
@@ -126,8 +132,8 @@
                 </svg>
             </button>
 
-            <!-- Settings (admin only) -->
-            @if (AuthState.CurrentUser?.Role == "Admin")
+            <!-- Settings (admin only, hidden for demo users) -->
+            @if (AuthState.CurrentUser?.Role == "Admin" && !AuthState.IsDemo)
             {
                 <button class="topbar-icon-btn" aria-label="Admin Settings" @onclick="NavigateToAdmin">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -264,6 +270,7 @@
         ChatHubService.OnUserStatusChanged += HandleUserStatusChanged;
         ChatHubService.OnOnlineUsers += HandleOnlineUsers;
         ChatHubService.OnConnectionChanged += HandleConnectionChanged;
+        ChatHubService.OnDemoSessionExpired += HandleDemoSessionExpired;
         NotificationState.OnChange += StateHasChanged;
 
         // Set loading flags for skeleton UI
@@ -304,6 +311,23 @@
     private void HandleOnlineUsers(List<HotBox.Client.Models.OnlineUserInfoModel> users)
     {
         PresenceState.SetOnlineUsers(users);
+    }
+
+    private async void HandleDemoSessionExpired(string message)
+    {
+        try
+        {
+            Logger.LogInformation("Demo session expired: {Message}", message);
+            _heartbeatTimer?.Dispose();
+            _heartbeatTimer = null;
+            await ChatHubService.StopAsync();
+            AuthState.SetLoggedOut();
+            await InvokeAsync(() => Navigation.NavigateTo("/login?message=demo_expired", replace: true));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error handling demo session expiry");
+        }
     }
 
     private async void HandleConnectionChanged(bool connected)
@@ -496,6 +520,7 @@
         ChatHubService.OnUserStatusChanged -= HandleUserStatusChanged;
         ChatHubService.OnOnlineUsers -= HandleOnlineUsers;
         ChatHubService.OnConnectionChanged -= HandleConnectionChanged;
+        ChatHubService.OnDemoSessionExpired -= HandleDemoSessionExpired;
         NotificationState.OnChange -= StateHasChanged;
         _heartbeatTimer?.Dispose();
     }

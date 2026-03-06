@@ -6,6 +6,8 @@ public class AuthState
 {
     public bool IsAuthenticated => CurrentUser is not null && !string.IsNullOrEmpty(AccessToken);
 
+    public bool IsDemo => CurrentUser?.IsDemo ?? false;
+
     public UserInfo? CurrentUser { get; private set; }
 
     public string? AccessToken { get; private set; }

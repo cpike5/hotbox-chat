@@ -54,6 +54,13 @@ public class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
             .IsRequired()
             .HasDefaultValue(false);
 
+        builder.Property(u => u.IsDemo)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.HasIndex(u => u.IsDemo)
+            .HasDatabaseName("IX_AspNetUsers_IsDemo");
+
         builder.Property(u => u.CreatedByApiKeyId);
     }
 }

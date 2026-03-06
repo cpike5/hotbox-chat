@@ -29,6 +29,8 @@ public class AppUser : IdentityUser<Guid>
 
     public bool IsAgent { get; set; }
 
+    public bool IsDemo { get; set; }
+
     public Guid? CreatedByApiKeyId { get; set; }
 
     public ApiKey? CreatedByApiKey { get; set; }

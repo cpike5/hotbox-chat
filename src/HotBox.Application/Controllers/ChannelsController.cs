@@ -68,6 +68,9 @@ public class ChannelsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateChannelRequest request, CancellationToken ct)
     {
+        if (User.FindFirst("is_demo")?.Value == "true")
+            return StatusCode(403, new { error = "Demo users cannot manage channels." });
+
         var userId = GetUserId();
         if (userId is null)
         {
@@ -110,6 +113,9 @@ public class ChannelsController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateChannelRequest request, CancellationToken ct)
     {
+        if (User.FindFirst("is_demo")?.Value == "true")
+            return StatusCode(403, new { error = "Demo users cannot manage channels." });
+
         var userId = GetUserId();
         if (userId is null)
         {
@@ -140,6 +146,9 @@ public class ChannelsController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
+        if (User.FindFirst("is_demo")?.Value == "true")
+            return StatusCode(403, new { error = "Demo users cannot manage channels." });
+
         var userId = GetUserId();
         if (userId is null)
         {

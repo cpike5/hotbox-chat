@@ -141,6 +141,12 @@ public class AuthController : ControllerBase
             return Unauthorized(new { error = "Invalid email or password." });
         }
 
+        if (user.IsDemo)
+        {
+            _logger.LogWarning("Login attempt for demo user {UserId}", user.Id);
+            return Unauthorized(new { error = "Invalid email or password." });
+        }
+
         var signInResult = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
         if (!signInResult.Succeeded)
         {
@@ -176,6 +182,14 @@ public class AuthController : ControllerBase
             _logger.LogWarning("Refresh attempt with invalid or expired refresh token");
             ClearRefreshTokenCookie();
             return Unauthorized(new { error = "Invalid or expired refresh token." });
+        }
+
+        // Block demo users from refreshing tokens
+        if (existingToken.User.IsDemo)
+        {
+            _logger.LogWarning("Refresh attempt by demo user {UserId}", existingToken.UserId);
+            ClearRefreshTokenCookie();
+            return Unauthorized(new { error = "Demo accounts cannot refresh tokens." });
         }
 
         // Rotate the refresh token (revokes old, creates new)
