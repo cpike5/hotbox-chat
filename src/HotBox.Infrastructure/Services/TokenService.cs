@@ -44,6 +44,7 @@ public class TokenService : ITokenService
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new("display_name", user.DisplayName),
             new("is_agent", user.IsAgent.ToString().ToLowerInvariant()),
+            new("is_demo", user.IsDemo.ToString().ToLowerInvariant()),
         };
 
         foreach (var role in roles)

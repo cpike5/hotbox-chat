@@ -81,6 +81,18 @@ try
         _ = hubContext.Clients.All.SendAsync("UserStatusChanged", userId, displayName, status, isAgent);
     };
 
+    // Wire up DemoCleanupService purge events to notify demo users via SignalR
+    // before their session data is removed.
+    var demoCleanupService = app.Services.GetService<DemoCleanupService>();
+    if (demoCleanupService != null)
+    {
+        demoCleanupService.OnDemoUserPurged += async (userId) =>
+        {
+            await hubContext.Clients.User(userId.ToString())
+                .SendAsync("DemoSessionExpired", "Your demo session has expired due to inactivity.");
+        };
+    }
+
     app.Run();
 }
 catch (Exception ex)

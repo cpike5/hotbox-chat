@@ -190,8 +190,8 @@ public class DirectMessageServiceTests
 
         var summaries = new List<ConversationSummary>
         {
-            new(otherUserId1, "User 1", DateTime.UtcNow.AddHours(-1)),
-            new(otherUserId2, "User 2", DateTime.UtcNow)
+            new(otherUserId1, "User 1", DateTime.UtcNow.AddHours(-1), "Hello"),
+            new(otherUserId2, "User 2", DateTime.UtcNow, "World")
         };
 
         _repository.GetConversationsAsync(userId, Arg.Any<CancellationToken>()).Returns(summaries);

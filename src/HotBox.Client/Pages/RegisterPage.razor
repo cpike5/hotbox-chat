@@ -223,6 +223,11 @@
 
     <div class="auth-footer">
         Already have an account? <a href="/login">Sign in</a>
+        @if (_demoStatus is { Enabled: true })
+        {
+            <span> | </span>
+            <a href="/demo">Try Demo</a>
+        }
     </div>
 </div>
 
@@ -245,6 +250,7 @@
     private bool _showConfirmPassword;
     private RegistrationMode _registrationMode = RegistrationMode.Open;
     private List<ProviderInfo> _providers = new();
+    private DemoStatusResponse? _demoStatus;
     private int _step = 1;
 
     protected override async Task OnInitializedAsync()
@@ -257,8 +263,11 @@
 
         var modeTask = ApiClient.GetRegistrationModeAsync();
         var providersTask = ApiClient.GetProvidersAsync();
+        var demoTask = ApiClient.GetDemoStatusAsync();
 
-        await Task.WhenAll(modeTask, providersTask);
+        await Task.WhenAll(modeTask, providersTask, demoTask);
+
+        _demoStatus = await demoTask;
 
         var modeResponse = await modeTask;
         if (modeResponse is not null

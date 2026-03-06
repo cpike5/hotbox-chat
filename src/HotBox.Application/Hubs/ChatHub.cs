@@ -18,6 +18,7 @@ public class ChatHub : Hub
     private readonly IChannelService _channelService;
     private readonly INotificationService _notificationService;
     private readonly IPresenceService _presenceService;
+    private readonly IDemoUserService _demoUserService;
     private readonly UserManager<AppUser> _userManager;
     private readonly ILogger<ChatHub> _logger;
 
@@ -27,6 +28,7 @@ public class ChatHub : Hub
         IChannelService channelService,
         INotificationService notificationService,
         IPresenceService presenceService,
+        IDemoUserService demoUserService,
         UserManager<AppUser> userManager,
         ILogger<ChatHub> logger)
     {
@@ -35,6 +37,7 @@ public class ChatHub : Hub
         _channelService = channelService;
         _notificationService = notificationService;
         _presenceService = presenceService;
+        _demoUserService = demoUserService;
         _userManager = userManager;
         _logger = logger;
     }
@@ -65,6 +68,12 @@ public class ChatHub : Hub
             .ToList();
 
         await Clients.Caller.SendAsync("OnlineUsers", onlineUsers);
+
+        // Record activity for demo users to reset their inactivity timer
+        if (IsDemoUser())
+        {
+            await _demoUserService.RecordActivityAsync(userId);
+        }
 
         await base.OnConnectedAsync();
     }
@@ -160,6 +169,12 @@ public class ChatHub : Hub
         // Notify all other connected clients that this channel has a new message.
         // The client increments its local unread count — avoids N+1 per-user DB queries.
         await Clients.Others.SendAsync("UnreadCountUpdated", channelId);
+
+        // Record activity for demo users to reset their inactivity timer
+        if (IsDemoUser())
+        {
+            await _demoUserService.RecordActivityAsync(userId);
+        }
     }
 
     public async Task StartTyping(Guid channelId)
@@ -181,6 +196,9 @@ public class ChatHub : Hub
 
     public async Task SendDirectMessage(Guid recipientId, string content)
     {
+        if (IsDemoUser())
+            throw new HubException("Demo users cannot send direct messages.");
+
         if (string.IsNullOrWhiteSpace(content))
             throw new HubException("Message content cannot be empty.");
 
@@ -245,11 +263,16 @@ public class ChatHub : Hub
     /// <summary>
     /// Client calls this periodically to signal activity, resetting the 5-minute idle timer.
     /// </summary>
-    public Task Heartbeat()
+    public async Task Heartbeat()
     {
         var userId = GetUserId();
         _presenceService.RecordHeartbeat(userId);
-        return Task.CompletedTask;
+
+        // Record activity for demo users to reset their inactivity timer
+        if (IsDemoUser())
+        {
+            await _demoUserService.RecordActivityAsync(userId);
+        }
     }
 
     /// <summary>
@@ -281,6 +304,9 @@ public class ChatHub : Hub
                 throw new HubException("Cannot manually set status to Offline. Disconnect instead.");
         }
     }
+
+    private bool IsDemoUser() =>
+        Context.User?.FindFirst("is_demo")?.Value == "true";
 
     private Guid GetUserId()
     {

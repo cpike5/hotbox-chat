@@ -31,11 +31,13 @@ public class DatabaseSeeder : IHostedService
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
         var adminSeedOptions = scope.ServiceProvider.GetRequiredService<IOptions<AdminSeedOptions>>().Value;
+        var demoModeOptions = scope.ServiceProvider.GetRequiredService<IOptions<DemoModeOptions>>().Value;
         var dbContext = scope.ServiceProvider.GetRequiredService<HotBoxDbContext>();
 
         await SeedRolesAsync(roleManager);
         var adminUser = await SeedAdminUserAsync(userManager, adminSeedOptions);
         await SeedDefaultChannelsAsync(dbContext, userManager, adminUser);
+        await SeedDemoChannelsAsync(dbContext, userManager, adminUser, demoModeOptions);
 
         _logger.LogInformation("Database seeding completed");
     }
@@ -205,5 +207,73 @@ public class DatabaseSeeder : IHostedService
 
         _logger.LogInformation("Seeded {ChannelCount} default channels (general, random, General voice)",
             defaultChannels.Count);
+    }
+
+    private async Task SeedDemoChannelsAsync(
+        HotBoxDbContext dbContext,
+        UserManager<AppUser> userManager,
+        AppUser? adminUser,
+        DemoModeOptions demoModeOptions)
+    {
+        if (!demoModeOptions.Enabled)
+        {
+            return;
+        }
+
+        // If no admin user was provided, try to find one
+        if (adminUser == null)
+        {
+            var admins = await userManager.GetUsersInRoleAsync("Admin");
+            if (admins.Count == 0)
+            {
+                _logger.LogWarning("No admin user exists, skipping demo channel seeding");
+                return;
+            }
+
+            adminUser = admins[0];
+        }
+
+        // Seed channels from the SeedChannels config that don't already exist as text channels
+        var now = DateTime.UtcNow;
+        var existingNames = await dbContext.Channels
+            .Where(c => c.Type == ChannelType.Text)
+            .Select(c => c.Name.ToLower())
+            .ToListAsync();
+
+        var maxSortOrder = await dbContext.Channels
+            .Where(c => c.Type == ChannelType.Text)
+            .MaxAsync(c => (int?)c.SortOrder) ?? -1;
+
+        var channelsToSeed = new List<Channel>();
+        foreach (var channelName in demoModeOptions.SeedChannels)
+        {
+            if (existingNames.Contains(channelName.ToLowerInvariant()))
+            {
+                _logger.LogDebug("Demo channel {ChannelName} already exists, skipping", channelName);
+                continue;
+            }
+
+            maxSortOrder++;
+            channelsToSeed.Add(new Channel
+            {
+                Id = Guid.NewGuid(),
+                Name = channelName.ToLowerInvariant(),
+                Topic = $"{channelName} discussion",
+                Type = ChannelType.Text,
+                SortOrder = maxSortOrder,
+                CreatedAtUtc = now,
+                CreatedByUserId = adminUser.Id
+            });
+        }
+
+        if (channelsToSeed.Count > 0)
+        {
+            dbContext.Channels.AddRange(channelsToSeed);
+            await dbContext.SaveChangesAsync();
+
+            _logger.LogInformation("Seeded {ChannelCount} demo channels: {ChannelNames}",
+                channelsToSeed.Count,
+                string.Join(", ", channelsToSeed.Select(c => c.Name)));
+        }
     }
 }

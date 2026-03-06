@@ -43,6 +43,10 @@ public static class JwtParser
                 case ClaimTypes.Role:
                     userInfo.Role = claim.Value;
                     break;
+
+                case "is_demo":
+                    userInfo.IsDemo = string.Equals(claim.Value, "true", StringComparison.OrdinalIgnoreCase);
+                    break;
             }
         }
 

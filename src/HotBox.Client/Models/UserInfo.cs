@@ -13,4 +13,6 @@ public class UserInfo
     public UserStatus Status { get; set; } = UserStatus.Online;
 
     public string Role { get; set; } = "Member";
+
+    public bool IsDemo { get; set; }
 }

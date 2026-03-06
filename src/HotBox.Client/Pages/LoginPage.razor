@@ -129,6 +129,11 @@
 
     <div class="auth-footer">
         Don't have an account? <a href="/register">Create one</a>
+        @if (_demoStatus is { Enabled: true })
+        {
+            <span> | </span>
+            <a href="/demo">Try Demo</a>
+        }
     </div>
 </div>
 
@@ -142,6 +147,7 @@
     private string? _emailError;
     private string? _passwordError;
     private List<ProviderInfo> _providers = new();
+    private DemoStatusResponse? _demoStatus;
 
     protected override async Task OnInitializedAsync()
     {
@@ -152,15 +158,41 @@
             return;
         }
 
-        // Fetch available OAuth providers
+        // Parse query string for message parameter (e.g., demo_expired)
+        var uri = new Uri(Navigation.Uri);
+        var query = uri.Query.TrimStart('?');
+        if (!string.IsNullOrEmpty(query))
+        {
+            var parameters = query.Split('&')
+                .Select(p => p.Split('=', 2))
+                .Where(p => p.Length == 2)
+                .ToDictionary(p => p[0], p => Uri.UnescapeDataString(p[1]));
+
+            if (parameters.TryGetValue("message", out var message))
+            {
+                _errorMessage = message switch
+                {
+                    "demo_expired" => "Your demo session has expired due to inactivity.",
+                    _ => null
+                };
+            }
+        }
+
+        // Fetch available OAuth providers and demo status in parallel
+        var providersTask = ApiClient.GetProvidersAsync();
+        var demoTask = ApiClient.GetDemoStatusAsync();
+
         try
         {
-            _providers = await ApiClient.GetProvidersAsync();
+            await Task.WhenAll(providersTask, demoTask);
         }
         catch
         {
-            // Silently ignore — OAuth buttons simply won't render
+            // Silently ignore — features will gracefully degrade
         }
+
+        _providers = await providersTask;
+        _demoStatus = await demoTask;
     }
 
     private async Task HandleSubmitAsync()

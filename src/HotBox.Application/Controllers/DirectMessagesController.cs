@@ -28,6 +28,9 @@ public class DirectMessagesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetConversations(CancellationToken ct)
     {
+        if (User.FindFirst("is_demo")?.Value == "true")
+            return StatusCode(403, new { error = "Demo users cannot access direct messages." });
+
         var userId = GetUserId();
         if (userId is null)
         {
@@ -58,6 +61,9 @@ public class DirectMessagesController : ControllerBase
         [FromQuery] int limit = 50,
         CancellationToken ct = default)
     {
+        if (User.FindFirst("is_demo")?.Value == "true")
+            return StatusCode(403, new { error = "Demo users cannot access direct messages." });
+
         if (limit is < 1 or > 100)
         {
             return BadRequest(new { error = "Limit must be between 1 and 100." });
@@ -97,6 +103,9 @@ public class DirectMessagesController : ControllerBase
         [FromBody] SendDirectMessageRequest request,
         CancellationToken ct)
     {
+        if (User.FindFirst("is_demo")?.Value == "true")
+            return StatusCode(403, new { error = "Demo users cannot access direct messages." });
+
         var currentUserId = GetUserId();
         if (currentUserId is null)
         {
@@ -142,6 +151,9 @@ public class DirectMessagesController : ControllerBase
     [HttpPost("{userId:guid}/read")]
     public async Task<IActionResult> MarkAsRead(Guid userId, CancellationToken ct)
     {
+        if (User.FindFirst("is_demo")?.Value == "true")
+            return StatusCode(403, new { error = "Demo users cannot access direct messages." });
+
         var currentUserId = GetUserId();
         if (currentUserId is null)
         {
@@ -155,6 +167,9 @@ public class DirectMessagesController : ControllerBase
     [HttpGet("unread")]
     public async Task<IActionResult> GetUnreadCounts(CancellationToken ct)
     {
+        if (User.FindFirst("is_demo")?.Value == "true")
+            return StatusCode(403, new { error = "Demo users cannot access direct messages." });
+
         var currentUserId = GetUserId();
         if (currentUserId is null)
         {

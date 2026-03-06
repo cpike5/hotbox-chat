@@ -1,0 +1,189 @@
+@page "/demo"
+@layout AuthLayout
+@inject ApiClient ApiClient
+@inject AuthState AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>HotBox - Try Demo</PageTitle>
+
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-card-header">
+            <img src="logo.svg" alt="HotBox" class="auth-card-logo" />
+            <span class="auth-card-brand">HotBox</span>
+            <h1>Try HotBox</h1>
+            <p>No account needed — jump in and explore</p>
+        </div>
+
+        @if (_demoStatus is not null)
+        {
+            <div class="reg-banner @(_demoStatus.CurrentUsers >= _demoStatus.MaxUsers ? "closed" : "open")">
+                <svg class="reg-banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                <span>@(_demoStatus.MaxUsers - _demoStatus.CurrentUsers) of @_demoStatus.MaxUsers demo slots available</span>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="auth-alert">
+                <span>@_errorMessage</span>
+            </div>
+        }
+
+        <form @onsubmit="HandleSubmitAsync" novalidate>
+            <div class="form-group @(_usernameError is not null ? "has-error" : "")">
+                <label class="form-label" for="demoUsername">Username</label>
+                <input class="form-input"
+                       id="demoUsername"
+                       type="text"
+                       placeholder="Choose a username"
+                       autocomplete="off"
+                       @bind="_username"
+                       @bind:event="oninput"
+                       @bind:after="ClearUsernameError"
+                       disabled="@_isSubmitting" />
+                @if (_usernameError is not null)
+                {
+                    <div class="form-error">@_usernameError</div>
+                }
+            </div>
+
+            <div class="form-group @(_displayNameError is not null ? "has-error" : "")">
+                <label class="form-label" for="demoDisplayName">Display Name</label>
+                <input class="form-input"
+                       id="demoDisplayName"
+                       type="text"
+                       placeholder="How should others see you?"
+                       autocomplete="off"
+                       @bind="_displayName"
+                       @bind:event="oninput"
+                       @bind:after="ClearDisplayNameError"
+                       disabled="@_isSubmitting" />
+                @if (_displayNameError is not null)
+                {
+                    <div class="form-error">@_displayNameError</div>
+                }
+            </div>
+
+            <button type="submit" class="btn-submit" disabled="@_isSubmitting">
+                @if (_isSubmitting)
+                {
+                    <span class="btn-loading"><span class="spinner"></span> Starting demo...</span>
+                }
+                else
+                {
+                    <span>Start Demo</span>
+                }
+            </button>
+        </form>
+    </div>
+
+    <div class="auth-footer">
+        Have an account? <a href="/login">Sign in</a>
+    </div>
+</div>
+
+@code {
+    private string _username = string.Empty;
+    private string _displayName = string.Empty;
+    private string? _usernameError;
+    private string? _displayNameError;
+    private string? _errorMessage;
+    private bool _isSubmitting;
+    private DemoStatusResponse? _demoStatus;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/", replace: true);
+            return;
+        }
+
+        _demoStatus = await ApiClient.GetDemoStatusAsync();
+
+        if (_demoStatus is null || !_demoStatus.Enabled)
+        {
+            Navigation.NavigateTo("/login", replace: true);
+        }
+    }
+
+    private async Task HandleSubmitAsync()
+    {
+        _errorMessage = null;
+        _usernameError = null;
+        _displayNameError = null;
+
+        if (!Validate())
+            return;
+
+        _isSubmitting = true;
+
+        try
+        {
+            var (response, statusCode) = await ApiClient.DemoRegisterAsync(
+                _username.Trim(),
+                _displayName.Trim());
+
+            if (response is not null)
+            {
+                var userInfo = JwtParser.ParseUserInfoFromToken(response.AccessToken);
+                AuthState.SetAuthenticated(response.AccessToken, userInfo);
+                Navigation.NavigateTo("/", replace: true);
+            }
+            else
+            {
+                _errorMessage = statusCode switch
+                {
+                    404 => "Demo mode is not currently available.",
+                    409 => "All demo slots are full. Please try again later.",
+                    429 => "Please wait a moment before creating another demo account.",
+                    _ => "Unable to create demo account. Please try again."
+                };
+
+                // Refresh status to show updated slot count
+                _demoStatus = await ApiClient.GetDemoStatusAsync();
+            }
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Unable to connect to the server. Please try again later.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private bool Validate()
+    {
+        var isValid = true;
+
+        if (string.IsNullOrWhiteSpace(_username))
+        {
+            _usernameError = "Username is required (3-20 characters)";
+            isValid = false;
+        }
+        else if (_username.Trim().Length < 3 || _username.Trim().Length > 20)
+        {
+            _usernameError = "Username must be between 3 and 20 characters";
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(_displayName))
+        {
+            _displayNameError = "Display name is required";
+            isValid = false;
+        }
+        else if (_displayName.Trim().Length < 2 || _displayName.Trim().Length > 30)
+        {
+            _displayNameError = "Display name must be between 2 and 30 characters";
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    private void ClearUsernameError() => _usernameError = null;
+    private void ClearDisplayNameError() => _displayNameError = null;
+}

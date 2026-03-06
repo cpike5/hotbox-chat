@@ -71,6 +71,9 @@ public class ChatHubService : IAsyncDisposable
     /// <summary>Raised when a DM conversation has a new unread message. Parameter: senderId.</summary>
     public event Action<Guid>? OnDmUnreadCountUpdated;
 
+    /// <summary>Raised when the server purges a demo user session. Parameter: message string.</summary>
+    public event Action<string>? OnDemoSessionExpired;
+
     // ----- Connection lifecycle -----
 
     /// <summary>
@@ -292,6 +295,11 @@ public class ChatHubService : IAsyncDisposable
         connection.On<Guid>("DmUnreadCountUpdated", senderId =>
         {
             OnDmUnreadCountUpdated?.Invoke(senderId);
+        });
+
+        connection.On<string>("DemoSessionExpired", message =>
+        {
+            OnDemoSessionExpired?.Invoke(message);
         });
     }
 

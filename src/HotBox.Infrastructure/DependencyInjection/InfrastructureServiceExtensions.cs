@@ -103,6 +103,14 @@ public static class InfrastructureServiceExtensions
         services.AddSingleton<PresenceService>();
         services.AddSingleton<IPresenceService>(sp => sp.GetRequiredService<PresenceService>());
 
+        // Demo mode services
+        services.Configure<DemoModeOptions>(opts =>
+            configuration.GetSection(DemoModeOptions.SectionName).Bind(opts));
+        services.AddSingleton<DemoUserService>();
+        services.AddSingleton<IDemoUserService>(sp => sp.GetRequiredService<DemoUserService>());
+        services.AddSingleton<DemoCleanupService>();
+        services.AddHostedService(sp => sp.GetRequiredService<DemoCleanupService>());
+
         // Register search service based on database provider
         services.Configure<SearchOptions>(opts =>
             configuration.GetSection(SearchOptions.SectionName).Bind(opts));
