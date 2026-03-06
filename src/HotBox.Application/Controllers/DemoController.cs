@@ -44,25 +44,21 @@ public class DemoController : ControllerBase
 
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-        if (await _demoUserService.IsIpCoolingDownAsync(ipAddress, ct))
-        {
-            _logger.LogWarning("Demo registration rejected: IP {IpAddress} is cooling down", ipAddress);
-            return StatusCode(429, new { error = "Please wait before creating another demo account." });
-        }
-
-        var activeCount = await _demoUserService.GetActiveDemoUserCountAsync(ct);
-        if (activeCount >= _demoOptions.MaxConcurrentUsers)
-        {
-            _logger.LogWarning("Demo registration rejected: capacity reached ({ActiveCount}/{Max})",
-                activeCount, _demoOptions.MaxConcurrentUsers);
-            return Conflict(new { error = "Demo capacity reached. Please try again later." });
-        }
-
+        // All rate-limiting and capacity checks are inside CreateDemoUserAsync
+        // (protected by a semaphore to prevent TOCTOU races)
         var user = await _demoUserService.CreateDemoUserAsync(
             request.Username, request.DisplayName, ipAddress, ct);
 
         if (user is null)
         {
+            // Determine the specific rejection reason for the client
+            if (await _demoUserService.IsIpCoolingDownAsync(ipAddress, ct))
+                return StatusCode(429, new { error = "Please wait before creating another demo account." });
+
+            var activeCount = await _demoUserService.GetActiveDemoUserCountAsync(ct);
+            if (activeCount >= _demoOptions.MaxConcurrentUsers)
+                return Conflict(new { error = "Demo capacity reached. Please try again later." });
+
             return BadRequest(new { error = "Failed to create demo account." });
         }
 
@@ -87,6 +83,7 @@ public class DemoController : ControllerBase
             enabled = _demoOptions.Enabled,
             currentUsers,
             maxUsers = _demoOptions.MaxConcurrentUsers,
+            sessionTimeoutMinutes = _demoOptions.SessionTimeoutMinutes,
         });
     }
 }

@@ -157,8 +157,10 @@ public class DemoCleanupServiceTests
     }
 
     [Fact]
-    public async Task FiresOnDemoUserPurged_RaisedAfterSuccessfulPurge()
+    public async Task FiresOnDemoUserPurged_RaisedBeforePurge_ForAllExpiredUsers()
     {
+        // Event fires BEFORE purge so the client gets notified while still connected.
+        // Even if purge fails for one user, the notification was already sent.
         var succeededId = Guid.NewGuid();
         var failedId = Guid.NewGuid();
 
@@ -173,17 +175,17 @@ public class DemoCleanupServiceTests
         _demoUserService.PurgeDemoUserAsync(failedId, Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InvalidOperationException("DB error")));
 
-        var purgedIds = new List<Guid>();
+        var notifiedIds = new List<Guid>();
         sut.OnDemoUserPurged += userId =>
         {
-            purgedIds.Add(userId);
+            notifiedIds.Add(userId);
             return Task.CompletedTask;
         };
 
         await RunOneCycleAsync(sut);
 
-        purgedIds.Should().ContainSingle().Which.Should().Be(succeededId);
-        purgedIds.Should().NotContain(failedId);
+        // Both users are notified before purge is attempted
+        notifiedIds.Should().BeEquivalentTo(new[] { succeededId, failedId });
     }
 
     // -----------------------------------------------------------------------

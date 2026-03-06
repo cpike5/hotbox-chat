@@ -60,6 +60,12 @@ public class SearchController : ControllerBase
             Enum.TryParse<SearchScope>(scope, ignoreCase: true, out parsedScope);
         }
 
+        // Demo users cannot search DMs
+        if (User.FindFirst("is_demo")?.Value == "true" && parsedScope == SearchScope.DirectMessages)
+        {
+            return StatusCode(403, new { error = "Demo users cannot search direct messages." });
+        }
+
         var searchQuery = new SearchQuery
         {
             QueryText = query,

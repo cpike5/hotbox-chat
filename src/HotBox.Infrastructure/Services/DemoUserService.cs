@@ -19,6 +19,7 @@ public class DemoUserService : IDemoUserService
     private readonly ILogger<DemoUserService> _logger;
 
     private readonly ConcurrentDictionary<string, DateTime> _ipCooldowns = new();
+    private readonly SemaphoreSlim _createLock = new(1, 1);
 
     public DemoUserService(
         IServiceProvider serviceProvider,
@@ -35,6 +36,23 @@ public class DemoUserService : IDemoUserService
         string displayName,
         string ipAddress,
         CancellationToken ct = default)
+    {
+        await _createLock.WaitAsync(ct);
+        try
+        {
+            return await CreateDemoUserInternalAsync(username, displayName, ipAddress, ct);
+        }
+        finally
+        {
+            _createLock.Release();
+        }
+    }
+
+    private async Task<AppUser?> CreateDemoUserInternalAsync(
+        string username,
+        string displayName,
+        string ipAddress,
+        CancellationToken ct)
     {
         if (await IsIpCoolingDownAsync(ipAddress, ct))
         {
@@ -160,7 +178,16 @@ public class DemoUserService : IDemoUserService
                 .Where(p => p.UserId == userId)
                 .ExecuteDeleteAsync(ct);
 
-            // Delete user channel reads
+            // Null out other users' read markers that reference this user's messages
+            // (prevents FK violation on UserChannelRead.LastReadMessageId -> Messages)
+            var demoMessageIds = dbContext.Messages
+                .Where(m => m.AuthorId == userId)
+                .Select(m => m.Id);
+            await dbContext.UserChannelReads
+                .Where(r => r.LastReadMessageId != null && demoMessageIds.Contains(r.LastReadMessageId.Value))
+                .ExecuteUpdateAsync(s => s.SetProperty(r => r.LastReadMessageId, (Guid?)null), ct);
+
+            // Delete user channel reads for this user
             await dbContext.UserChannelReads
                 .Where(r => r.UserId == userId)
                 .ExecuteDeleteAsync(ct);
@@ -168,6 +195,12 @@ public class DemoUserService : IDemoUserService
             // Delete channel messages authored by this user
             await dbContext.Messages
                 .Where(m => m.AuthorId == userId)
+                .ExecuteDeleteAsync(ct);
+
+            // Delete any channels created by this user (defensive — demo users
+            // shouldn't create channels, but prevents FK violation on CreatedByUserId)
+            await dbContext.Channels
+                .Where(c => c.CreatedByUserId == userId)
                 .ExecuteDeleteAsync(ct);
 
             // Delete direct messages sent or received by this user
@@ -208,6 +241,10 @@ public class DemoUserService : IDemoUserService
             await transaction.CommitAsync(ct);
 
             _logger.LogInformation("Purged demo user {UserId} and all associated data", userId);
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // Expected during shutdown, not an error
         }
         catch (Exception ex)
         {

@@ -13,8 +13,9 @@ public class DemoCleanupService : BackgroundService
     private readonly ILogger<DemoCleanupService> _logger;
 
     /// <summary>
-    /// Event raised when a demo user is purged. Program.cs wires this to
+    /// Event raised before a demo user is purged. Program.cs wires this to
     /// IHubContext to send DemoSessionExpired notifications via SignalR.
+    /// Fired before purge so the client receives notification while still connected.
     /// </summary>
     public event Func<Guid, Task>? OnDemoUserPurged;
 
@@ -80,12 +81,14 @@ public class DemoCleanupService : BackgroundService
         {
             try
             {
-                await _demoUserService.PurgeDemoUserAsync(userId, ct);
-
+                // Notify BEFORE purge so the client receives the SignalR message
+                // while the user still exists and the connection is active
                 if (OnDemoUserPurged is not null)
                 {
                     await OnDemoUserPurged.Invoke(userId);
                 }
+
+                await _demoUserService.PurgeDemoUserAsync(userId, ct);
             }
             catch (Exception ex)
             {
@@ -94,9 +97,6 @@ public class DemoCleanupService : BackgroundService
         }
 
         // Prune stale IP cooldown entries to prevent memory leaks
-        if (_demoUserService is DemoUserService concreteService)
-        {
-            concreteService.PruneExpiredIpCooldowns();
-        }
+        _demoUserService.PruneExpiredIpCooldowns();
     }
 }

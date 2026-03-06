@@ -7,4 +7,6 @@ public class DemoStatusResponse
     public int CurrentUsers { get; set; }
 
     public int MaxUsers { get; set; }
+
+    public int SessionTimeoutMinutes { get; set; }
 }

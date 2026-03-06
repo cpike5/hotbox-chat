@@ -34,4 +34,9 @@ public interface IDemoUserService
     /// Permanently removes a demo user and all associated data (messages, tokens, etc.).
     /// </summary>
     Task PurgeDemoUserAsync(Guid userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes expired entries from the IP cooldown dictionary to prevent memory leaks.
+    /// </summary>
+    void PruneExpiredIpCooldowns();
 }

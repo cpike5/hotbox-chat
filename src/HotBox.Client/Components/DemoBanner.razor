@@ -1,4 +1,6 @@
 @inject AuthState AuthState
+@inject ApiClient ApiClient
+@implements IDisposable
 
 @if (AuthState.IsDemo)
 {
@@ -10,7 +12,27 @@
                 <line x1="12" y1="8" x2="12" y2="12"></line>
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
-            <span>Demo Mode — Your data will be deleted after 5 minutes of inactivity</span>
+            <span>Demo Mode — Your data will be deleted after @_timeoutMinutes minutes of inactivity</span>
         </div>
     </div>
+}
+
+@code {
+    private int _timeoutMinutes = 5;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthState.OnChange += StateHasChanged;
+
+        var status = await ApiClient.GetDemoStatusAsync();
+        if (status is not null && status.SessionTimeoutMinutes > 0)
+        {
+            _timeoutMinutes = status.SessionTimeoutMinutes;
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthState.OnChange -= StateHasChanged;
+    }
 }

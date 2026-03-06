@@ -315,9 +315,19 @@
 
     private async void HandleDemoSessionExpired(string message)
     {
-        Logger.LogInformation("Demo session expired: {Message}", message);
-        AuthState.SetLoggedOut();
-        await InvokeAsync(() => Navigation.NavigateTo("/login?message=demo_expired", replace: true));
+        try
+        {
+            Logger.LogInformation("Demo session expired: {Message}", message);
+            _heartbeatTimer?.Dispose();
+            _heartbeatTimer = null;
+            await ChatHubService.StopAsync();
+            AuthState.SetLoggedOut();
+            await InvokeAsync(() => Navigation.NavigateTo("/login?message=demo_expired", replace: true));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error handling demo session expiry");
+        }
     }
 
     private async void HandleConnectionChanged(bool connected)
