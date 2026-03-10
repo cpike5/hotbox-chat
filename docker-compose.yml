@@ -2,6 +2,9 @@ services:
   hotbox:
     build: .
     container_name: hotbox
+    networks:
+      - elastic-network
+      - db-network
     restart: unless-stopped
     ports:
       - "7200:8080"
@@ -33,6 +36,8 @@ services:
   db:
     image: postgres:16-alpine
     container_name: hotbox-db
+    networks:
+      - db-network
     restart: unless-stopped
     environment:
       POSTGRES_DB: hotbox
@@ -49,6 +54,8 @@ services:
   seq:
     image: datalust/seq:latest
     container_name: hotbox-seq
+    networks:
+      - seq-network
     restart: unless-stopped
     environment:
       ACCEPT_EULA: "Y"
@@ -60,3 +67,11 @@ services:
 volumes:
   pgdata:
   seqdata:
+
+networks:
+  elastic-network:
+    external: true
+  db-network:
+    external: false
+  seq-network:
+    external: false
