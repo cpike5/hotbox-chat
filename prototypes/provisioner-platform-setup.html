@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HotBox Provisioner — Platform Setup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ========================================
+       Design Tokens
+       ======================================== */
+    :root {
+      --bg-void: #08080b;
+      --bg-deepest: #0b0b10;
+      --bg-deep: #0f0f16;
+      --bg-base: #13131c;
+      --bg-raised: #191924;
+      --bg-surface: #1f1f2c;
+      --bg-hover: #262635;
+      --bg-active: #2e2e3f;
+      --bg-elevated: #35354a;
+
+      --glass-subtle: rgba(255, 255, 255, 0.02);
+      --glass-light: rgba(255, 255, 255, 0.04);
+      --glass-medium: rgba(255, 255, 255, 0.06);
+      --glass-strong: rgba(255, 255, 255, 0.08);
+
+      --text-primary: #e8e8f0;
+      --text-secondary: #9898ac;
+      --text-muted: #5e5e74;
+      --text-faint: #3a3a4e;
+
+      --accent: #5de4c7;
+      --accent-bright: #7aecd5;
+      --accent-soft: #4dc4ab;
+      --accent-dim: rgba(93, 228, 199, 0.15);
+      --accent-wash: rgba(93, 228, 199, 0.08);
+      --accent-ghost: rgba(93, 228, 199, 0.04);
+      --accent-glow: 0 0 20px rgba(93, 228, 199, 0.15);
+      --accent-glow-strong: 0 0 30px rgba(93, 228, 199, 0.25);
+
+      --danger: #d45555;
+      --danger-dim: rgba(212, 85, 85, 0.12);
+      --warning: #d4a843;
+      --warning-dim: rgba(212, 168, 67, 0.12);
+      --success: #5ec269;
+      --success-dim: rgba(94, 194, 105, 0.12);
+      --info: #5586d4;
+      --info-dim: rgba(85, 134, 212, 0.12);
+
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --border-light: rgba(255, 255, 255, 0.07);
+      --border-medium: rgba(255, 255, 255, 0.10);
+      --border-accent: rgba(93, 228, 199, 0.25);
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+      --r-xs: 3px;
+      --r-sm: 5px;
+      --r-md: 8px;
+      --r-lg: 12px;
+      --r-xl: 16px;
+      --r-pill: 9999px;
+
+      --t-fast: 80ms ease;
+      --t-base: 150ms ease;
+      --t-smooth: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+
+      --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    }
+
+    /* ========================================
+       Reset & Base
+       ======================================== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-void);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow-y: auto;
+      padding: 40px 20px;
+    }
+
+    /* ========================================
+       Wizard Container
+       ======================================== */
+    .wizard {
+      width: 100%;
+      max-width: 650px;
+      position: relative;
+    }
+
+    .wizard-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .wizard-logo {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .wizard-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .wizard-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* ========================================
+       Step Indicator
+       ======================================== */
+    .step-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      margin-bottom: 32px;
+    }
+
+    .step-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      border: 2px solid var(--border-light);
+      background: var(--bg-raised);
+      color: var(--text-muted);
+      transition: all var(--t-smooth);
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .step-dot.completed {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg-void);
+    }
+
+    .step-dot.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: var(--accent-glow);
+    }
+
+    .step-line {
+      width: 40px;
+      height: 2px;
+      background: var(--border-light);
+      transition: background var(--t-smooth);
+      flex-shrink: 0;
+    }
+
+    .step-line.completed {
+      background: var(--accent);
+    }
+
+    /* ========================================
+       Card
+       ======================================== */
+    .wizard-card {
+      background: var(--bg-base);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .wizard-card-inner {
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ========================================
+       Step Panels
+       ======================================== */
+    .step-panel {
+      padding: 32px;
+      display: none;
+      animation-duration: 300ms;
+      animation-fill-mode: both;
+      animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .step-panel.active {
+      display: block;
+    }
+
+    .step-panel.slide-in-right {
+      animation-name: slideInRight;
+    }
+
+    .step-panel.slide-in-left {
+      animation-name: slideInLeft;
+    }
+
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .step-heading {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .step-description {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    /* ========================================
+       Form Elements
+       ======================================== */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+
+    .form-input,
+    .form-select {
+      width: 100%;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-md);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 14px;
+      padding: 10px 12px;
+      transition: border-color var(--t-base), box-shadow var(--t-base);
+      outline: none;
+    }
+
+    .form-input::placeholder {
+      color: var(--text-faint);
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+      border-color: var(--border-accent);
+      box-shadow: 0 0 0 3px var(--accent-ghost), var(--accent-glow);
+    }
+
+    .form-input.error {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 3px var(--danger-dim);
+    }
+
+    .form-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%235e5e74' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+      cursor: pointer;
+    }
+
+    .form-select option {
+      background: var(--bg-raised);
+      color: var(--text-primary);
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .form-error {
+      font-size: 12px;
+      color: var(--danger);
+      margin-top: 6px;
+      display: none;
+    }
+
+    .form-error.visible {
+      display: block;
+    }
+
+    /* Password input group */
+    .password-group {
+      position: relative;
+    }
+
+    .password-group .form-input {
+      padding-right: 44px;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color var(--t-fast);
+    }
+
+    .password-toggle:hover {
+      color: var(--text-secondary);
+    }
+
+    .password-match {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      margin-top: 6px;
+      opacity: 0;
+      transition: opacity var(--t-base);
+    }
+
+    .password-match.visible {
+      opacity: 1;
+    }
+
+    .password-match.match {
+      color: var(--success);
+    }
+
+    .password-match.no-match {
+      color: var(--danger);
+    }
+
+    /* ========================================
+       Buttons
+       ======================================== */
+    .wizard-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 32px;
+      border-top: 1px solid var(--border-subtle);
+      background: var(--glass-subtle);
+    }
+
+    .btn {
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 20px;
+      border-radius: var(--r-md);
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all var(--t-base);
+      outline: none;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg-void);
+      font-weight: 600;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-bright);
+      box-shadow: var(--accent-glow);
+    }
+
+    .btn-primary:active:not(:disabled) {
+      background: var(--accent-soft);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-light);
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--glass-medium);
+      color: var(--text-primary);
+      border-color: var(--border-medium);
+    }
+
+    .btn-accent-outline {
+      background: var(--accent-ghost);
+      color: var(--accent);
+      border: 1px solid var(--border-accent);
+    }
+
+    .btn-accent-outline:hover:not(:disabled) {
+      background: var(--accent-dim);
+    }
+
+    .btn-glow {
+      box-shadow: var(--accent-glow-strong);
+    }
+
+    .btn-glow:hover:not(:disabled) {
+      box-shadow: var(--accent-glow-strong), 0 0 40px rgba(93, 228, 199, 0.2);
+    }
+
+    .btn-sm {
+      font-size: 12px;
+      padding: 6px 14px;
+    }
+
+    /* ========================================
+       Welcome Step
+       ======================================== */
+    .welcome-title {
+      font-family: var(--font-mono);
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .welcome-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+
+    .prereq-list {
+      list-style: none;
+      margin-bottom: 20px;
+    }
+
+    .prereq-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: var(--r-md);
+      margin-bottom: 4px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      transition: all var(--t-smooth);
+    }
+
+    .prereq-item.checked {
+      color: var(--text-primary);
+    }
+
+    .prereq-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 2px solid var(--border-light);
+      background: var(--bg-raised);
+      transition: all var(--t-smooth);
+    }
+
+    .prereq-item.checked .prereq-icon {
+      background: var(--success);
+      border-color: var(--success);
+      color: var(--bg-void);
+    }
+
+    .prereq-icon svg {
+      width: 12px;
+      height: 12px;
+      opacity: 0;
+      transition: opacity var(--t-base);
+    }
+
+    .prereq-item.checked .prereq-icon svg {
+      opacity: 1;
+    }
+
+    .prereq-version {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .prereq-item.checked .prereq-version {
+      color: var(--accent-soft);
+    }
+
+    .prereq-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: var(--r-md);
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all var(--t-smooth);
+    }
+
+    .prereq-banner.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .prereq-banner.success {
+      background: var(--success-dim);
+      color: var(--success);
+      border: 1px solid rgba(94, 194, 105, 0.2);
+    }
+
+    .callout {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: var(--r-md);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .callout-warning {
+      background: var(--warning-dim);
+      color: var(--warning);
+      border: 1px solid rgba(212, 168, 67, 0.2);
+    }
+
+    .callout-info {
+      background: var(--info-dim);
+      color: var(--info);
+      border: 1px solid rgba(85, 134, 212, 0.2);
+    }
+
+    .callout-icon {
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ========================================
+       DNS Visual Card
+       ======================================== */
+    .dns-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--r-lg);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .dns-card-title {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      letter-spacing: 0.02em;
+    }
+
+    .dns-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .dns-table th {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0 12px 10px 0;
+      text-align: left;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .dns-table td {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-primary);
+      padding: 10px 12px 10px 0;
+    }
+
+    .dns-table tr:not(:last-child) td {
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .dns-type-badge {
+      display: inline-block;
+      background: var(--accent-dim);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: var(--r-sm);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .dns-value {
+      color: var(--accent-soft);
+    }
+
+    /* ========================================
+       Collapsible Sections
+       ======================================== */
+    .collapsible {
+      margin-bottom: 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-md);
+      overflow: hidden;
+    }
+
+    .collapsible-trigger {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--glass-subtle);
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--t-base);
+      text-align: left;
+    }
+
+    .collapsible-trigger:hover {
+      background: var(--glass-light);
+      color: var(--text-primary);
+    }
+
+    .collapsible-chevron {
+      transition: transform var(--t-smooth);
+      flex-shrink: 0;
+    }
+
+    .collapsible.open .collapsible-chevron {
+      transform: rotate(90deg);
+    }
+
+    .collapsible-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .collapsible.open .collapsible-body {
+      max-height: 600px;
+    }
+
+    .collapsible-content {
+      padding: 16px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    .collapsible-content ol {
+      padding-left: 20px;
+    }
+
+    .collapsible-content ol li {
+      margin-bottom: 8px;
+    }
+
+    .collapsible-content code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--bg-raised);
+      padding: 1px 6px;
+      border-radius: var(--r-xs);
+      color: var(--accent);
+    }
+
+    .collapsible-content strong {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* ========================================
+       Verify Button & Status
+       ======================================== */
+    .verify-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .verify-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      opacity: 0;
+      transition: opacity var(--t-smooth);
+    }
+
+    .verify-status.visible {
+      opacity: 1;
+    }
+
+    .verify-status.success {
+      color: var(--success);
+    }
+
+    .verify-status.checking {
+      color: var(--text-muted);
+    }
+
+    .verify-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border-light);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ========================================
+       SSL Provider Fields
+       ======================================== */
+    .provider-fields {
+      display: none;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .provider-fields.visible {
+      display: block;
+    }
+
+    /* ========================================
+       Review Summary
+       ======================================== */
+    .review-section {
+      margin-bottom: 20px;
+    }
+
+    .review-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .review-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .review-section-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .review-edit-link {
+      font-size: 12px;
+      color: var(--accent);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: var(--font-body);
+      transition: color var(--t-fast);
+    }
+
+    .review-edit-link:hover {
+      color: var(--accent-bright);
+    }
+
+    .review-card {
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-md);
+      padding: 14px 16px;
+    }
+
+    .review-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+    }
+
+    .review-row:not(:last-child) {
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .review-label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .review-value {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    /* ========================================
+       Initialization Progress
+       ======================================== */
+    .init-progress {
+      display: none;
+    }
+
+    .init-progress.visible {
+      display: block;
+    }
+
+    .init-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      font-size: 13px;
+      color: var(--text-muted);
+      transition: color var(--t-smooth);
+    }
+
+    .init-step.active {
+      color: var(--text-secondary);
+    }
+
+    .init-step.completed {
+      color: var(--text-primary);
+    }
+
+    .init-step-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: var(--bg-raised);
+      border: 2px solid var(--border-light);
+      transition: all var(--t-smooth);
+    }
+
+    .init-step.active .init-step-icon {
+      border-color: var(--accent);
+    }
+
+    .init-step.completed .init-step-icon {
+      background: var(--success);
+      border-color: var(--success);
+    }
+
+    .init-step.completed .init-step-icon svg {
+      opacity: 1;
+    }
+
+    .init-step-icon svg {
+      width: 12px;
+      height: 12px;
+      opacity: 0;
+      transition: opacity var(--t-base);
+    }
+
+    .init-step.final.completed {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .init-step.final.completed .init-step-icon {
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: var(--accent-glow);
+    }
+
+    .init-complete {
+      display: none;
+      text-align: center;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-subtle);
+      margin-top: 24px;
+    }
+
+    .init-complete.visible {
+      display: block;
+      animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .init-complete-title {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .init-complete-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+
+    .celebration-glow {
+      animation: pulseGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: var(--accent-glow); }
+      50% { box-shadow: var(--accent-glow-strong), 0 0 50px rgba(93, 228, 199, 0.15); }
+    }
+
+    /* ========================================
+       Particles
+       ======================================== */
+    .particles-container {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      overflow: hidden;
+      display: none;
+    }
+
+    .particles-container.active {
+      display: block;
+    }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--accent);
+      border-radius: 50%;
+      opacity: 0;
+      animation: particleFall 2.5s ease-in forwards;
+    }
+
+    @keyframes particleFall {
+      0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+      70% { opacity: 0.7; }
+      100% { opacity: 0; transform: translateY(100vh) rotate(720deg) scale(0.3); }
+    }
+
+    /* ========================================
+       Number Input
+       ======================================== */
+    .form-input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
+    .form-input[type="number"]::-webkit-outer-spin-button,
+    .form-input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="particles-container" id="particles"></div>
+
+<div class="wizard" role="main">
+  <!-- Header -->
+  <div class="wizard-header">
+    <div class="wizard-logo">HotBox Provisioner</div>
+    <div class="wizard-subtitle">Platform Setup</div>
+  </div>
+
+  <!-- Step Indicator -->
+  <div class="step-indicator" role="navigation" aria-label="Setup progress">
+    <div class="step-dot active" data-step="1">1</div>
+    <div class="step-line" data-line="1"></div>
+    <div class="step-dot" data-step="2">2</div>
+    <div class="step-line" data-line="2"></div>
+    <div class="step-dot" data-step="3">3</div>
+    <div class="step-line" data-line="3"></div>
+    <div class="step-dot" data-step="4">4</div>
+    <div class="step-line" data-line="4"></div>
+    <div class="step-dot" data-step="5">5</div>
+    <div class="step-line" data-line="5"></div>
+    <div class="step-dot" data-step="6">6</div>
+  </div>
+
+  <!-- Wizard Card -->
+  <div class="wizard-card">
+    <div class="wizard-card-inner">
+
+      <!-- Step 1: Welcome & Prerequisites -->
+      <div class="step-panel active" id="step-1">
+        <div class="welcome-title">Welcome to HotBox Provisioner</div>
+        <div class="welcome-subtitle">
+          Let's get your hosting platform set up. This wizard will walk you through everything — it should take about 10 minutes.
+        </div>
+
+        <ul class="prereq-list" id="prereq-list">
+          <li class="prereq-item" id="prereq-docker">
+            <span class="prereq-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+            </span>
+            <span>Docker is installed</span>
+            <span class="prereq-version" id="prereq-docker-ver"></span>
+          </li>
+          <li class="prereq-item" id="prereq-compose">
+            <span class="prereq-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+            </span>
+            <span>Docker Compose is available</span>
+            <span class="prereq-version" id="prereq-compose-ver"></span>
+          </li>
+          <li class="prereq-item" id="prereq-ports">
+            <span class="prereq-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+            </span>
+            <span>Ports 80 and 443 are available</span>
+            <span class="prereq-version" id="prereq-ports-ver"></span>
+          </li>
+          <li class="prereq-item" id="prereq-resources">
+            <span class="prereq-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+            </span>
+            <span>System resources OK</span>
+            <span class="prereq-version" id="prereq-resources-ver"></span>
+          </li>
+        </ul>
+
+        <div class="prereq-banner success" id="prereq-banner">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+          All checks passed
+        </div>
+
+        <div class="callout callout-warning">
+          <span class="callout-icon">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg>
+          </span>
+          <span>Make sure you have your domain's DNS management credentials handy — you'll need them in a few steps.</span>
+        </div>
+      </div>
+
+      <!-- Step 2: Domain Configuration -->
+      <div class="step-panel" id="step-2">
+        <div class="step-heading">Domain Configuration</div>
+        <div class="step-description">Configure the base domain and resource limits for your hosting platform.</div>
+
+        <div class="form-group">
+          <label class="form-label" for="base-domain">Base Domain</label>
+          <input type="text" class="form-input" id="base-domain" placeholder="hotboxchat.ca" value="hotboxchat.ca">
+          <div class="form-hint">This is the domain you own. Instances will be created as subdomains (e.g., myserver.hotboxchat.ca)</div>
+          <div class="form-error" id="domain-error">Please enter a valid domain (e.g., example.com)</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="server-ip">Server IP</label>
+          <input type="text" class="form-input" id="server-ip" placeholder="167.172.5.42" value="167.172.5.42">
+          <div class="form-hint">We detected this from your network interface. Change it if you're behind a load balancer.</div>
+          <div class="form-error" id="ip-error">Please enter a valid IPv4 address</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="max-instances">Max Instances</label>
+          <input type="number" class="form-input" id="max-instances" value="10" min="1" max="100" style="max-width: 120px;">
+          <div class="form-hint">Maximum number of HotBox instances this server will host</div>
+        </div>
+      </div>
+
+      <!-- Step 3: DNS Setup Guide -->
+      <div class="step-panel" id="step-3">
+        <div class="step-heading">Configure Your DNS</div>
+        <div class="step-description">You need two DNS records so that your domain and all subdomains point to this server.</div>
+
+        <div class="dns-card">
+          <div class="dns-card-title">DNS Records for <span id="dns-domain-display">hotboxchat.ca</span></div>
+          <table class="dns-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Host</th>
+                <th>Value</th>
+                <th>TTL</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="dns-type-badge">A</span></td>
+                <td>@</td>
+                <td class="dns-value dns-ip-display">167.172.5.42</td>
+                <td>5 min</td>
+              </tr>
+              <tr>
+                <td><span class="dns-type-badge">A</span></td>
+                <td>*</td>
+                <td class="dns-value dns-ip-display">167.172.5.42</td>
+                <td>5 min</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Namecheap Guide (expanded by default) -->
+        <div class="collapsible open" id="collapsible-namecheap">
+          <button class="collapsible-trigger" type="button" onclick="toggleCollapsible('collapsible-namecheap')">
+            <svg class="collapsible-chevron" width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+            How to do this in Namecheap
+          </button>
+          <div class="collapsible-body">
+            <div class="collapsible-content">
+              <ol>
+                <li>Log in to Namecheap and go to <strong>Domain List</strong>, then click <strong>Manage</strong> next to your domain.</li>
+                <li>Go to the <strong>Advanced DNS</strong> tab.</li>
+                <li>Delete any existing "parking page" or "URL redirect" records.</li>
+                <li>Click <strong>Add New Record</strong> and create:
+                  <br>Type: <code>A Record</code>, Host: <code>@</code>, Value: <code class="dns-ip-inline">167.172.5.42</code>, TTL: <code>5 min</code>
+                  <br>Type: <code>A Record</code>, Host: <code>*</code>, Value: <code class="dns-ip-inline">167.172.5.42</code>, TTL: <code>5 min</code>
+                </li>
+                <li>Save and wait 2-5 minutes for propagation.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other providers (collapsed by default) -->
+        <div class="collapsible" id="collapsible-other-dns">
+          <button class="collapsible-trigger" type="button" onclick="toggleCollapsible('collapsible-other-dns')">
+            <svg class="collapsible-chevron" width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+            Using a different DNS provider?
+          </button>
+          <div class="collapsible-body">
+            <div class="collapsible-content">
+              You just need to create the same two A records in whatever DNS provider you use. Most providers have a similar interface — look for an "Advanced DNS" or "DNS Records" section, and add an <code>A Record</code> for <code>@</code> and <code>*</code>, both pointing to your server IP <code class="dns-ip-inline">167.172.5.42</code>.
+            </div>
+          </div>
+        </div>
+
+        <div class="verify-row" style="margin-top: 16px;">
+          <button class="btn btn-accent-outline btn-sm" id="verify-dns-btn" onclick="verifyDns()">Verify DNS</button>
+          <div class="verify-status" id="dns-verify-status">
+            <span class="spinner" id="dns-spinner" style="display:none;"></span>
+            <svg id="dns-check" style="display:none;" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" color="var(--success)"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+            <span id="dns-verify-text"></span>
+          </div>
+        </div>
+        <div class="verify-note" id="dns-verify-note" style="display:none;">If verification fails, DNS propagation can take up to 30 minutes. You can skip this and verify later.</div>
+      </div>
+
+      <!-- Step 4: SSL & Reverse Proxy -->
+      <div class="step-panel" id="step-4">
+        <div class="step-heading">SSL Certificates</div>
+        <div class="step-description">Wildcard SSL requires API access to your DNS provider so certificates can be issued automatically.</div>
+
+        <div class="form-group">
+          <label class="form-label" for="dns-provider">DNS Provider</label>
+          <select class="form-select" id="dns-provider" onchange="updateProviderFields()">
+            <option value="">Select your DNS provider...</option>
+            <option value="namecheap">Namecheap</option>
+            <option value="cloudflare">Cloudflare</option>
+            <option value="digitalocean">DigitalOcean</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <!-- Namecheap fields -->
+        <div class="provider-fields" id="fields-namecheap">
+          <div class="form-group">
+            <label class="form-label" for="nc-api-user">API User</label>
+            <input type="text" class="form-input" id="nc-api-user" placeholder="Your Namecheap username">
+            <div class="form-hint">Usually your Namecheap username</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="nc-api-key">API Key</label>
+            <div class="password-group">
+              <input type="password" class="form-input" id="nc-api-key" placeholder="Namecheap API key">
+              <button type="button" class="password-toggle" onclick="togglePassword('nc-api-key', this)" aria-label="Toggle API key visibility">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3.5c-2.91 0-5.42 1.77-6.84 4.5C2.58 10.73 5.09 12.5 8 12.5s5.42-1.77 6.84-4.5C13.42 5.27 10.91 3.5 8 3.5zM8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="collapsible" id="collapsible-nc-help">
+            <button class="collapsible-trigger" type="button" onclick="toggleCollapsible('collapsible-nc-help')">
+              <svg class="collapsible-chevron" width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+              Where to find your Namecheap API key
+            </button>
+            <div class="collapsible-body">
+              <div class="collapsible-content">
+                <ol>
+                  <li>Go to <strong>Profile</strong> then <strong>Tools</strong> then <strong>API Access</strong>.</li>
+                  <li>Enable API access (requires 20+ domains or $50+ account balance).</li>
+                  <li>Whitelist your server IP: <code class="dns-ip-inline">167.172.5.42</code></li>
+                  <li>Copy the API key.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout callout-info" style="margin-top: 12px;">
+            <span class="callout-icon">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.399l-.451.003.082-.381 1.92-.187h.37l-.632 2.745zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
+            </span>
+            <span>If you can't enable Namecheap API access, consider switching to Cloudflare (free) — select it from the dropdown above.</span>
+          </div>
+        </div>
+
+        <!-- Cloudflare fields -->
+        <div class="provider-fields" id="fields-cloudflare">
+          <div class="form-group">
+            <label class="form-label" for="cf-api-token">API Token</label>
+            <div class="password-group">
+              <input type="password" class="form-input" id="cf-api-token" placeholder="Cloudflare API token">
+              <button type="button" class="password-toggle" onclick="togglePassword('cf-api-token', this)" aria-label="Toggle API token visibility">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3.5c-2.91 0-5.42 1.77-6.84 4.5C2.58 10.73 5.09 12.5 8 12.5s5.42-1.77 6.84-4.5C13.42 5.27 10.91 3.5 8 3.5zM8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="collapsible" id="collapsible-cf-help">
+            <button class="collapsible-trigger" type="button" onclick="toggleCollapsible('collapsible-cf-help')">
+              <svg class="collapsible-chevron" width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+              How to create a Cloudflare API token
+            </button>
+            <div class="collapsible-body">
+              <div class="collapsible-content">
+                <ol>
+                  <li>Log in to Cloudflare and go to <strong>My Profile</strong> then <strong>API Tokens</strong>.</li>
+                  <li>Click <strong>Create Token</strong>.</li>
+                  <li>Use the <strong>Edit zone DNS</strong> template.</li>
+                  <li>Under <strong>Zone Resources</strong>, select your domain.</li>
+                  <li>Click <strong>Continue to summary</strong> then <strong>Create Token</strong>.</li>
+                  <li>Copy the token — it is only shown once.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DigitalOcean fields -->
+        <div class="provider-fields" id="fields-digitalocean">
+          <div class="form-group">
+            <label class="form-label" for="do-api-token">API Token</label>
+            <div class="password-group">
+              <input type="password" class="form-input" id="do-api-token" placeholder="DigitalOcean API token">
+              <button type="button" class="password-toggle" onclick="togglePassword('do-api-token', this)" aria-label="Toggle API token visibility">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3.5c-2.91 0-5.42 1.77-6.84 4.5C2.58 10.73 5.09 12.5 8 12.5s5.42-1.77 6.84-4.5C13.42 5.27 10.91 3.5 8 3.5zM8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other provider -->
+        <div class="provider-fields" id="fields-other">
+          <div class="callout callout-warning">
+            <span class="callout-icon">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg>
+            </span>
+            <span>You will need to configure Caddy manually after setup to support wildcard SSL with your DNS provider. See the <a href="#" style="color: var(--accent);">Caddy DNS module documentation</a> for details.</span>
+          </div>
+        </div>
+
+        <!-- Test Connection -->
+        <div class="verify-row" id="ssl-test-row" style="margin-top: 20px; display: none;">
+          <button class="btn btn-accent-outline btn-sm" id="test-ssl-btn" onclick="testSslConnection()">Test Connection</button>
+          <div class="verify-status" id="ssl-verify-status">
+            <span class="spinner" id="ssl-spinner" style="display:none;"></span>
+            <svg id="ssl-check" style="display:none;" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" color="var(--success)"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+            <span id="ssl-verify-text"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5: Admin Account -->
+      <div class="step-panel" id="step-5">
+        <div class="step-heading">Create Platform Admin</div>
+        <div class="step-description">This is your admin account for the provisioner dashboard — not for individual HotBox instances.</div>
+
+        <div class="form-group">
+          <label class="form-label" for="admin-username">Username</label>
+          <input type="text" class="form-input" id="admin-username" placeholder="admin">
+          <div class="form-error" id="username-error">Username is required</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="admin-email">Email</label>
+          <input type="email" class="form-input" id="admin-email" placeholder="admin@hotboxchat.ca">
+          <div class="form-error" id="email-error">Please enter a valid email address</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="admin-password">Password</label>
+          <div class="password-group">
+            <input type="password" class="form-input" id="admin-password" placeholder="Strong password">
+            <button type="button" class="password-toggle" onclick="togglePassword('admin-password', this)" aria-label="Toggle password visibility">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3.5c-2.91 0-5.42 1.77-6.84 4.5C2.58 10.73 5.09 12.5 8 12.5s5.42-1.77 6.84-4.5C13.42 5.27 10.91 3.5 8 3.5zM8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="admin-confirm">Confirm Password</label>
+          <div class="password-group">
+            <input type="password" class="form-input" id="admin-confirm" placeholder="Confirm password" oninput="checkPasswordMatch()">
+            <button type="button" class="password-toggle" onclick="togglePassword('admin-confirm', this)" aria-label="Toggle password visibility">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3.5c-2.91 0-5.42 1.77-6.84 4.5C2.58 10.73 5.09 12.5 8 12.5s5.42-1.77 6.84-4.5C13.42 5.27 10.91 3.5 8 3.5zM8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+            </button>
+          </div>
+          <div class="password-match" id="password-match">
+            <span id="match-icon"></span>
+            <span id="match-text"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6: Review & Initialize -->
+      <div class="step-panel" id="step-6">
+        <div id="review-content">
+          <div class="step-heading">Review & Initialize</div>
+          <div class="step-description">Everything looks good. Review your configuration and initialize the platform.</div>
+
+          <div class="review-section">
+            <div class="review-section-header">
+              <span class="review-section-title">Platform</span>
+              <button class="review-edit-link" onclick="goToStep(2)">Edit</button>
+            </div>
+            <div class="review-card">
+              <div class="review-row">
+                <span class="review-label">Domain</span>
+                <span class="review-value" id="review-domain">hotboxchat.ca</span>
+              </div>
+              <div class="review-row">
+                <span class="review-label">Server IP</span>
+                <span class="review-value" id="review-ip">167.172.5.42</span>
+              </div>
+              <div class="review-row">
+                <span class="review-label">Max instances</span>
+                <span class="review-value" id="review-max">10</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="review-section">
+            <div class="review-section-header">
+              <span class="review-section-title">DNS & SSL</span>
+              <button class="review-edit-link" onclick="goToStep(4)">Edit</button>
+            </div>
+            <div class="review-card">
+              <div class="review-row">
+                <span class="review-label">Provider</span>
+                <span class="review-value" id="review-provider">Namecheap</span>
+              </div>
+              <div class="review-row">
+                <span class="review-label">API User</span>
+                <span class="review-value" id="review-api-user">cpike</span>
+              </div>
+              <div class="review-row">
+                <span class="review-label">Wildcard cert</span>
+                <span class="review-value" id="review-cert">*.hotboxchat.ca</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="review-section">
+            <div class="review-section-header">
+              <span class="review-section-title">Admin Account</span>
+              <button class="review-edit-link" onclick="goToStep(5)">Edit</button>
+            </div>
+            <div class="review-card">
+              <div class="review-row">
+                <span class="review-label">Username</span>
+                <span class="review-value" id="review-username">admin</span>
+              </div>
+              <div class="review-row">
+                <span class="review-label">Email</span>
+                <span class="review-value" id="review-email">admin@hotboxchat.ca</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Initialization Progress (hidden initially) -->
+        <div class="init-progress" id="init-progress">
+          <div class="step-heading">Initializing Platform</div>
+          <div class="step-description">Setting up your HotBox hosting environment...</div>
+
+          <div class="init-step" id="init-1">
+            <span class="init-step-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor" color="var(--bg-void)"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+            </span>
+            <span>Creating provisioner database...</span>
+          </div>
+          <div class="init-step" id="init-2">
+            <span class="init-step-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor" color="var(--bg-void)"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+            </span>
+            <span>Seeding admin account...</span>
+          </div>
+          <div class="init-step" id="init-3">
+            <span class="init-step-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor" color="var(--bg-void)"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+            </span>
+            <span>Configuring Caddy reverse proxy...</span>
+          </div>
+          <div class="init-step" id="init-4">
+            <span class="init-step-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor" color="var(--bg-void)"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+            </span>
+            <span>Requesting wildcard SSL certificate...</span>
+          </div>
+          <div class="init-step" id="init-5">
+            <span class="init-step-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor" color="var(--bg-void)"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+            </span>
+            <span>Running health checks...</span>
+          </div>
+          <div class="init-step final" id="init-6">
+            <span class="init-step-icon">
+              <svg viewBox="0 0 16 16" fill="currentColor" color="var(--bg-void)"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+            </span>
+            <span>Platform ready!</span>
+          </div>
+
+          <div class="init-complete" id="init-complete">
+            <div class="init-complete-title">Your platform is live</div>
+            <div class="init-complete-text">You can now create HotBox instances from the dashboard.</div>
+            <a href="provisioner-dashboard.html" class="btn btn-primary btn-glow celebration-glow" style="text-decoration:none;">
+              Go to Dashboard
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06l2.97-2.97H3a.75.75 0 0 1 0-1.5h8.19L8.22 4.03a.75.75 0 0 1 0-1.06z"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="wizard-footer" id="wizard-footer">
+      <button class="btn btn-ghost" id="btn-back" onclick="prevStep()" style="visibility: hidden;">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M7.78 12.53a.75.75 0 0 1-1.06 0L2.47 8.28a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 1.06L4.81 7h7.44a.75.75 0 0 1 0 1.5H4.81l2.97 2.97a.75.75 0 0 1 0 1.06z"/></svg>
+        Back
+      </button>
+      <button class="btn btn-primary" id="btn-next" onclick="nextStep()" disabled>
+        Next
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06l2.97-2.97H3a.75.75 0 0 1 0-1.5h8.19L8.22 4.03a.75.75 0 0 1 0-1.06z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ========================================
+  // State
+  // ========================================
+  let currentStep = 1;
+  const totalSteps = 6;
+
+  // ========================================
+  // Prerequisites Check (Step 1)
+  // ========================================
+  const prereqs = [
+    { id: 'prereq-docker', verId: 'prereq-docker-ver', version: 'Docker 24.0.7', delay: 300 },
+    { id: 'prereq-compose', verId: 'prereq-compose-ver', version: 'v2.23.0', delay: 600 },
+    { id: 'prereq-ports', verId: 'prereq-ports-ver', version: '80, 443 open', delay: 900 },
+    { id: 'prereq-resources', verId: 'prereq-resources-ver', version: '8 CPU, 16 GB RAM, 120 GB disk', delay: 1200 },
+  ];
+
+  function runPrereqChecks() {
+    prereqs.forEach(p => {
+      setTimeout(() => {
+        const el = document.getElementById(p.id);
+        const ver = document.getElementById(p.verId);
+        el.classList.add('checked');
+        ver.textContent = p.version;
+
+        // Check if all done
+        const allChecked = prereqs.every(pr =>
+          document.getElementById(pr.id).classList.contains('checked')
+        );
+        if (allChecked) {
+          setTimeout(() => {
+            document.getElementById('prereq-banner').classList.add('visible');
+            document.getElementById('btn-next').disabled = false;
+          }, 300);
+        }
+      }, p.delay);
+    });
+  }
+
+  // Run on page load
+  setTimeout(runPrereqChecks, 500);
+
+  // ========================================
+  // Navigation
+  // ========================================
+  function goToStep(step, direction) {
+    if (step < 1 || step > totalSteps) return;
+
+    const prevPanel = document.getElementById(`step-${currentStep}`);
+    const nextPanel = document.getElementById(`step-${step}`);
+
+    // Determine direction if not specified
+    if (!direction) {
+      direction = step > currentStep ? 'right' : 'left';
+    }
+
+    // Remove active from previous
+    prevPanel.classList.remove('active', 'slide-in-right', 'slide-in-left');
+
+    // Set up new panel
+    nextPanel.classList.add('active');
+    nextPanel.classList.add(direction === 'right' ? 'slide-in-right' : 'slide-in-left');
+
+    // Update step indicators
+    currentStep = step;
+    updateStepIndicator();
+    updateButtons();
+
+    // Update dynamic content when reaching certain steps
+    if (step === 3) updateDnsDisplay();
+    if (step === 6) updateReview();
+  }
+
+  function nextStep() {
+    if (!validateStep(currentStep)) return;
+    goToStep(currentStep + 1, 'right');
+  }
+
+  function prevStep() {
+    goToStep(currentStep - 1, 'left');
+  }
+
+  function updateStepIndicator() {
+    for (let i = 1; i <= totalSteps; i++) {
+      const dot = document.querySelector(`.step-dot[data-step="${i}"]`);
+      const line = document.querySelector(`.step-line[data-line="${i}"]`);
+
+      dot.classList.remove('active', 'completed');
+      dot.innerHTML = i;
+
+      if (i < currentStep) {
+        dot.classList.add('completed');
+        dot.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>';
+      } else if (i === currentStep) {
+        dot.classList.add('active');
+      }
+
+      if (line) {
+        line.classList.toggle('completed', i < currentStep);
+      }
+    }
+  }
+
+  function updateButtons() {
+    const backBtn = document.getElementById('btn-back');
+    const nextBtn = document.getElementById('btn-next');
+    const footer = document.getElementById('wizard-footer');
+
+    backBtn.style.visibility = currentStep === 1 ? 'hidden' : 'visible';
+
+    if (currentStep === 6) {
+      nextBtn.innerHTML = `
+        Initialize Platform
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06l2.97-2.97H3a.75.75 0 0 1 0-1.5h8.19L8.22 4.03a.75.75 0 0 1 0-1.06z"/></svg>
+      `;
+      nextBtn.classList.add('btn-glow');
+      nextBtn.onclick = initializePlatform;
+      nextBtn.disabled = false;
+    } else {
+      nextBtn.innerHTML = `
+        Next
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06l2.97-2.97H3a.75.75 0 0 1 0-1.5h8.19L8.22 4.03a.75.75 0 0 1 0-1.06z"/></svg>
+      `;
+      nextBtn.classList.remove('btn-glow');
+      nextBtn.onclick = nextStep;
+      nextBtn.disabled = false;
+    }
+  }
+
+  // ========================================
+  // Validation
+  // ========================================
+  function validateStep(step) {
+    switch (step) {
+      case 2:
+        return validateDomain();
+      case 4:
+        return validateSSL();
+      case 5:
+        return validateAdmin();
+      default:
+        return true;
+    }
+  }
+
+  function validateDomain() {
+    const domain = document.getElementById('base-domain').value.trim();
+    const ip = document.getElementById('server-ip').value.trim();
+    let valid = true;
+
+    // Domain validation: no protocol, no trailing slash, has at least one dot
+    const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+    if (!domainRegex.test(domain)) {
+      showError('domain-error', 'base-domain');
+      valid = false;
+    } else {
+      hideError('domain-error', 'base-domain');
+    }
+
+    // IP validation
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipRegex.test(ip)) {
+      showError('ip-error', 'server-ip');
+      valid = false;
+    } else {
+      hideError('ip-error', 'server-ip');
+    }
+
+    return valid;
+  }
+
+  function validateSSL() {
+    const provider = document.getElementById('dns-provider').value;
+    if (!provider) return true; // "Other" is acceptable
+    // For prototype, always valid
+    return true;
+  }
+
+  function validateAdmin() {
+    const username = document.getElementById('admin-username').value.trim();
+    const email = document.getElementById('admin-email').value.trim();
+    const password = document.getElementById('admin-password').value;
+    const confirm = document.getElementById('admin-confirm').value;
+    let valid = true;
+
+    if (!username) {
+      showError('username-error', 'admin-username');
+      valid = false;
+    } else {
+      hideError('username-error', 'admin-username');
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showError('email-error', 'admin-email');
+      valid = false;
+    } else {
+      hideError('email-error', 'admin-email');
+    }
+
+    if (!password || password !== confirm) {
+      valid = false;
+    }
+
+    return valid;
+  }
+
+  function showError(errorId, inputId) {
+    document.getElementById(errorId).classList.add('visible');
+    document.getElementById(inputId).classList.add('error');
+  }
+
+  function hideError(errorId, inputId) {
+    document.getElementById(errorId).classList.remove('visible');
+    document.getElementById(inputId).classList.remove('error');
+  }
+
+  // ========================================
+  // DNS Display Updates
+  // ========================================
+  function updateDnsDisplay() {
+    const domain = document.getElementById('base-domain').value.trim() || 'hotboxchat.ca';
+    const ip = document.getElementById('server-ip').value.trim() || '167.172.5.42';
+
+    document.getElementById('dns-domain-display').textContent = domain;
+    document.querySelectorAll('.dns-ip-display').forEach(el => el.textContent = ip);
+    document.querySelectorAll('.dns-ip-inline').forEach(el => el.textContent = ip);
+  }
+
+  // ========================================
+  // Collapsible Sections
+  // ========================================
+  function toggleCollapsible(id) {
+    document.getElementById(id).classList.toggle('open');
+  }
+
+  // ========================================
+  // Password Toggle
+  // ========================================
+  function togglePassword(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+
+    // Swap icon
+    btn.innerHTML = isPassword
+      ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/><path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299l.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"/><path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709z"/><path fill-rule="evenodd" d="M13.646 14.354l-12-12 .708-.708 12 12-.708.708z"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3.5c-2.91 0-5.42 1.77-6.84 4.5C2.58 10.73 5.09 12.5 8 12.5s5.42-1.77 6.84-4.5C13.42 5.27 10.91 3.5 8 3.5zM8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>';
+  }
+
+  // ========================================
+  // Password Match Check
+  // ========================================
+  function checkPasswordMatch() {
+    const pass = document.getElementById('admin-password').value;
+    const confirm = document.getElementById('admin-confirm').value;
+    const matchEl = document.getElementById('password-match');
+    const iconEl = document.getElementById('match-icon');
+    const textEl = document.getElementById('match-text');
+
+    if (!confirm) {
+      matchEl.classList.remove('visible');
+      return;
+    }
+
+    matchEl.classList.add('visible');
+
+    if (pass === confirm) {
+      matchEl.className = 'password-match visible match';
+      iconEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>';
+      textEl.textContent = 'Passwords match';
+    } else {
+      matchEl.className = 'password-match visible no-match';
+      iconEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06z"/></svg>';
+      textEl.textContent = 'Passwords do not match';
+    }
+  }
+
+  // ========================================
+  // DNS Verification (Simulated)
+  // ========================================
+  function verifyDns() {
+    const btn = document.getElementById('verify-dns-btn');
+    const status = document.getElementById('dns-verify-status');
+    const spinner = document.getElementById('dns-spinner');
+    const check = document.getElementById('dns-check');
+    const text = document.getElementById('dns-verify-text');
+    const note = document.getElementById('dns-verify-note');
+
+    btn.disabled = true;
+    status.classList.add('visible');
+    status.className = 'verify-status visible checking';
+    spinner.style.display = 'inline-block';
+    check.style.display = 'none';
+    text.textContent = 'Checking DNS records...';
+    note.style.display = 'block';
+
+    setTimeout(() => {
+      spinner.style.display = 'none';
+      check.style.display = 'inline-block';
+      status.className = 'verify-status visible success';
+      text.textContent = 'DNS is configured correctly! Both records detected.';
+      btn.disabled = false;
+    }, 2000);
+  }
+
+  // ========================================
+  // SSL Provider Fields
+  // ========================================
+  function updateProviderFields() {
+    const provider = document.getElementById('dns-provider').value;
+    const providers = ['namecheap', 'cloudflare', 'digitalocean', 'other'];
+    const testRow = document.getElementById('ssl-test-row');
+
+    providers.forEach(p => {
+      const fields = document.getElementById(`fields-${p}`);
+      if (fields) {
+        fields.classList.toggle('visible', p === provider);
+      }
+    });
+
+    // Show test connection for providers with API fields
+    testRow.style.display = ['namecheap', 'cloudflare', 'digitalocean'].includes(provider) ? 'flex' : 'none';
+
+    // Reset test status
+    document.getElementById('ssl-verify-status').classList.remove('visible');
+  }
+
+  // ========================================
+  // SSL Connection Test (Simulated)
+  // ========================================
+  function testSslConnection() {
+    const btn = document.getElementById('test-ssl-btn');
+    const status = document.getElementById('ssl-verify-status');
+    const spinner = document.getElementById('ssl-spinner');
+    const check = document.getElementById('ssl-check');
+    const text = document.getElementById('ssl-verify-text');
+
+    btn.disabled = true;
+    status.classList.add('visible');
+    status.className = 'verify-status visible checking';
+    spinner.style.display = 'inline-block';
+    check.style.display = 'none';
+    text.textContent = 'Testing API connection...';
+
+    setTimeout(() => {
+      spinner.style.display = 'none';
+      check.style.display = 'inline-block';
+      status.className = 'verify-status visible success';
+      text.textContent = 'API connection verified successfully.';
+      btn.disabled = false;
+    }, 2000);
+  }
+
+  // ========================================
+  // Review
+  // ========================================
+  function updateReview() {
+    const domain = document.getElementById('base-domain').value.trim() || 'hotboxchat.ca';
+    const ip = document.getElementById('server-ip').value.trim() || '167.172.5.42';
+    const max = document.getElementById('max-instances').value || '10';
+    const provider = document.getElementById('dns-provider');
+    const providerText = provider.options[provider.selectedIndex]?.text || 'Not selected';
+    const username = document.getElementById('admin-username').value.trim() || 'admin';
+    const email = document.getElementById('admin-email').value.trim() || 'admin@hotboxchat.ca';
+
+    document.getElementById('review-domain').textContent = domain;
+    document.getElementById('review-ip').textContent = ip;
+    document.getElementById('review-max').textContent = max;
+    document.getElementById('review-provider').textContent = providerText;
+    document.getElementById('review-cert').textContent = `*.${domain}`;
+    document.getElementById('review-username').textContent = username;
+    document.getElementById('review-email').textContent = email;
+
+    // API user display depends on provider
+    const providerVal = provider.value;
+    let apiUser = '';
+    if (providerVal === 'namecheap') {
+      const user = document.getElementById('nc-api-user').value.trim();
+      apiUser = user ? user.substring(0, 2) + '***' : 'Not set';
+    } else if (providerVal === 'cloudflare' || providerVal === 'digitalocean') {
+      apiUser = 'Token configured';
+    } else {
+      apiUser = 'Manual config';
+    }
+    document.getElementById('review-api-user').textContent = apiUser;
+  }
+
+  // ========================================
+  // Initialize Platform (Simulated)
+  // ========================================
+  function initializePlatform() {
+    const reviewContent = document.getElementById('review-content');
+    const initProgress = document.getElementById('init-progress');
+    const footer = document.getElementById('wizard-footer');
+
+    // Hide review, show progress
+    reviewContent.style.display = 'none';
+    initProgress.classList.add('visible');
+    footer.style.display = 'none';
+
+    const steps = [
+      { id: 'init-1', delay: 1000 },
+      { id: 'init-2', delay: 800 },
+      { id: 'init-3', delay: 1500 },
+      { id: 'init-4', delay: 2000 },
+      { id: 'init-5', delay: 1000 },
+      { id: 'init-6', delay: 600 },
+    ];
+
+    let totalDelay = 0;
+
+    steps.forEach((step, index) => {
+      // Activate step
+      setTimeout(() => {
+        document.getElementById(step.id).classList.add('active');
+        // Add spinner to active step icon
+        const icon = document.getElementById(step.id).querySelector('.init-step-icon');
+        if (index < steps.length - 1) {
+          icon.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;"></span>';
+        }
+      }, totalDelay);
+
+      totalDelay += step.delay;
+
+      // Complete step
+      setTimeout(() => {
+        const el = document.getElementById(step.id);
+        el.classList.remove('active');
+        el.classList.add('completed');
+        const icon = el.querySelector('.init-step-icon');
+        icon.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor" style="color:var(--bg-void);opacity:1;"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>';
+      }, totalDelay);
+    });
+
+    // Show completion
+    setTimeout(() => {
+      document.getElementById('init-complete').classList.add('visible');
+      launchParticles();
+    }, totalDelay + 400);
+  }
+
+  // ========================================
+  // Celebration Particles
+  // ========================================
+  function launchParticles() {
+    const container = document.getElementById('particles');
+    container.classList.add('active');
+
+    const colors = ['#5de4c7', '#7aecd5', '#4dc4ab', '#5ec269', '#5586d4'];
+
+    for (let i = 0; i < 40; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'particle';
+      particle.style.left = Math.random() * 100 + '%';
+      particle.style.top = -10 + 'px';
+      particle.style.width = (Math.random() * 4 + 2) + 'px';
+      particle.style.height = particle.style.width;
+      particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+      particle.style.animationDelay = Math.random() * 1.5 + 's';
+      particle.style.animationDuration = (Math.random() * 1.5 + 2) + 's';
+      container.appendChild(particle);
+    }
+
+    // Clean up after animations
+    setTimeout(() => {
+      container.classList.remove('active');
+      container.innerHTML = '';
+    }, 5000);
+  }
+</script>
+
+</body>
+</html>
