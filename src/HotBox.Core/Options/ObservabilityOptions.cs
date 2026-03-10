@@ -14,5 +14,7 @@ public class ObservabilityOptions
 
     public string ElasticsearchApiKey { get; set; } = string.Empty;
 
+    public string Environment { get; set; } = "development";
+
     public string LogLevel { get; set; } = "Information";
 }

@@ -70,8 +70,15 @@ public static class ObservabilityExtensions
             .GetSection(ObservabilityOptions.SectionName)
             .Get<ObservabilityOptions>() ?? new ObservabilityOptions();
 
+        var environment = obsOptions.Environment;
+
         services.AddOpenTelemetry()
-            .ConfigureResource(resource => resource.AddService("hotbox"))
+            .ConfigureResource(resource => resource
+                .AddService("hotbox")
+                .AddAttributes(new Dictionary<string, object>
+                {
+                    ["deployment.environment"] = environment
+                }))
             .WithTracing(tracing =>
             {
                 tracing
