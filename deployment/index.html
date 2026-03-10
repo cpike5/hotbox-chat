@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HotBox Deployment Guide</title>
+    <style>
+        :root {
+            --accent: #e85d04;
+            --accent-dim: rgba(232, 93, 4, 0.15);
+            --bg: #111318;
+            --bg-surface: #1a1d24;
+            --bg-code: #21242d;
+            --bg-hover: #282c36;
+            --text: #e2e4e9;
+            --text-dim: #9399a5;
+            --border: #2e323c;
+            --green: #4ade80;
+            --blue: #60a5fa;
+            --purple: #c084fc;
+            --yellow: #fbbf24;
+            --cyan: #22d3ee;
+            --red: #f87171;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        /* Header */
+        header {
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.02em;
+        }
+
+        header h1 span {
+            color: var(--accent);
+        }
+
+        header p {
+            color: var(--text-dim);
+            font-size: 1.1rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Headings */
+        h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-top: 1.5rem;
+            margin-bottom: 0.6rem;
+        }
+
+        p { margin-bottom: 0.8rem; }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        a:hover { text-decoration: underline; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.2rem;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg-surface);
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        td { background: var(--bg); }
+
+        td code {
+            background: var(--bg-code);
+            padding: 0.15em 0.4em;
+            border-radius: 3px;
+            font-family: var(--font-mono);
+            font-size: 0.88em;
+            color: var(--cyan);
+        }
+
+        /* Code blocks */
+        pre {
+            position: relative;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem 1.2rem;
+            margin-bottom: 1rem;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 0.88rem;
+            line-height: 1.6;
+        }
+
+        pre code {
+            font-family: inherit;
+            font-size: inherit;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            font-family: var(--font-body);
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .copy-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text);
+        }
+
+        .copy-btn.copied {
+            color: var(--green);
+            border-color: var(--green);
+        }
+
+        /* Inline code */
+        p code, li code {
+            background: var(--bg-code);
+            padding: 0.15em 0.4em;
+            border-radius: 3px;
+            font-family: var(--font-mono);
+            font-size: 0.88em;
+            color: var(--cyan);
+        }
+
+        /* Callout / note */
+        .note {
+            border-left: 3px solid var(--accent);
+            background: var(--accent-dim);
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 4px 4px 0;
+            font-size: 0.95rem;
+        }
+
+        .note strong {
+            color: var(--accent);
+        }
+
+        /* Lists */
+        ul, ol {
+            padding-left: 1.5rem;
+            margin-bottom: 0.8rem;
+        }
+
+        li {
+            margin-bottom: 0.3rem;
+        }
+
+        /* Step numbering */
+        .step {
+            counter-increment: steps;
+            margin-top: 2rem;
+        }
+
+        .step h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.6rem;
+            height: 1.6rem;
+            background: var(--accent);
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 700;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* Details / collapsible */
+        details {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        details summary {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--accent);
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            user-select: none;
+            transition: background 0.15s;
+        }
+
+        details summary:hover {
+            background: var(--bg-hover);
+        }
+
+        details summary::before {
+            content: "\25B6";
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+            color: var(--text-dim);
+        }
+
+        details[open] summary::before {
+            transform: rotate(90deg);
+        }
+
+        details summary::-webkit-details-marker { display: none; }
+
+        details > pre {
+            margin: 0;
+            border: none;
+            border-top: 1px solid var(--border);
+            border-radius: 0;
+        }
+
+        /* Nginx syntax highlighting */
+        .nx-comment { color: #6b7280; font-style: italic; }
+        .nx-directive { color: var(--blue); }
+        .nx-value { color: var(--green); }
+        .nx-variable { color: var(--yellow); }
+        .nx-block { color: var(--purple); }
+        .nx-number { color: var(--yellow); }
+        .nx-string { color: var(--green); }
+        .nx-semicolon { color: var(--text-dim); }
+
+        /* Troubleshooting */
+        .ts-item {
+            margin-bottom: 1.2rem;
+        }
+
+        .ts-item h3 {
+            color: var(--red);
+            font-size: 1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .container { padding: 1.25rem 1rem 3rem; }
+            header h1 { font-size: 1.5rem; }
+            pre { font-size: 0.82rem; padding: 0.75rem; }
+            table { font-size: 0.88rem; }
+            th, td { padding: 0.4rem 0.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Hot<span>Box</span> Deployment Guide</h1>
+            <p>Nginx reverse proxy configuration with TLS</p>
+        </header>
+
+        <!-- FILES -->
+        <h2>Files</h2>
+        <table>
+            <thead>
+                <tr><th>File</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>hotbox-http.conf</code></td>
+                    <td>Nginx config for HTTP-only (use during initial certbot setup)</td>
+                </tr>
+                <tr>
+                    <td><code>hotbox-https.conf</code></td>
+                    <td>Nginx config with TLS termination (use after obtaining certificate)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- PREREQUISITES -->
+        <h2>Prerequisites</h2>
+        <ul>
+            <li>Ubuntu/Debian server with at least 1 GB RAM</li>
+            <li>Domain name pointed at server's IP</li>
+            <li>HotBox running via Docker (port 7200) or bare-metal (port 5000)</li>
+        </ul>
+
+        <!-- WALKTHROUGH -->
+        <h2>Step-by-Step Walkthrough</h2>
+
+        <div class="step">
+            <h3><span class="step-num">1</span> Install nginx and certbot</h3>
+            <pre><code>sudo apt update
+sudo apt install -y nginx certbot</code></pre>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-num">2</span> Deploy the HTTP config</h3>
+            <pre><code>sudo cp deployment/hotbox-http.conf /etc/nginx/sites-available/hotbox
+sudo ln -sf /etc/nginx/sites-available/hotbox /etc/nginx/sites-enabled/hotbox
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo mkdir -p /var/www/certbot</code></pre>
+            <div class="note">
+                <strong>Note:</strong> Edit <code>/etc/nginx/sites-available/hotbox</code> &mdash; replace <code>chat.example.com</code> with your domain. If bare-metal, change upstream port from 7200 to 5000.
+            </div>
+            <pre><code>sudo nginx -t && sudo systemctl reload nginx</code></pre>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-num">3</span> Obtain a TLS certificate</h3>
+            <pre><code>sudo certbot certonly --webroot -w /var/www/certbot -d your-domain.com</code></pre>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-num">4</span> Switch to the HTTPS config</h3>
+            <pre><code>sudo cp deployment/hotbox-https.conf /etc/nginx/sites-available/hotbox</code></pre>
+            <div class="note">
+                <strong>Note:</strong> Edit the file &mdash; replace <code>chat.example.com</code> with your domain (appears in <code>server_name</code>, <code>ssl_certificate</code>, <code>ssl_certificate_key</code>). If bare-metal, change upstream port from 7200 to 5000.
+            </div>
+            <pre><code>sudo nginx -t && sudo systemctl reload nginx</code></pre>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-num">5</span> Verify certificate auto-renewal</h3>
+            <pre><code>sudo certbot renew --dry-run</code></pre>
+            <p>To reload nginx after renewal, create a deploy hook:</p>
+            <pre><code>sudo mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+cat &lt;&lt; 'EOF' | sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+#!/bin/bash
+systemctl reload nginx
+EOF
+sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh</code></pre>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-num">6</span> Enable HSTS (optional)</h3>
+            <p>After confirming TLS works, uncomment the HSTS header in the HTTPS config:</p>
+            <pre><code>add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;</code></pre>
+        </div>
+
+        <!-- FIREWALL -->
+        <h2>Firewall</h2>
+        <pre><code>sudo ufw allow 22/tcp    # SSH
+sudo ufw allow 80/tcp    # HTTP (certbot + redirect)
+sudo ufw allow 443/tcp   # HTTPS
+sudo ufw enable</code></pre>
+
+        <!-- UPSTREAM PORT REFERENCE -->
+        <h2>Upstream Port Reference</h2>
+        <table>
+            <thead>
+                <tr><th>Deployment Method</th><th>Default Port</th><th>Setting</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Docker</td>
+                    <td><code>7200</code></td>
+                    <td><code>HOTBOX_PORT</code> env var in <code>.env</code></td>
+                </tr>
+                <tr>
+                    <td>Bare-metal</td>
+                    <td><code>5000</code></td>
+                    <td><code>ASPNETCORE_URLS</code> in systemd unit</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- TROUBLESHOOTING -->
+        <h2>Troubleshooting</h2>
+
+        <div class="ts-item">
+            <h3>502 Bad Gateway</h3>
+            <p>Verify HotBox is running:</p>
+            <pre><code>docker compose ps
+# or
+systemctl is-active hotbox</code></pre>
+            <p>Check the listening port:</p>
+            <pre><code>ss -tlnp | grep 7200</code></pre>
+            <p>Check the nginx error log:</p>
+            <pre><code>tail /var/log/nginx/error.log</code></pre>
+        </div>
+
+        <div class="ts-item">
+            <h3>WebSocket connection failures</h3>
+            <p>Ensure the <code>Upgrade</code> and <code>Connection</code> headers are present in the nginx config. Confirm <code>proxy_http_version 1.1</code> is set. Both provided config files include these directives by default.</p>
+        </div>
+
+        <div class="ts-item">
+            <h3>Certificate renewal failures</h3>
+            <pre><code>sudo systemctl status certbot.timer
+sudo certbot renew --dry-run
+sudo journalctl -u certbot</code></pre>
+        </div>
+
+        <!-- CONFIG VIEWER -->
+        <h2>Config File Reference</h2>
+        <p>Full contents of both nginx config files for reference.</p>
+
+        <details id="http-config">
+            <summary>hotbox-http.conf &mdash; HTTP-only config</summary>
+            <pre><code><span class="nx-comment"># HotBox — HTTP-only nginx config</span>
+<span class="nx-directive">upstream</span> <span class="nx-block">hotbox_backend</span> {
+    <span class="nx-directive">server</span> <span class="nx-value">localhost</span>:<span class="nx-number">7200</span><span class="nx-semicolon">;</span>
+}
+
+<span class="nx-directive">server</span> {
+    <span class="nx-directive">listen</span> <span class="nx-number">80</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">listen</span> [::]:<span class="nx-number">80</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">server_name</span> <span class="nx-value">chat.example.com</span><span class="nx-semicolon">;</span>
+
+    <span class="nx-directive">location</span> <span class="nx-value">/.well-known/acme-challenge/</span> {
+        <span class="nx-directive">root</span> <span class="nx-value">/var/www/certbot</span><span class="nx-semicolon">;</span>
+    }
+
+    <span class="nx-directive">location</span> <span class="nx-value">/</span> {
+        <span class="nx-directive">proxy_pass</span> <span class="nx-value">http://hotbox_backend</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_http_version</span> <span class="nx-number">1.1</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_set_header</span> <span class="nx-value">Upgrade</span> <span class="nx-variable">$http_upgrade</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_set_header</span> <span class="nx-value">Connection</span> <span class="nx-string">"upgrade"</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_set_header</span> <span class="nx-value">Host</span> <span class="nx-variable">$host</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_set_header</span> <span class="nx-value">X-Real-IP</span> <span class="nx-variable">$remote_addr</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_set_header</span> <span class="nx-value">X-Forwarded-For</span> <span class="nx-variable">$proxy_add_x_forwarded_for</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_set_header</span> <span class="nx-value">X-Forwarded-Proto</span> <span class="nx-variable">$scheme</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_read_timeout</span> <span class="nx-number">86400s</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_send_timeout</span> <span class="nx-number">86400s</span><span class="nx-semicolon">;</span>
+    }
+}</code></pre>
+        </details>
+
+        <details id="https-config">
+            <summary>hotbox-https.conf &mdash; HTTPS config with TLS</summary>
+            <pre><code><span class="nx-comment"># HotBox — HTTPS nginx config</span>
+<span class="nx-directive">upstream</span> <span class="nx-block">hotbox_backend</span> {
+    <span class="nx-directive">server</span> <span class="nx-value">localhost</span>:<span class="nx-number">7200</span><span class="nx-semicolon">;</span>
+}
+
+<span class="nx-directive">server</span> {
+    <span class="nx-directive">listen</span> <span class="nx-number">443</span> <span class="nx-value">ssl http2</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">listen</span> [::]:<span class="nx-number">443</span> <span class="nx-value">ssl http2</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">server_name</span> <span class="nx-value">chat.example.com</span><span class="nx-semicolon">;</span>
+
+    <span class="nx-directive">ssl_certificate</span>     <span class="nx-value">/etc/letsencrypt/live/chat.example.com/fullchain.pem</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">ssl_certificate_key</span> <span class="nx-value">/etc/letsencrypt/live/chat.example.com/privkey.pem</span><span class="nx-semicolon">;</span>
+
+    <span class="nx-directive">ssl_protocols</span> <span class="nx-value">TLSv1.2 TLSv1.3</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">ssl_ciphers</span> <span class="nx-value">ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">ssl_prefer_server_ciphers</span> <span class="nx-value">off</span><span class="nx-semicolon">;</span>
+
+    <span class="nx-directive">ssl_stapling</span> <span class="nx-value">on</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">ssl_stapling_verify</span> <span class="nx-value">on</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">resolver</span> <span class="nx-number">1.1.1.1</span> <span class="nx-number">8.8.8.8</span> <span class="nx-value">valid=300s</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">resolver_timeout</span> <span class="nx-number">5s</span><span class="nx-semicolon">;</span>
+
+    <span class="nx-directive">add_header</span> <span class="nx-value">X-Frame-Options</span> <span class="nx-string">DENY</span> <span class="nx-value">always</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">add_header</span> <span class="nx-value">X-Content-Type-Options</span> <span class="nx-string">nosniff</span> <span class="nx-value">always</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">add_header</span> <span class="nx-value">Referrer-Policy</span> <span class="nx-string">strict-origin-when-cross-origin</span> <span class="nx-value">always</span><span class="nx-semicolon">;</span>
+    <span class="nx-comment"># add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;</span>
+
+    <span class="nx-directive">location</span> <span class="nx-value">/</span> {
+        <span class="nx-directive">proxy_pass</span> <span class="nx-value">http://hotbox_backend</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_http_version</span> <span class="nx-number">1.1</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_set_header</span> <span class="nx-value">Upgrade</span> <span class="nx-variable">$http_upgrade</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_set_header</span> <span class="nx-value">Connection</span> <span class="nx-string">"upgrade"</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_set_header</span> <span class="nx-value">Host</span> <span class="nx-variable">$host</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_set_header</span> <span class="nx-value">X-Real-IP</span> <span class="nx-variable">$remote_addr</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_set_header</span> <span class="nx-value">X-Forwarded-For</span> <span class="nx-variable">$proxy_add_x_forwarded_for</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_set_header</span> <span class="nx-value">X-Forwarded-Proto</span> <span class="nx-value">https</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_read_timeout</span> <span class="nx-number">86400s</span><span class="nx-semicolon">;</span>
+        <span class="nx-directive">proxy_send_timeout</span> <span class="nx-number">86400s</span><span class="nx-semicolon">;</span>
+    }
+}
+
+<span class="nx-directive">server</span> {
+    <span class="nx-directive">listen</span> <span class="nx-number">80</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">listen</span> [::]:<span class="nx-number">80</span><span class="nx-semicolon">;</span>
+    <span class="nx-directive">server_name</span> <span class="nx-value">chat.example.com</span><span class="nx-semicolon">;</span>
+
+    <span class="nx-directive">location</span> <span class="nx-value">/.well-known/acme-challenge/</span> {
+        <span class="nx-directive">root</span> <span class="nx-value">/var/www/certbot</span><span class="nx-semicolon">;</span>
+    }
+
+    <span class="nx-directive">location</span> <span class="nx-value">/</span> {
+        <span class="nx-directive">return</span> <span class="nx-number">301</span> <span class="nx-value">https://</span><span class="nx-variable">$server_name</span><span class="nx-variable">$request_uri</span><span class="nx-semicolon">;</span>
+    }
+}</code></pre>
+        </details>
+    </div>
+
+    <script>
+        // Copy button for all code blocks
+        document.querySelectorAll('pre').forEach(function (block) {
+            var btn = document.createElement('button');
+            btn.className = 'copy-btn';
+            btn.textContent = 'Copy';
+            btn.setAttribute('aria-label', 'Copy code to clipboard');
+            btn.addEventListener('click', function () {
+                var code = block.querySelector('code');
+                var text = code ? code.textContent : block.textContent;
+                navigator.clipboard.writeText(text).then(function () {
+                    btn.textContent = 'Copied';
+                    btn.classList.add('copied');
+                    setTimeout(function () {
+                        btn.textContent = 'Copy';
+                        btn.classList.remove('copied');
+                    }, 2000);
+                });
+            });
+            block.appendChild(btn);
+        });
+    </script>
+</body>
+</html>
