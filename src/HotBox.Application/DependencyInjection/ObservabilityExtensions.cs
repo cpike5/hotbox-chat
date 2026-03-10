@@ -71,7 +71,7 @@ public static class ObservabilityExtensions
             .Get<ObservabilityOptions>() ?? new ObservabilityOptions();
 
         services.AddOpenTelemetry()
-            .ConfigureResource(resource => resource.AddService("HotBox"))
+            .ConfigureResource(resource => resource.AddService("hotbox"))
             .WithTracing(tracing =>
             {
                 tracing
