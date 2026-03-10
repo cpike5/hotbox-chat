@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HotBox — Invite Signup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ========================================
+       Design Tokens
+       ======================================== */
+    :root {
+      --bg-void: #08080b;
+      --bg-deepest: #0b0b10;
+      --bg-deep: #0f0f16;
+      --bg-base: #13131c;
+      --bg-raised: #191924;
+      --bg-surface: #1f1f2c;
+      --bg-hover: #262635;
+      --bg-active: #2e2e3f;
+      --bg-elevated: #35354a;
+
+      --glass-subtle: rgba(255, 255, 255, 0.02);
+      --glass-light: rgba(255, 255, 255, 0.04);
+      --glass-medium: rgba(255, 255, 255, 0.06);
+      --glass-strong: rgba(255, 255, 255, 0.08);
+
+      --text-primary: #e8e8f0;
+      --text-secondary: #9898ac;
+      --text-muted: #5e5e74;
+      --text-faint: #3a3a4e;
+
+      --accent: #5de4c7;
+      --accent-bright: #7aecd5;
+      --accent-soft: #4dc4ab;
+      --accent-dim: rgba(93, 228, 199, 0.15);
+      --accent-wash: rgba(93, 228, 199, 0.08);
+      --accent-ghost: rgba(93, 228, 199, 0.04);
+      --accent-glow: 0 0 20px rgba(93, 228, 199, 0.15);
+      --accent-glow-strong: 0 0 30px rgba(93, 228, 199, 0.25);
+
+      --danger: #d45555;
+      --danger-dim: rgba(212, 85, 85, 0.12);
+      --warning: #d4a843;
+      --success: #5ec269;
+      --info: #5586d4;
+
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --border-light: rgba(255, 255, 255, 0.07);
+      --border-medium: rgba(255, 255, 255, 0.10);
+      --border-accent: rgba(93, 228, 199, 0.25);
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+      --r-xs: 3px; --r-sm: 5px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px; --r-pill: 9999px;
+      --t-fast: 80ms ease; --t-base: 150ms ease; --t-smooth: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+      --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    }
+
+    /* ========================================
+       Reset & Base
+       ======================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-void);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Subtle background pattern */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 600px 400px at 50% 30%, rgba(93, 228, 199, 0.03), transparent),
+        radial-gradient(ellipse 400px 300px at 70% 80%, rgba(93, 228, 199, 0.02), transparent);
+      pointer-events: none;
+    }
+
+    /* ========================================
+       Card Container
+       ======================================== */
+    .signup-container {
+      width: 100%;
+      max-width: 500px;
+      position: relative;
+    }
+
+    .card {
+      background: var(--bg-base);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .card-body {
+      padding: 36px 32px 32px;
+    }
+
+    /* Progress bar at top of card */
+    .progress-bar {
+      height: 3px;
+      background: var(--bg-surface);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 500ms cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 8px rgba(93, 228, 199, 0.3);
+    }
+
+    /* ========================================
+       Screen Transitions
+       ======================================== */
+    .screen {
+      display: none;
+      animation: screenIn 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    @keyframes screenIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* ========================================
+       Brand
+       ======================================== */
+    .brand {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .brand-logo {
+      font-family: var(--font-mono);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-shadow: var(--accent-glow);
+      margin-bottom: 8px;
+    }
+
+    .brand-tagline {
+      font-size: 15px;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    /* ========================================
+       Screen Titles
+       ======================================== */
+    .screen-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .screen-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    /* ========================================
+       Invite Details Card
+       ======================================== */
+    .invite-details {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-lg);
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+
+    .invite-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+
+    .invite-row:not(:last-child) {
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .invite-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .invite-value {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .invite-valid {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--success);
+      font-weight: 500;
+    }
+
+    .invite-valid svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .invite-invalid {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--danger);
+      font-weight: 500;
+    }
+
+    .invite-invalid svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .invite-error-banner {
+      background: var(--danger-dim);
+      border: 1px solid rgba(212, 85, 85, 0.2);
+      border-radius: var(--r-md);
+      padding: 14px 16px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--danger);
+      font-weight: 500;
+    }
+
+    .invite-error-banner svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    /* ========================================
+       Form Elements
+       ======================================== */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .form-input, .form-textarea {
+      width: 100%;
+      font-family: var(--font-body);
+      font-size: 14px;
+      color: var(--text-primary);
+      background: var(--bg-raised);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-md);
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color var(--t-base), box-shadow var(--t-base);
+    }
+
+    .form-input:focus, .form-textarea:focus {
+      border-color: var(--border-accent);
+      box-shadow: 0 0 0 3px var(--accent-ghost);
+    }
+
+    .form-input::placeholder, .form-textarea::placeholder {
+      color: var(--text-faint);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+      line-height: 1.5;
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* Password group */
+    .password-group {
+      position: relative;
+    }
+
+    .password-group .form-input {
+      padding-right: 44px;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color var(--t-fast);
+    }
+
+    .password-toggle:hover {
+      color: var(--text-secondary);
+    }
+
+    .password-match {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      margin-top: 6px;
+      opacity: 0;
+      transition: opacity var(--t-base);
+    }
+
+    .password-match.visible {
+      opacity: 1;
+    }
+
+    .password-match.match {
+      color: var(--success);
+    }
+
+    .password-match.no-match {
+      color: var(--danger);
+    }
+
+    /* Subdomain preview */
+    .subdomain-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .subdomain-row .form-input {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+      flex: 1;
+    }
+
+    .subdomain-suffix {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-left: none;
+      border-radius: 0 var(--r-md) var(--r-md) 0;
+      padding: 12px 14px;
+      white-space: nowrap;
+      height: 44px;
+      display: flex;
+      align-items: center;
+    }
+
+    .subdomain-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      margin-top: 6px;
+      min-height: 18px;
+    }
+
+    .subdomain-status.available {
+      color: var(--success);
+    }
+
+    .subdomain-status.unavailable {
+      color: var(--danger);
+    }
+
+    .subdomain-status.checking {
+      color: var(--text-muted);
+    }
+
+    /* ========================================
+       Registration Mode Cards
+       ======================================== */
+    .mode-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .mode-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 16px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-lg);
+      cursor: pointer;
+      transition: border-color var(--t-base), background var(--t-base), box-shadow var(--t-base);
+    }
+
+    .mode-card:hover {
+      background: var(--bg-surface);
+      border-color: var(--border-medium);
+    }
+
+    .mode-card.selected {
+      border-color: var(--border-accent);
+      background: var(--accent-wash);
+      box-shadow: 0 0 0 1px var(--border-accent);
+    }
+
+    .mode-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--r-md);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--text-muted);
+      transition: all var(--t-base);
+    }
+
+    .mode-card.selected .mode-icon {
+      background: var(--accent-dim);
+      border-color: var(--border-accent);
+      color: var(--accent);
+    }
+
+    .mode-icon svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .mode-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .mode-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .mode-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .mode-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 2px 6px;
+      border-radius: var(--r-xs);
+    }
+
+    .mode-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    /* ========================================
+       Summary / Review
+       ======================================== */
+    .summary-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-lg);
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+
+    .summary-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+
+    .summary-row:not(:last-child) {
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .summary-key {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .summary-value {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 500;
+      text-align: right;
+    }
+
+    .summary-value.mono {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    /* ========================================
+       Buttons
+       ======================================== */
+    .btn {
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 0 20px;
+      height: 48px;
+      border-radius: var(--r-md);
+      border: none;
+      cursor: pointer;
+      transition: all var(--t-base);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-accent {
+      background: var(--accent);
+      color: var(--bg-void);
+    }
+
+    .btn-accent:hover:not(:disabled) {
+      background: var(--accent-bright);
+      box-shadow: var(--accent-glow);
+    }
+
+    .btn-accent:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-launch {
+      background: var(--accent);
+      color: var(--bg-void);
+      font-size: 16px;
+      font-weight: 700;
+      height: 52px;
+      border-radius: var(--r-lg);
+      box-shadow: var(--accent-glow);
+    }
+
+    .btn-launch:hover:not(:disabled) {
+      background: var(--accent-bright);
+      box-shadow: var(--accent-glow-strong);
+      transform: translateY(-1px);
+    }
+
+    .btn-launch:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-actions {
+      margin-top: 28px;
+    }
+
+    /* ========================================
+       Links
+       ======================================== */
+    .link {
+      color: var(--accent-soft);
+      font-size: 13px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: color var(--t-fast);
+    }
+
+    .link:hover {
+      color: var(--accent);
+    }
+
+    .link-center {
+      display: block;
+      text-align: center;
+      margin-top: 16px;
+    }
+
+    /* ========================================
+       Provisioning Steps
+       ======================================== */
+    .provisioning-steps {
+      margin-bottom: 28px;
+    }
+
+    .prov-step {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .prov-step:last-child {
+      border-bottom: none;
+    }
+
+    .prov-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+      background: var(--bg-surface);
+      color: var(--text-faint);
+      border: 1px solid var(--border-subtle);
+      transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .prov-step.active .prov-icon {
+      background: var(--accent-dim);
+      border-color: var(--border-accent);
+      color: var(--accent);
+    }
+
+    .prov-step.completed .prov-icon {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg-void);
+    }
+
+    .prov-step.final.completed .prov-icon {
+      box-shadow: var(--accent-glow-strong);
+    }
+
+    .prov-label {
+      font-size: 14px;
+      color: var(--text-faint);
+      transition: color 400ms ease;
+    }
+
+    .prov-step.active .prov-label {
+      color: var(--text-primary);
+    }
+
+    .prov-step.completed .prov-label {
+      color: var(--text-secondary);
+    }
+
+    .prov-step.final.completed .prov-label {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid transparent;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 600ms linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ========================================
+       Completion State
+       ======================================== */
+    .completion {
+      text-align: center;
+    }
+
+    .completion-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+      text-decoration: none;
+      padding: 16px;
+      background: var(--accent-wash);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--r-lg);
+      margin-bottom: 16px;
+      transition: all var(--t-base);
+      box-shadow: var(--accent-glow);
+    }
+
+    .completion-link:hover {
+      background: var(--accent-dim);
+      box-shadow: var(--accent-glow-strong);
+    }
+
+    .completion-tip {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 20px;
+      padding: 14px 16px;
+      background: var(--bg-surface);
+      border-radius: var(--r-md);
+      border: 1px solid var(--border-subtle);
+      line-height: 1.5;
+    }
+
+    .completion-tip strong {
+      color: var(--text-secondary);
+    }
+
+    /* ========================================
+       Demo Toggle
+       ======================================== */
+    .demo-toggle {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 100;
+    }
+
+    .demo-btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 6px 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-sm);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--t-fast);
+    }
+
+    .demo-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .demo-btn.active {
+      border-color: var(--border-accent);
+      color: var(--accent);
+    }
+
+    /* ========================================
+       Small Print
+       ======================================== */
+    .small-print {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 12px;
+    }
+
+    /* ========================================
+       Responsive
+       ======================================== */
+    @media (max-width: 540px) {
+      .card-body {
+        padding: 28px 20px 24px;
+      }
+
+      .brand-logo {
+        font-size: 24px;
+      }
+
+      .screen-title {
+        font-size: 20px;
+      }
+
+      .subdomain-suffix {
+        font-size: 11px;
+        padding: 12px 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Demo controls -->
+  <div class="demo-toggle" role="group" aria-label="Demo controls">
+    <button class="demo-btn" onclick="toggleInviteState()" id="demoInvalidBtn">Toggle Invalid</button>
+    <button class="demo-btn" onclick="resetFlow()">Reset Flow</button>
+  </div>
+
+  <div class="signup-container">
+    <div class="card">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <!-- ==========================================
+           Screen 1: Invite Landing
+           ========================================== -->
+      <div class="card-body">
+        <div class="screen active" id="screen1">
+          <div class="brand">
+            <div class="brand-logo">HOTBOX</div>
+            <div class="brand-tagline">You've been invited to host on HotBox</div>
+          </div>
+
+          <!-- Valid invite state -->
+          <div id="inviteValid">
+            <div class="invite-details">
+              <div class="invite-row">
+                <span class="invite-label">Invited by</span>
+                <span class="invite-value">cpike</span>
+              </div>
+              <div class="invite-row">
+                <span class="invite-label">Invite expires</span>
+                <span class="invite-value" id="inviteExpiry">March 17, 2026</span>
+              </div>
+              <div class="invite-row">
+                <span class="invite-label">Status</span>
+                <span class="invite-valid">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  Valid invite
+                </span>
+              </div>
+            </div>
+            <div class="btn-actions">
+              <button class="btn btn-accent" onclick="goToScreen(2)">Get Started</button>
+            </div>
+          </div>
+
+          <!-- Invalid/expired invite state -->
+          <div id="inviteInvalid" style="display: none;">
+            <div class="invite-error-banner">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              This invite link has expired or is no longer valid.
+            </div>
+            <div class="invite-details" style="opacity: 0.5;">
+              <div class="invite-row">
+                <span class="invite-label">Invited by</span>
+                <span class="invite-value">cpike</span>
+              </div>
+              <div class="invite-row">
+                <span class="invite-label">Invite expired</span>
+                <span class="invite-value" style="color: var(--danger);">March 3, 2026</span>
+              </div>
+              <div class="invite-row">
+                <span class="invite-label">Status</span>
+                <span class="invite-invalid">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  Expired
+                </span>
+              </div>
+            </div>
+            <div class="btn-actions">
+              <button class="btn btn-accent" disabled>Get Started</button>
+            </div>
+            <p class="small-print" style="margin-top: 16px;">Contact the person who invited you for a new link.</p>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             Screen 2: Create Your Account
+             ========================================== -->
+        <div class="screen" id="screen2">
+          <h2 class="screen-title">Create your account</h2>
+          <p class="screen-subtitle">This is your account on the HotBox hosting platform.</p>
+
+          <div class="form-group">
+            <label class="form-label" for="username">Username</label>
+            <input type="text" class="form-input" id="username" placeholder="joeschmuck" autocomplete="username">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="email">Email</label>
+            <input type="email" class="form-input" id="email" placeholder="joe@example.com" autocomplete="email">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="password">Password</label>
+            <div class="password-group">
+              <input type="password" class="form-input" id="password" placeholder="At least 8 characters" autocomplete="new-password">
+              <button type="button" class="password-toggle" onclick="togglePassword('password', this)" aria-label="Toggle password visibility">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="confirmPassword">Confirm Password</label>
+            <div class="password-group">
+              <input type="password" class="form-input" id="confirmPassword" placeholder="Type your password again" autocomplete="new-password">
+              <button type="button" class="password-toggle" onclick="togglePassword('confirmPassword', this)" aria-label="Toggle password visibility">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="password-match" id="passwordMatch">
+              <span id="passwordMatchIcon"></span>
+              <span id="passwordMatchText"></span>
+            </div>
+          </div>
+
+          <div class="btn-actions">
+            <button class="btn btn-accent" id="createAccountBtn" onclick="goToScreen(3)" disabled>Create Account</button>
+          </div>
+
+          <a href="#" class="link link-center">Already have an account? Sign in</a>
+        </div>
+
+        <!-- ==========================================
+             Screen 3: Name Your Instance
+             ========================================== -->
+        <div class="screen" id="screen3">
+          <h2 class="screen-title">Let's set up your server</h2>
+          <p class="screen-subtitle">Give your HotBox instance a name and pick your subdomain.</p>
+
+          <div class="form-group">
+            <label class="form-label" for="instanceName">Instance Name</label>
+            <input type="text" class="form-input" id="instanceName" placeholder="The Hot Box Room">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="subdomain">Subdomain</label>
+            <div class="subdomain-row">
+              <input type="text" class="form-input" id="subdomain" placeholder="thbr">
+              <span class="subdomain-suffix">.hotboxchat.ca</span>
+            </div>
+            <div class="subdomain-status" id="subdomainStatus"></div>
+            <p class="form-hint">This will be your permanent URL -- choose wisely!</p>
+          </div>
+
+          <div class="btn-actions">
+            <button class="btn btn-accent" id="continueBtn3" onclick="goToScreen(4)" disabled>Continue</button>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             Screen 4: Configure Your Server
+             ========================================== -->
+        <div class="screen" id="screen4">
+          <h2 class="screen-title">A few quick settings</h2>
+          <p class="screen-subtitle">You can change all of these later from your instance admin panel.</p>
+
+          <label class="form-label">Registration Mode</label>
+          <div class="mode-cards">
+            <div class="mode-card" onclick="selectMode(this, 'open')" role="button" tabindex="0" aria-pressed="false">
+              <div class="mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+              </div>
+              <div class="mode-content">
+                <div class="mode-title-row">
+                  <span class="mode-title">Open</span>
+                </div>
+                <div class="mode-desc">Anyone can create an account</div>
+              </div>
+            </div>
+
+            <div class="mode-card selected" onclick="selectMode(this, 'invite')" role="button" tabindex="0" aria-pressed="true">
+              <div class="mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+              </div>
+              <div class="mode-content">
+                <div class="mode-title-row">
+                  <span class="mode-title">Invite Only</span>
+                  <span class="mode-badge">Recommended</span>
+                </div>
+                <div class="mode-desc">You control who joins</div>
+              </div>
+            </div>
+
+            <div class="mode-card" onclick="selectMode(this, 'closed')" role="button" tabindex="0" aria-pressed="false">
+              <div class="mode-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <div class="mode-content">
+                <div class="mode-title-row">
+                  <span class="mode-title">Closed</span>
+                </div>
+                <div class="mode-desc">Only you can create accounts</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="serverDesc">Server Description <span style="font-weight: 400; text-transform: none; letter-spacing: 0;">(optional)</span></label>
+            <textarea class="form-textarea" id="serverDesc" placeholder="A chill place for our crew"></textarea>
+          </div>
+
+          <div class="btn-actions">
+            <button class="btn btn-accent" onclick="goToScreen(5)">Continue</button>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             Screen 5: Ready to Launch
+             ========================================== -->
+        <div class="screen" id="screen5">
+          <h2 class="screen-title">You're all set!</h2>
+          <p class="screen-subtitle">Here's what we're about to create:</p>
+
+          <div class="summary-card">
+            <div class="summary-row">
+              <span class="summary-key">Instance</span>
+              <span class="summary-value" id="summaryName">The Hot Box Room</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-key">URL</span>
+              <span class="summary-value mono" id="summaryUrl">thbr.hotboxchat.ca</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-key">Registration</span>
+              <span class="summary-value" id="summaryMode">Invite Only</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-key">Admin</span>
+              <span class="summary-value" id="summaryAdmin">joeschmuck</span>
+            </div>
+          </div>
+
+          <div class="btn-actions">
+            <button class="btn btn-launch" onclick="startProvisioning()">Launch My Server</button>
+          </div>
+          <p class="small-print">Your instance will be ready in about 30-60 seconds</p>
+        </div>
+
+        <!-- ==========================================
+             Screen 6: Provisioning & Done
+             ========================================== -->
+        <div class="screen" id="screen6">
+          <!-- Provisioning state -->
+          <div id="provisioningState">
+            <h2 class="screen-title" style="text-align: center;">Setting things up...</h2>
+            <p class="screen-subtitle" style="text-align: center;">Hang tight, we're building your server.</p>
+
+            <div class="provisioning-steps">
+              <div class="prov-step" id="prov1">
+                <div class="prov-icon">
+                  <div class="spinner" style="display: none;"></div>
+                  <svg class="prov-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  <span class="prov-dot">1</span>
+                </div>
+                <span class="prov-label">Setting up your database...</span>
+              </div>
+              <div class="prov-step" id="prov2">
+                <div class="prov-icon">
+                  <div class="spinner" style="display: none;"></div>
+                  <svg class="prov-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  <span class="prov-dot">2</span>
+                </div>
+                <span class="prov-label">Configuring your server...</span>
+              </div>
+              <div class="prov-step" id="prov3">
+                <div class="prov-icon">
+                  <div class="spinner" style="display: none;"></div>
+                  <svg class="prov-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  <span class="prov-dot">3</span>
+                </div>
+                <span class="prov-label">Starting everything up...</span>
+              </div>
+              <div class="prov-step" id="prov4">
+                <div class="prov-icon">
+                  <div class="spinner" style="display: none;"></div>
+                  <svg class="prov-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  <span class="prov-dot">4</span>
+                </div>
+                <span class="prov-label">Almost there...</span>
+              </div>
+              <div class="prov-step final" id="prov5">
+                <div class="prov-icon">
+                  <div class="spinner" style="display: none;"></div>
+                  <svg class="prov-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  <span class="prov-dot">5</span>
+                </div>
+                <span class="prov-label">Your server is live!</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Completion state -->
+          <div id="completionState" style="display: none;">
+            <div class="brand" style="margin-bottom: 24px;">
+              <div class="brand-logo">HOTBOX</div>
+            </div>
+            <h2 class="screen-title" style="text-align: center;">You're live!</h2>
+            <p class="screen-subtitle" style="text-align: center;">Your HotBox server is up and running.</p>
+
+            <div class="completion">
+              <a href="#" class="completion-link" id="completionUrl">
+                <span id="completionUrlText">thbr.hotboxchat.ca</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+              </a>
+
+              <a href="#" class="link" style="font-size: 13px;">Back to dashboard</a>
+
+              <div class="completion-tip">
+                <strong>Tip:</strong> Share your invite link with friends to get them on your server!
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // State
+    // ==========================================
+    let currentScreen = 1;
+    let inviteValid = true;
+    let selectedMode = 'invite';
+    let subdomainTimeout = null;
+
+    const modeLabels = {
+      open: 'Open',
+      invite: 'Invite Only',
+      closed: 'Closed'
+    };
+
+    // ==========================================
+    // Navigation
+    // ==========================================
+    function goToScreen(num) {
+      const current = document.getElementById('screen' + currentScreen);
+      const next = document.getElementById('screen' + num);
+
+      if (!current || !next) return;
+
+      // Populate summary on screen 5
+      if (num === 5) {
+        populateSummary();
+      }
+
+      current.classList.remove('active');
+      // Small delay so the animation plays fresh
+      requestAnimationFrame(() => {
+        next.classList.remove('active');
+        void next.offsetWidth;
+        next.classList.add('active');
+      });
+
+      currentScreen = num;
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const fill = document.getElementById('progressFill');
+      // 6 screens total, progress from 0% to 100%
+      const pct = ((currentScreen - 1) / 5) * 100;
+      fill.style.width = pct + '%';
+    }
+
+    function resetFlow() {
+      currentScreen = 1;
+      // Reset all screens
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen1').classList.add('active');
+      updateProgress();
+
+      // Reset form values
+      document.getElementById('username').value = '';
+      document.getElementById('email').value = '';
+      document.getElementById('password').value = '';
+      document.getElementById('confirmPassword').value = '';
+      document.getElementById('instanceName').value = '';
+      document.getElementById('subdomain').value = '';
+      document.getElementById('serverDesc').value = '';
+      document.getElementById('createAccountBtn').disabled = true;
+      document.getElementById('continueBtn3').disabled = true;
+      document.getElementById('passwordMatch').className = 'password-match';
+      document.getElementById('subdomainStatus').innerHTML = '';
+      document.getElementById('subdomainStatus').className = 'subdomain-status';
+
+      // Reset provisioning
+      document.getElementById('provisioningState').style.display = '';
+      document.getElementById('completionState').style.display = 'none';
+      document.querySelectorAll('.prov-step').forEach(step => {
+        step.className = step.classList.contains('final') ? 'prov-step final' : 'prov-step';
+        step.querySelector('.spinner').style.display = 'none';
+        step.querySelector('.prov-check').style.display = 'none';
+        step.querySelector('.prov-dot').style.display = '';
+      });
+
+      // Reset invite state
+      if (!inviteValid) {
+        toggleInviteState();
+      }
+
+      // Reset mode selection
+      document.querySelectorAll('.mode-card').forEach(c => {
+        c.classList.remove('selected');
+        c.setAttribute('aria-pressed', 'false');
+      });
+      document.querySelectorAll('.mode-card')[1].classList.add('selected');
+      document.querySelectorAll('.mode-card')[1].setAttribute('aria-pressed', 'true');
+      selectedMode = 'invite';
+    }
+
+    // ==========================================
+    // Invite State Toggle (demo)
+    // ==========================================
+    function toggleInviteState() {
+      inviteValid = !inviteValid;
+      document.getElementById('inviteValid').style.display = inviteValid ? '' : 'none';
+      document.getElementById('inviteInvalid').style.display = inviteValid ? 'none' : '';
+      document.getElementById('demoInvalidBtn').classList.toggle('active', !inviteValid);
+    }
+
+    // ==========================================
+    // Password Toggle
+    // ==========================================
+    function togglePassword(inputId, btn) {
+      const input = document.getElementById(inputId);
+      const isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+
+      // Swap icon
+      if (isPassword) {
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+      } else {
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+      }
+    }
+
+    // ==========================================
+    // Form Validation — Screen 2
+    // ==========================================
+    function validateScreen2() {
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const confirm = document.getElementById('confirmPassword').value;
+
+      const passwordsMatch = password.length >= 8 && password === confirm;
+      const allFilled = username.length > 0 && email.length > 0 && password.length >= 8 && passwordsMatch;
+
+      document.getElementById('createAccountBtn').disabled = !allFilled;
+
+      // Password match indicator
+      const matchEl = document.getElementById('passwordMatch');
+      const matchIcon = document.getElementById('passwordMatchIcon');
+      const matchText = document.getElementById('passwordMatchText');
+
+      if (confirm.length > 0) {
+        matchEl.classList.add('visible');
+        if (password === confirm) {
+          matchEl.className = 'password-match visible match';
+          matchIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+          matchText.textContent = 'Passwords match';
+        } else {
+          matchEl.className = 'password-match visible no-match';
+          matchIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+          matchText.textContent = 'Passwords do not match';
+        }
+      } else {
+        matchEl.classList.remove('visible');
+      }
+    }
+
+    document.getElementById('username').addEventListener('input', validateScreen2);
+    document.getElementById('email').addEventListener('input', validateScreen2);
+    document.getElementById('password').addEventListener('input', validateScreen2);
+    document.getElementById('confirmPassword').addEventListener('input', validateScreen2);
+
+    // ==========================================
+    // Subdomain Logic — Screen 3
+    // ==========================================
+    function slugify(str) {
+      return str
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    }
+
+    function generateAbbreviation(name) {
+      // Take first letter of each word, max 6 chars
+      const words = name.trim().split(/\s+/).filter(w => w.length > 0);
+      if (words.length <= 1) return slugify(name);
+      return words.map(w => w[0]).join('').toLowerCase().slice(0, 6);
+    }
+
+    let userEditedSubdomain = false;
+
+    document.getElementById('instanceName').addEventListener('input', function() {
+      if (!userEditedSubdomain) {
+        const abbr = generateAbbreviation(this.value);
+        document.getElementById('subdomain').value = abbr;
+        checkSubdomain(abbr);
+      }
+      validateScreen3();
+    });
+
+    document.getElementById('subdomain').addEventListener('input', function() {
+      userEditedSubdomain = true;
+      const val = slugify(this.value);
+      this.value = val;
+      checkSubdomain(val);
+      validateScreen3();
+    });
+
+    document.getElementById('subdomain').addEventListener('focus', function() {
+      // Allow manual override
+    });
+
+    function checkSubdomain(val) {
+      const statusEl = document.getElementById('subdomainStatus');
+
+      if (!val || val.length === 0) {
+        statusEl.innerHTML = '';
+        statusEl.className = 'subdomain-status';
+        return;
+      }
+
+      // Clear existing timeout
+      if (subdomainTimeout) clearTimeout(subdomainTimeout);
+
+      statusEl.className = 'subdomain-status checking';
+      statusEl.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> Checking availability...';
+
+      subdomainTimeout = setTimeout(() => {
+        // Fake: "taken" is unavailable, everything else is available
+        if (val === 'taken') {
+          statusEl.className = 'subdomain-status unavailable';
+          statusEl.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> <span><strong>' + val + '</strong>.hotboxchat.ca is taken</span>';
+          document.getElementById('continueBtn3').disabled = true;
+        } else {
+          statusEl.className = 'subdomain-status available';
+          statusEl.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> <span><strong>' + val + '</strong>.hotboxchat.ca is available</span>';
+          validateScreen3();
+        }
+      }, 500);
+    }
+
+    function validateScreen3() {
+      const name = document.getElementById('instanceName').value.trim();
+      const subdomain = document.getElementById('subdomain').value.trim();
+      const statusEl = document.getElementById('subdomainStatus');
+      const isAvailable = statusEl.classList.contains('available');
+
+      document.getElementById('continueBtn3').disabled = !(name.length > 0 && subdomain.length > 0 && isAvailable);
+    }
+
+    // ==========================================
+    // Registration Mode — Screen 4
+    // ==========================================
+    function selectMode(card, mode) {
+      document.querySelectorAll('.mode-card').forEach(c => {
+        c.classList.remove('selected');
+        c.setAttribute('aria-pressed', 'false');
+      });
+      card.classList.add('selected');
+      card.setAttribute('aria-pressed', 'true');
+      selectedMode = mode;
+    }
+
+    // Allow keyboard activation on mode cards
+    document.querySelectorAll('.mode-card').forEach(card => {
+      card.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          this.click();
+        }
+      });
+    });
+
+    // ==========================================
+    // Summary — Screen 5
+    // ==========================================
+    function populateSummary() {
+      const name = document.getElementById('instanceName').value.trim() || 'The Hot Box Room';
+      const subdomain = document.getElementById('subdomain').value.trim() || 'thbr';
+      const username = document.getElementById('username').value.trim() || 'joeschmuck';
+
+      document.getElementById('summaryName').textContent = name;
+      document.getElementById('summaryUrl').textContent = subdomain + '.hotboxchat.ca';
+      document.getElementById('summaryMode').textContent = modeLabels[selectedMode] || 'Invite Only';
+      document.getElementById('summaryAdmin').textContent = username;
+    }
+
+    // ==========================================
+    // Provisioning — Screen 6
+    // ==========================================
+    function startProvisioning() {
+      goToScreen(6);
+
+      const steps = [
+        { id: 'prov1', delay: 1000 },
+        { id: 'prov2', delay: 1500 },
+        { id: 'prov3', delay: 2000 },
+        { id: 'prov4', delay: 1000 },
+        { id: 'prov5', delay: 800 },
+      ];
+
+      let totalDelay = 0;
+
+      steps.forEach((step, idx) => {
+        const el = document.getElementById(step.id);
+
+        // Start this step (make active)
+        setTimeout(() => {
+          el.classList.add('active');
+          el.querySelector('.spinner').style.display = '';
+          el.querySelector('.prov-dot').style.display = 'none';
+        }, totalDelay);
+
+        totalDelay += step.delay;
+
+        // Complete this step
+        setTimeout(() => {
+          el.classList.remove('active');
+          el.classList.add('completed');
+          el.querySelector('.spinner').style.display = 'none';
+          el.querySelector('.prov-check').style.display = '';
+        }, totalDelay);
+      });
+
+      // Show completion after all steps
+      setTimeout(() => {
+        const subdomain = document.getElementById('subdomain').value.trim() || 'thbr';
+        document.getElementById('completionUrlText').textContent = subdomain + '.hotboxchat.ca';
+
+        document.getElementById('provisioningState').style.display = 'none';
+        document.getElementById('completionState').style.display = '';
+
+        // Re-trigger animation
+        const screen6 = document.getElementById('screen6');
+        screen6.style.animation = 'none';
+        void screen6.offsetWidth;
+        screen6.style.animation = '';
+      }, totalDelay + 600);
+    }
+
+    // ==========================================
+    // Init
+    // ==========================================
+    // Set invite expiry to local time
+    const expiryDate = new Date('2026-03-17T23:59:59Z');
+    document.getElementById('inviteExpiry').textContent = expiryDate.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+
+    updateProgress();
+  </script>
+</body>
+</html>

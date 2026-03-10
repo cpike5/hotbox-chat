@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HotBox Provisioner — Setup Wizard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ========================================
+       Design Tokens
+       ======================================== */
+    :root {
+      --bg-void: #08080b;
+      --bg-deepest: #0b0b10;
+      --bg-deep: #0f0f16;
+      --bg-base: #13131c;
+      --bg-raised: #191924;
+      --bg-surface: #1f1f2c;
+      --bg-hover: #262635;
+      --bg-active: #2e2e3f;
+      --bg-elevated: #35354a;
+
+      --glass-subtle: rgba(255, 255, 255, 0.02);
+      --glass-light: rgba(255, 255, 255, 0.04);
+      --glass-medium: rgba(255, 255, 255, 0.06);
+      --glass-strong: rgba(255, 255, 255, 0.08);
+
+      --text-primary: #e8e8f0;
+      --text-secondary: #9898ac;
+      --text-muted: #5e5e74;
+      --text-faint: #3a3a4e;
+
+      --accent: #5de4c7;
+      --accent-bright: #7aecd5;
+      --accent-soft: #4dc4ab;
+      --accent-dim: rgba(93, 228, 199, 0.15);
+      --accent-wash: rgba(93, 228, 199, 0.08);
+      --accent-ghost: rgba(93, 228, 199, 0.04);
+      --accent-glow: 0 0 20px rgba(93, 228, 199, 0.15);
+      --accent-glow-strong: 0 0 30px rgba(93, 228, 199, 0.25);
+
+      --danger: #d45555;
+      --danger-dim: rgba(212, 85, 85, 0.12);
+      --warning: #d4a843;
+      --success: #5ec269;
+      --info: #5586d4;
+
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --border-light: rgba(255, 255, 255, 0.07);
+      --border-medium: rgba(255, 255, 255, 0.10);
+      --border-accent: rgba(93, 228, 199, 0.25);
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+      --r-xs: 3px;
+      --r-sm: 5px;
+      --r-md: 8px;
+      --r-lg: 12px;
+      --r-xl: 16px;
+      --r-pill: 9999px;
+
+      --t-fast: 80ms ease;
+      --t-base: 150ms ease;
+      --t-smooth: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+
+      --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    }
+
+    /* ========================================
+       Reset & Base
+       ======================================== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-void);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow-y: auto;
+      padding: 40px 20px;
+    }
+
+    /* ========================================
+       Wizard Container
+       ======================================== */
+    .wizard {
+      width: 100%;
+      max-width: 600px;
+      position: relative;
+    }
+
+    .wizard-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .wizard-logo {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .wizard-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .wizard-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* ========================================
+       Step Indicator
+       ======================================== */
+    .step-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      margin-bottom: 32px;
+    }
+
+    .step-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      border: 2px solid var(--border-light);
+      background: var(--bg-raised);
+      color: var(--text-muted);
+      transition: all var(--t-smooth);
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .step-dot.completed {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg-void);
+    }
+
+    .step-dot.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: var(--accent-glow);
+    }
+
+    .step-line {
+      width: 48px;
+      height: 2px;
+      background: var(--border-light);
+      transition: background var(--t-smooth);
+      flex-shrink: 0;
+    }
+
+    .step-line.completed {
+      background: var(--accent);
+    }
+
+    /* ========================================
+       Card
+       ======================================== */
+    .wizard-card {
+      background: var(--bg-base);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .wizard-card-inner {
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ========================================
+       Step Panels
+       ======================================== */
+    .step-panel {
+      padding: 32px;
+      display: none;
+      animation-duration: 300ms;
+      animation-fill-mode: both;
+      animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .step-panel.active {
+      display: block;
+    }
+
+    .step-panel.slide-in-right {
+      animation-name: slideInRight;
+    }
+
+    .step-panel.slide-in-left {
+      animation-name: slideInLeft;
+    }
+
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .step-heading {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .step-description {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    /* ========================================
+       Form Elements
+       ======================================== */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+
+    .form-input,
+    .form-textarea {
+      width: 100%;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-md);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 14px;
+      padding: 10px 12px;
+      transition: border-color var(--t-base), box-shadow var(--t-base);
+      outline: none;
+    }
+
+    .form-input::placeholder,
+    .form-textarea::placeholder {
+      color: var(--text-faint);
+    }
+
+    .form-input:focus,
+    .form-textarea:focus {
+      border-color: var(--border-accent);
+      box-shadow: 0 0 0 3px var(--accent-ghost), var(--accent-glow);
+    }
+
+    .form-input.error,
+    .form-textarea.error {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 3px var(--danger-dim);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .form-error {
+      font-size: 12px;
+      color: var(--danger);
+      margin-top: 6px;
+      display: none;
+    }
+
+    .form-error.visible {
+      display: block;
+    }
+
+    /* Subdomain input group */
+    .subdomain-group {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .subdomain-group .form-input {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+      border-right: none;
+      flex: 1;
+    }
+
+    .subdomain-suffix {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-left: none;
+      border-top-right-radius: var(--r-md);
+      border-bottom-right-radius: var(--r-md);
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 40px;
+    }
+
+    .subdomain-status {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity var(--t-base);
+    }
+
+    .subdomain-status.visible {
+      opacity: 1;
+    }
+
+    .subdomain-status.available {
+      color: var(--success);
+    }
+
+    .subdomain-status.unavailable {
+      color: var(--danger);
+    }
+
+    .subdomain-status.checking {
+      color: var(--text-muted);
+    }
+
+    /* Subdomain preview */
+    .subdomain-preview {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      padding: 6px 10px;
+      background: var(--bg-raised);
+      border-radius: var(--r-sm);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .subdomain-preview .url-accent {
+      color: var(--accent);
+    }
+
+    /* Password input group */
+    .password-group {
+      position: relative;
+    }
+
+    .password-group .form-input {
+      padding-right: 44px;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color var(--t-fast);
+    }
+
+    .password-toggle:hover {
+      color: var(--text-secondary);
+    }
+
+    .password-match {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      margin-top: 6px;
+      opacity: 0;
+      transition: opacity var(--t-base);
+    }
+
+    .password-match.visible {
+      opacity: 1;
+    }
+
+    .password-match.match {
+      color: var(--success);
+    }
+
+    .password-match.no-match {
+      color: var(--danger);
+    }
+
+    /* Radio group */
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .radio-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-md);
+      cursor: pointer;
+      transition: border-color var(--t-base), background var(--t-base);
+    }
+
+    .radio-option:hover {
+      background: var(--bg-surface);
+    }
+
+    .radio-option.selected {
+      border-color: var(--border-accent);
+      background: var(--accent-ghost);
+    }
+
+    .radio-option input[type="radio"] {
+      display: none;
+    }
+
+    .radio-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--border-medium);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+      transition: border-color var(--t-base);
+    }
+
+    .radio-dot::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: transparent;
+      transition: background var(--t-base);
+    }
+
+    .radio-option.selected .radio-dot {
+      border-color: var(--accent);
+    }
+
+    .radio-option.selected .radio-dot::after {
+      background: var(--accent);
+    }
+
+    .radio-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .radio-label-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .radio-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 2px 6px;
+      border-radius: var(--r-xs);
+      margin-left: 8px;
+    }
+
+    /* Number input */
+    .form-input[type="number"] {
+      -moz-appearance: textfield;
+      width: 120px;
+    }
+
+    .form-input[type="number"]::-webkit-outer-spin-button,
+    .form-input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+    }
+
+    /* ========================================
+       Footer / Actions
+       ======================================== */
+    .wizard-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 32px;
+      border-top: 1px solid var(--border-subtle);
+      background: var(--glass-subtle);
+    }
+
+    .btn {
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 20px;
+      border-radius: var(--r-md);
+      border: none;
+      cursor: pointer;
+      transition: all var(--t-base);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-light);
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--glass-medium);
+      color: var(--text-primary);
+    }
+
+    .btn-accent {
+      background: var(--accent);
+      color: var(--bg-void);
+      font-weight: 600;
+    }
+
+    .btn-accent:hover:not(:disabled) {
+      background: var(--accent-bright);
+      box-shadow: var(--accent-glow);
+    }
+
+    .btn-launch {
+      background: var(--accent);
+      color: var(--bg-void);
+      font-weight: 600;
+      font-size: 15px;
+      padding: 14px 32px;
+      border-radius: var(--r-lg);
+      width: 100%;
+      justify-content: center;
+      box-shadow: var(--accent-glow);
+    }
+
+    .btn-launch:hover:not(:disabled) {
+      background: var(--accent-bright);
+      box-shadow: var(--accent-glow-strong);
+      transform: translateY(-1px);
+    }
+
+    .btn-launch:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    /* ========================================
+       Review Step
+       ======================================== */
+    .review-section {
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-md);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .review-section:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .review-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .review-section-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .review-edit-link {
+      font-size: 12px;
+      color: var(--accent-soft);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: var(--font-body);
+      transition: color var(--t-fast);
+    }
+
+    .review-edit-link:hover {
+      color: var(--accent);
+    }
+
+    .review-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+
+    .review-key {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .review-value {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 500;
+      text-align: right;
+    }
+
+    .review-value.mono {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    .review-disclaimer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 16px;
+    }
+
+    .review-content {
+      margin-bottom: 24px;
+    }
+
+    /* ========================================
+       Provisioning State
+       ======================================== */
+    .provisioning {
+      display: none;
+    }
+
+    .provisioning.active {
+      display: block;
+    }
+
+    .provisioning-step {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .provisioning-step:last-child {
+      border-bottom: none;
+    }
+
+    .prov-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+      background: var(--bg-surface);
+      color: var(--text-faint);
+      border: 1px solid var(--border-subtle);
+      transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .provisioning-step.active .prov-icon {
+      background: var(--accent-dim);
+      border-color: var(--border-accent);
+      color: var(--accent);
+    }
+
+    .provisioning-step.completed .prov-icon {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg-void);
+    }
+
+    .provisioning-step.final.completed .prov-icon {
+      box-shadow: var(--accent-glow-strong);
+    }
+
+    .prov-label {
+      font-size: 14px;
+      color: var(--text-faint);
+      transition: color 400ms ease;
+    }
+
+    .provisioning-step.active .prov-label {
+      color: var(--text-primary);
+    }
+
+    .provisioning-step.completed .prov-label {
+      color: var(--text-secondary);
+    }
+
+    .provisioning-step.final.completed .prov-label {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid transparent;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 600ms linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .prov-check {
+      display: none;
+    }
+
+    .provisioning-step.completed .prov-check {
+      display: block;
+    }
+
+    .provisioning-step.completed .spinner {
+      display: none;
+    }
+
+    .provisioning-step .spinner {
+      display: none;
+    }
+
+    .provisioning-step.active .spinner {
+      display: block;
+    }
+
+    /* Post-provisioning */
+    .post-provision {
+      display: none;
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .post-provision.visible {
+      display: block;
+      animation: fadeIn 400ms ease both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .post-provision .btn-launch {
+      margin-bottom: 12px;
+    }
+
+    .post-provision .back-link {
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color var(--t-fast);
+    }
+
+    .post-provision .back-link:hover {
+      color: var(--text-primary);
+    }
+
+    /* ========================================
+       SVG Icons (inline)
+       ======================================== */
+    .icon {
+      width: 16px;
+      height: 16px;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    /* ========================================
+       Responsive
+       ======================================== */
+    @media (max-width: 640px) {
+      .step-panel {
+        padding: 24px 20px;
+      }
+      .wizard-actions {
+        padding: 16px 20px;
+      }
+      .step-line {
+        width: 32px;
+      }
+      .subdomain-suffix {
+        font-size: 11px;
+        padding: 10px 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="wizard">
+  <!-- Header -->
+  <div class="wizard-header">
+    <div class="wizard-logo">HotBox Provisioner</div>
+    <h1 class="wizard-title">Set up your instance</h1>
+    <p class="wizard-subtitle">Configure your HotBox in a few quick steps</p>
+  </div>
+
+  <!-- Step Indicator -->
+  <div class="step-indicator" role="navigation" aria-label="Wizard progress">
+    <div class="step-dot active" data-step="1" aria-current="step">1</div>
+    <div class="step-line" data-line="1"></div>
+    <div class="step-dot" data-step="2">2</div>
+    <div class="step-line" data-line="2"></div>
+    <div class="step-dot" data-step="3">3</div>
+    <div class="step-line" data-line="3"></div>
+    <div class="step-dot" data-step="4">4</div>
+  </div>
+
+  <!-- Card -->
+  <div class="wizard-card">
+    <div class="wizard-card-inner">
+
+      <!-- Step 1: Instance Name & Subdomain -->
+      <div class="step-panel active" id="step-1" role="tabpanel" aria-label="Instance Name and Subdomain">
+        <h2 class="step-heading">Instance Name &amp; Subdomain</h2>
+        <p class="step-description">Choose a name and URL for your HotBox instance.</p>
+
+        <div class="form-group">
+          <label class="form-label" for="instance-name">Instance Name</label>
+          <input type="text" class="form-input" id="instance-name" placeholder="e.g., The Hot Box Room" autocomplete="off" required>
+          <div class="form-error" id="instance-name-error">Instance name is required</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="subdomain">Subdomain</label>
+          <div class="subdomain-group">
+            <input type="text" class="form-input" id="subdomain" placeholder="my-instance" autocomplete="off" required>
+            <div class="subdomain-suffix">
+              .hotboxchat.ca
+              <span class="subdomain-status" id="subdomain-status" aria-live="polite"></span>
+            </div>
+          </div>
+          <div class="form-error" id="subdomain-error">A valid subdomain is required</div>
+          <div class="subdomain-preview" id="subdomain-preview" style="display: none;">
+            Your instance URL: <span class="url-accent" id="subdomain-url"></span>
+          </div>
+          <p class="form-hint">This will be your instance's permanent URL. Letters, numbers, and hyphens only.</p>
+        </div>
+      </div>
+
+      <!-- Step 2: Admin Account -->
+      <div class="step-panel" id="step-2" role="tabpanel" aria-label="Admin Account">
+        <h2 class="step-heading">Admin Account</h2>
+        <p class="step-description">This will be the admin account for your HotBox instance.</p>
+
+        <div class="form-group">
+          <label class="form-label" for="display-name">Display Name</label>
+          <input type="text" class="form-input" id="display-name" placeholder="e.g., Admin" autocomplete="off" required>
+          <div class="form-error" id="display-name-error">Display name is required</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="email">Email</label>
+          <input type="email" class="form-input" id="email" placeholder="admin@example.com" autocomplete="off" required>
+          <div class="form-error" id="email-error">A valid email address is required</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div class="password-group">
+            <input type="password" class="form-input" id="password" placeholder="At least 8 characters" autocomplete="new-password" required>
+            <button type="button" class="password-toggle" aria-label="Toggle password visibility" data-target="password">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="form-error" id="password-error">Password must be at least 8 characters</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="confirm-password">Confirm Password</label>
+          <div class="password-group">
+            <input type="password" class="form-input" id="confirm-password" placeholder="Re-enter your password" autocomplete="new-password" required>
+            <button type="button" class="password-toggle" aria-label="Toggle password visibility" data-target="confirm-password">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="password-match" id="password-match" aria-live="polite">
+            <span id="match-icon"></span>
+            <span id="match-text"></span>
+          </div>
+          <div class="form-error" id="confirm-password-error">Passwords do not match</div>
+        </div>
+      </div>
+
+      <!-- Step 3: Server Settings -->
+      <div class="step-panel" id="step-3" role="tabpanel" aria-label="Server Settings">
+        <h2 class="step-heading">Server Settings</h2>
+        <p class="step-description">Configure how your instance handles registration and membership.</p>
+
+        <div class="form-group">
+          <label class="form-label">Registration Mode</label>
+          <div class="radio-group" role="radiogroup" aria-label="Registration mode">
+            <label class="radio-option" data-value="open">
+              <input type="radio" name="reg-mode" value="open">
+              <span class="radio-dot"></span>
+              <div>
+                <div class="radio-label">Open</div>
+                <div class="radio-label-hint">Anyone can sign up and join your instance</div>
+              </div>
+            </label>
+            <label class="radio-option selected" data-value="invite-only">
+              <input type="radio" name="reg-mode" value="invite-only" checked>
+              <span class="radio-dot"></span>
+              <div>
+                <div class="radio-label">Invite Only <span class="radio-badge">Recommended</span></div>
+                <div class="radio-label-hint">Users need an invite link to register</div>
+              </div>
+            </label>
+            <label class="radio-option" data-value="closed">
+              <input type="radio" name="reg-mode" value="closed">
+              <span class="radio-dot"></span>
+              <div>
+                <div class="radio-label">Closed</div>
+                <div class="radio-label-hint">Only admins can create new accounts</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="server-description">Server Description <span style="color: var(--text-faint); text-transform: none; letter-spacing: 0;">(optional)</span></label>
+          <textarea class="form-textarea" id="server-description" placeholder="e.g., A chill place for our crew" rows="2"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="max-members">Max Members</label>
+          <input type="number" class="form-input" id="max-members" value="50" min="2" max="1000">
+        </div>
+      </div>
+
+      <!-- Step 4: Review & Launch -->
+      <div class="step-panel" id="step-4" role="tabpanel" aria-label="Review and Launch">
+        <div id="review-view">
+          <h2 class="step-heading">Review &amp; Launch</h2>
+          <p class="step-description">Double-check your settings before we spin up your instance.</p>
+
+          <div class="review-content">
+            <div class="review-section">
+              <div class="review-section-header">
+                <span class="review-section-title">Instance</span>
+                <button class="review-edit-link" data-goto="1">Edit</button>
+              </div>
+              <div class="review-row">
+                <span class="review-key">Name</span>
+                <span class="review-value" id="review-name"></span>
+              </div>
+              <div class="review-row">
+                <span class="review-key">URL</span>
+                <span class="review-value mono" id="review-url"></span>
+              </div>
+            </div>
+
+            <div class="review-section">
+              <div class="review-section-header">
+                <span class="review-section-title">Admin Account</span>
+                <button class="review-edit-link" data-goto="2">Edit</button>
+              </div>
+              <div class="review-row">
+                <span class="review-key">Display name</span>
+                <span class="review-value" id="review-display-name"></span>
+              </div>
+              <div class="review-row">
+                <span class="review-key">Email</span>
+                <span class="review-value" id="review-email"></span>
+              </div>
+            </div>
+
+            <div class="review-section">
+              <div class="review-section-header">
+                <span class="review-section-title">Settings</span>
+                <button class="review-edit-link" data-goto="3">Edit</button>
+              </div>
+              <div class="review-row">
+                <span class="review-key">Registration</span>
+                <span class="review-value" id="review-reg-mode"></span>
+              </div>
+              <div class="review-row">
+                <span class="review-key">Description</span>
+                <span class="review-value" id="review-description"></span>
+              </div>
+              <div class="review-row">
+                <span class="review-key">Max members</span>
+                <span class="review-value" id="review-max-members"></span>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-launch" id="btn-launch" type="button">Launch Instance</button>
+          <p class="review-disclaimer">Your instance will be provisioned in approximately 30-60 seconds.</p>
+        </div>
+
+        <!-- Provisioning State -->
+        <div class="provisioning" id="provisioning-view">
+          <h2 class="step-heading" style="text-align: center; margin-bottom: 24px;">Provisioning your instance...</h2>
+
+          <div class="provisioning-step" data-prov="0">
+            <div class="prov-icon">
+              <div class="spinner"></div>
+              <span class="prov-check">&#10003;</span>
+            </div>
+            <span class="prov-label">Creating database...</span>
+          </div>
+          <div class="provisioning-step" data-prov="1">
+            <div class="prov-icon">
+              <div class="spinner"></div>
+              <span class="prov-check">&#10003;</span>
+            </div>
+            <span class="prov-label">Generating configuration...</span>
+          </div>
+          <div class="provisioning-step" data-prov="2">
+            <div class="prov-icon">
+              <div class="spinner"></div>
+              <span class="prov-check">&#10003;</span>
+            </div>
+            <span class="prov-label">Starting containers...</span>
+          </div>
+          <div class="provisioning-step" data-prov="3">
+            <div class="prov-icon">
+              <div class="spinner"></div>
+              <span class="prov-check">&#10003;</span>
+            </div>
+            <span class="prov-label">Configuring reverse proxy...</span>
+          </div>
+          <div class="provisioning-step" data-prov="4">
+            <div class="prov-icon">
+              <div class="spinner"></div>
+              <span class="prov-check">&#10003;</span>
+            </div>
+            <span class="prov-label">Running health checks...</span>
+          </div>
+          <div class="provisioning-step final" data-prov="5">
+            <div class="prov-icon">
+              <div class="spinner"></div>
+              <span class="prov-check">&#10003;</span>
+            </div>
+            <span class="prov-label">Instance ready!</span>
+          </div>
+
+          <div class="post-provision" id="post-provision">
+            <a href="#" class="btn btn-launch" id="go-to-instance" target="_blank" style="text-decoration: none; display: flex;">
+              Go to your instance &rarr;
+            </a>
+            <a href="#" class="back-link">Back to Dashboard</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Actions -->
+    <div class="wizard-actions" id="wizard-actions">
+      <button class="btn btn-ghost" id="btn-back" type="button" style="visibility: hidden;">
+        &larr; Back
+      </button>
+      <button class="btn btn-accent" id="btn-next" type="button">
+        Next &rarr;
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ========================================
+  // State
+  // ========================================
+  let currentStep = 1;
+  const totalSteps = 4;
+  let subdomainCheckTimeout = null;
+  let subdomainAvailable = false;
+
+  // ========================================
+  // DOM References
+  // ========================================
+  const btnNext = document.getElementById('btn-next');
+  const btnBack = document.getElementById('btn-back');
+  const wizardActions = document.getElementById('wizard-actions');
+
+  // Step 1
+  const instanceNameInput = document.getElementById('instance-name');
+  const subdomainInput = document.getElementById('subdomain');
+  const subdomainStatus = document.getElementById('subdomain-status');
+  const subdomainPreview = document.getElementById('subdomain-preview');
+  const subdomainUrl = document.getElementById('subdomain-url');
+
+  // Step 2
+  const displayNameInput = document.getElementById('display-name');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const confirmPasswordInput = document.getElementById('confirm-password');
+  const passwordMatch = document.getElementById('password-match');
+  const matchIcon = document.getElementById('match-icon');
+  const matchText = document.getElementById('match-text');
+
+  // Step 3
+  const radioOptions = document.querySelectorAll('.radio-option');
+  const maxMembersInput = document.getElementById('max-members');
+  const serverDescInput = document.getElementById('server-description');
+
+  // Step 4
+  const btnLaunch = document.getElementById('btn-launch');
+  const reviewView = document.getElementById('review-view');
+  const provisioningView = document.getElementById('provisioning-view');
+  const postProvision = document.getElementById('post-provision');
+  const goToInstance = document.getElementById('go-to-instance');
+
+  // ========================================
+  // Navigation
+  // ========================================
+  function goToStep(step, direction) {
+    if (step < 1 || step > totalSteps) return;
+
+    const oldPanel = document.getElementById('step-' + currentStep);
+    const newPanel = document.getElementById('step-' + step);
+
+    // Remove active from old
+    oldPanel.classList.remove('active', 'slide-in-left', 'slide-in-right');
+
+    // Set new panel
+    currentStep = step;
+    newPanel.classList.add('active');
+    newPanel.classList.add(direction === 'forward' ? 'slide-in-right' : 'slide-in-left');
+
+    updateStepIndicator();
+    updateButtons();
+
+    // Populate review if going to step 4
+    if (currentStep === 4) {
+      populateReview();
+    }
+  }
+
+  function updateStepIndicator() {
+    document.querySelectorAll('.step-dot').forEach(dot => {
+      const s = parseInt(dot.dataset.step);
+      dot.classList.remove('active', 'completed');
+      dot.removeAttribute('aria-current');
+      if (s < currentStep) {
+        dot.classList.add('completed');
+        dot.innerHTML = '&#10003;';
+      } else if (s === currentStep) {
+        dot.classList.add('active');
+        dot.setAttribute('aria-current', 'step');
+        dot.textContent = s;
+      } else {
+        dot.textContent = s;
+      }
+    });
+
+    document.querySelectorAll('.step-line').forEach(line => {
+      const l = parseInt(line.dataset.line);
+      line.classList.toggle('completed', l < currentStep);
+    });
+  }
+
+  function updateButtons() {
+    btnBack.style.visibility = currentStep === 1 ? 'hidden' : 'visible';
+
+    if (currentStep === totalSteps) {
+      wizardActions.style.display = 'none';
+    } else {
+      wizardActions.style.display = 'flex';
+      btnNext.textContent = 'Next \u2192';
+    }
+  }
+
+  btnNext.addEventListener('click', function() {
+    if (validateStep(currentStep)) {
+      goToStep(currentStep + 1, 'forward');
+    }
+  });
+
+  btnBack.addEventListener('click', function() {
+    goToStep(currentStep - 1, 'backward');
+  });
+
+  // Review "Edit" links
+  document.querySelectorAll('.review-edit-link').forEach(link => {
+    link.addEventListener('click', function() {
+      const target = parseInt(this.dataset.goto);
+      wizardActions.style.display = 'flex';
+      goToStep(target, 'backward');
+    });
+  });
+
+  // ========================================
+  // Validation
+  // ========================================
+  function validateStep(step) {
+    clearErrors();
+
+    if (step === 1) {
+      let valid = true;
+      const name = instanceNameInput.value.trim();
+      const sub = subdomainInput.value.trim();
+
+      if (!name) {
+        showError('instance-name', 'instance-name-error');
+        valid = false;
+      }
+
+      if (!sub || !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(sub)) {
+        showError('subdomain', 'subdomain-error');
+        valid = false;
+      } else if (!subdomainAvailable) {
+        showError('subdomain', 'subdomain-error', 'This subdomain is unavailable');
+        valid = false;
+      }
+
+      return valid;
+    }
+
+    if (step === 2) {
+      let valid = true;
+      const displayName = displayNameInput.value.trim();
+      const email = emailInput.value.trim();
+      const pass = passwordInput.value;
+      const confirmPass = confirmPasswordInput.value;
+
+      if (!displayName) {
+        showError('display-name', 'display-name-error');
+        valid = false;
+      }
+
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showError('email', 'email-error');
+        valid = false;
+      }
+
+      if (pass.length < 8) {
+        showError('password', 'password-error');
+        valid = false;
+      }
+
+      if (pass !== confirmPass) {
+        showError('confirm-password', 'confirm-password-error');
+        valid = false;
+      }
+
+      return valid;
+    }
+
+    // Step 3: always valid (has defaults)
+    return true;
+  }
+
+  function showError(inputId, errorId, message) {
+    const input = document.getElementById(inputId);
+    const error = document.getElementById(errorId);
+    if (input) input.classList.add('error');
+    if (error) {
+      if (message) error.textContent = message;
+      error.classList.add('visible');
+    }
+  }
+
+  function clearErrors() {
+    document.querySelectorAll('.form-input.error, .form-textarea.error').forEach(el => el.classList.remove('error'));
+    document.querySelectorAll('.form-error.visible').forEach(el => el.classList.remove('visible'));
+  }
+
+  // Clear error on input
+  document.querySelectorAll('.form-input, .form-textarea').forEach(input => {
+    input.addEventListener('input', function() {
+      this.classList.remove('error');
+      const errorEl = this.closest('.form-group')?.querySelector('.form-error');
+      if (errorEl) errorEl.classList.remove('visible');
+    });
+  });
+
+  // ========================================
+  // Step 1: Auto-slug subdomain from name
+  // ========================================
+  let userEditedSubdomain = false;
+
+  instanceNameInput.addEventListener('input', function() {
+    if (!userEditedSubdomain) {
+      const slug = this.value
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      subdomainInput.value = slug;
+      checkSubdomain(slug);
+    }
+  });
+
+  subdomainInput.addEventListener('input', function() {
+    userEditedSubdomain = true;
+    // Force lowercase, only valid chars
+    this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    checkSubdomain(this.value);
+  });
+
+  // Reset flag if subdomain is cleared
+  subdomainInput.addEventListener('blur', function() {
+    if (!this.value) userEditedSubdomain = false;
+  });
+
+  function checkSubdomain(value) {
+    clearTimeout(subdomainCheckTimeout);
+
+    if (!value) {
+      subdomainStatus.classList.remove('visible');
+      subdomainPreview.style.display = 'none';
+      subdomainAvailable = false;
+      return;
+    }
+
+    // Show preview
+    subdomainPreview.style.display = 'block';
+    subdomainUrl.textContent = value + '.hotboxchat.ca';
+
+    // Show checking state
+    subdomainStatus.className = 'subdomain-status visible checking';
+    subdomainStatus.innerHTML = '<div class="spinner" style="width:12px;height:12px;border-width:1.5px;"></div>';
+
+    subdomainCheckTimeout = setTimeout(function() {
+      const isAvailable = value !== 'taken' && value.length >= 2 && /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(value);
+      subdomainAvailable = isAvailable;
+
+      if (isAvailable) {
+        subdomainStatus.className = 'subdomain-status visible available';
+        subdomainStatus.textContent = '\u2713';
+      } else {
+        subdomainStatus.className = 'subdomain-status visible unavailable';
+        subdomainStatus.textContent = '\u2717';
+      }
+    }, 500);
+  }
+
+  // ========================================
+  // Step 2: Password visibility toggle
+  // ========================================
+  document.querySelectorAll('.password-toggle').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const targetId = this.dataset.target;
+      const input = document.getElementById(targetId);
+      if (input.type === 'password') {
+        input.type = 'text';
+        this.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+      } else {
+        input.type = 'password';
+        this.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+      }
+    });
+  });
+
+  // Password match indicator
+  function checkPasswordMatch() {
+    const pass = passwordInput.value;
+    const confirm = confirmPasswordInput.value;
+
+    if (!confirm) {
+      passwordMatch.classList.remove('visible', 'match', 'no-match');
+      return;
+    }
+
+    passwordMatch.classList.add('visible');
+
+    if (pass === confirm) {
+      passwordMatch.classList.remove('no-match');
+      passwordMatch.classList.add('match');
+      matchIcon.textContent = '\u2713';
+      matchText.textContent = 'Passwords match';
+    } else {
+      passwordMatch.classList.remove('match');
+      passwordMatch.classList.add('no-match');
+      matchIcon.textContent = '\u2717';
+      matchText.textContent = 'Passwords do not match';
+    }
+  }
+
+  passwordInput.addEventListener('input', checkPasswordMatch);
+  confirmPasswordInput.addEventListener('input', checkPasswordMatch);
+
+  // ========================================
+  // Step 3: Radio group
+  // ========================================
+  radioOptions.forEach(option => {
+    option.addEventListener('click', function() {
+      radioOptions.forEach(o => o.classList.remove('selected'));
+      this.classList.add('selected');
+      this.querySelector('input[type="radio"]').checked = true;
+    });
+  });
+
+  // ========================================
+  // Step 4: Review
+  // ========================================
+  function populateReview() {
+    document.getElementById('review-name').textContent = instanceNameInput.value.trim();
+    document.getElementById('review-url').textContent = subdomainInput.value.trim() + '.hotboxchat.ca';
+    document.getElementById('review-display-name').textContent = displayNameInput.value.trim();
+    document.getElementById('review-email').textContent = emailInput.value.trim();
+
+    const regMode = document.querySelector('input[name="reg-mode"]:checked');
+    const modeLabels = { open: 'Open', 'invite-only': 'Invite Only', closed: 'Closed' };
+    document.getElementById('review-reg-mode').textContent = regMode ? modeLabels[regMode.value] : 'Invite Only';
+
+    const desc = serverDescInput.value.trim();
+    document.getElementById('review-description').textContent = desc || '\u2014';
+
+    document.getElementById('review-max-members').textContent = maxMembersInput.value || '50';
+  }
+
+  // ========================================
+  // Launch & Provisioning
+  // ========================================
+  btnLaunch.addEventListener('click', function() {
+    reviewView.style.display = 'none';
+    provisioningView.classList.add('active');
+
+    const steps = provisioningView.querySelectorAll('.provisioning-step');
+    const delays = [1000, 1500, 2000, 1000, 1500, 500];
+    let cumulative = 0;
+
+    steps.forEach(function(step, i) {
+      cumulative += (i === 0 ? 300 : delays[i - 1]);
+
+      // Activate step
+      setTimeout(function() {
+        step.classList.add('active');
+      }, cumulative);
+
+      // Complete step
+      setTimeout(function() {
+        step.classList.remove('active');
+        step.classList.add('completed');
+
+        // After last step, show post-provision
+        if (i === steps.length - 1) {
+          setTimeout(function() {
+            const subdomain = subdomainInput.value.trim();
+            goToInstance.href = 'https://' + subdomain + '.hotboxchat.ca';
+            postProvision.classList.add('visible');
+          }, 400);
+        }
+      }, cumulative + delays[i]);
+    });
+  });
+
+  // ========================================
+  // Keyboard support
+  // ========================================
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && currentStep < totalSteps) {
+      // Don't trigger on textarea
+      if (e.target.tagName === 'TEXTAREA') return;
+      btnNext.click();
+    }
+  });
+
+})();
+</script>
+
+</body>
+</html>

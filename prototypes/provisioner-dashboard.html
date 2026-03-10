@@ -1,0 +1,2221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HotBox Provisioner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ========================================
+       Design Tokens
+       ======================================== */
+    :root {
+      --bg-void: #08080b;
+      --bg-deepest: #0b0b10;
+      --bg-deep: #0f0f16;
+      --bg-base: #13131c;
+      --bg-raised: #191924;
+      --bg-surface: #1f1f2c;
+      --bg-hover: #262635;
+      --bg-active: #2e2e3f;
+      --bg-elevated: #35354a;
+
+      --glass-subtle: rgba(255, 255, 255, 0.02);
+      --glass-light: rgba(255, 255, 255, 0.04);
+      --glass-medium: rgba(255, 255, 255, 0.06);
+      --glass-strong: rgba(255, 255, 255, 0.08);
+
+      --text-primary: #e8e8f0;
+      --text-secondary: #9898ac;
+      --text-muted: #5e5e74;
+      --text-faint: #3a3a4e;
+
+      --accent: #5de4c7;
+      --accent-bright: #7aecd5;
+      --accent-soft: #4dc4ab;
+      --accent-dim: rgba(93, 228, 199, 0.15);
+      --accent-wash: rgba(93, 228, 199, 0.08);
+      --accent-ghost: rgba(93, 228, 199, 0.04);
+      --accent-glow: 0 0 20px rgba(93, 228, 199, 0.15);
+      --accent-glow-strong: 0 0 30px rgba(93, 228, 199, 0.25);
+
+      --danger: #d45555;
+      --danger-dim: rgba(212, 85, 85, 0.12);
+      --warning: #d4a843;
+      --warning-dim: rgba(212, 168, 67, 0.12);
+      --success: #5ec269;
+      --success-dim: rgba(94, 194, 105, 0.12);
+      --info: #5586d4;
+      --info-dim: rgba(85, 134, 212, 0.12);
+
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --border-light: rgba(255, 255, 255, 0.07);
+      --border-medium: rgba(255, 255, 255, 0.10);
+      --border-accent: rgba(93, 228, 199, 0.25);
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+      --r-xs: 3px;
+      --r-sm: 5px;
+      --r-md: 8px;
+      --r-lg: 12px;
+      --r-xl: 16px;
+      --r-pill: 9999px;
+
+      --t-fast: 80ms ease;
+      --t-base: 150ms ease;
+      --t-smooth: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+
+      --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    }
+
+    /* ========================================
+       Reset & Base
+       ======================================== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-void);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: inherit;
+      border: none;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    input, textarea, select {
+      font-family: inherit;
+      font-size: inherit;
+      border: none;
+      outline: none;
+      background: none;
+      color: inherit;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--bg-active); border-radius: var(--r-pill); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--bg-elevated); }
+
+    /* ========================================
+       App Shell
+       ======================================== */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ========================================
+       Top Bar
+       ======================================== */
+    .topbar {
+      height: 52px;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      background: var(--bg-deep);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 16px;
+      z-index: 20;
+      user-select: none;
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .topbar-brand-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--accent-dim);
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .topbar-brand-icon svg {
+      width: 16px;
+      height: 16px;
+      color: var(--accent);
+    }
+
+    .topbar-brand-text {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .topbar-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border-light);
+      margin: 0 12px;
+      flex-shrink: 0;
+    }
+
+    .topbar-title {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    .topbar-spacer { flex: 1; }
+
+    .topbar-action {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border-radius: var(--r-md);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      transition: background var(--t-fast), box-shadow var(--t-base);
+      margin-right: 12px;
+    }
+
+    .topbar-action:hover {
+      background: rgba(93, 228, 199, 0.22);
+      box-shadow: var(--accent-glow);
+    }
+
+    .topbar-action svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .topbar-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--r-pill);
+      background: var(--bg-elevated);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      border: 1px solid var(--border-light);
+      cursor: pointer;
+      transition: border-color var(--t-fast);
+    }
+
+    .topbar-avatar:hover {
+      border-color: var(--border-accent);
+    }
+
+    /* ========================================
+       Body: Sidebar + Main
+       ======================================== */
+    .body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ========================================
+       Sidebar
+       ======================================== */
+    .sidebar {
+      width: 200px;
+      min-width: 200px;
+      background: var(--bg-deepest);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      padding: 12px 0;
+    }
+
+    .sidebar-section-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      padding: 8px 16px 4px;
+    }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      padding: 0 8px;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--r-md);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--t-fast), color var(--t-fast);
+      position: relative;
+      text-decoration: none;
+    }
+
+    .sidebar-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .sidebar-item.active {
+      background: var(--accent-wash);
+      color: var(--accent);
+    }
+
+    .sidebar-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 6px;
+      bottom: 6px;
+      width: 3px;
+      background: var(--accent);
+      border-radius: var(--r-pill);
+    }
+
+    .sidebar-item svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+
+    .sidebar-item.active svg {
+      opacity: 1;
+    }
+
+    .sidebar-item .badge {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      background: var(--bg-active);
+      color: var(--text-muted);
+      padding: 1px 6px;
+      border-radius: var(--r-pill);
+    }
+
+    .sidebar-item.active .badge {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .sidebar-spacer { flex: 1; }
+
+    .sidebar-footer {
+      padding: 8px 8px 4px;
+      border-top: 1px solid var(--border-subtle);
+      margin-top: 8px;
+    }
+
+    .sidebar-footer-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--r-md);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color var(--t-fast), background var(--t-fast);
+    }
+
+    .sidebar-footer-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .sidebar-footer-item svg {
+      width: 14px;
+      height: 14px;
+      opacity: 0.6;
+    }
+
+    /* ========================================
+       Main Content
+       ======================================== */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg-base);
+      padding: 24px;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* Page header */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .page-header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .page-header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ========================================
+       Buttons
+       ======================================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--r-md);
+      font-size: 13px;
+      font-weight: 500;
+      transition: background var(--t-fast), box-shadow var(--t-base), color var(--t-fast);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn svg { width: 14px; height: 14px; }
+
+    .btn-primary {
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-primary:hover {
+      background: rgba(93, 228, 199, 0.22);
+      box-shadow: var(--accent-glow);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .btn-danger {
+      background: var(--danger-dim);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: rgba(212, 85, 85, 0.2);
+    }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+
+    .btn-icon {
+      padding: 6px;
+      border-radius: var(--r-sm);
+      color: var(--text-muted);
+    }
+
+    .btn-icon:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .btn-icon svg { width: 16px; height: 16px; }
+
+    /* ========================================
+       Stat Cards
+       ======================================== */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-lg);
+      padding: 18px 20px;
+      transition: border-color var(--t-base), box-shadow var(--t-smooth);
+    }
+
+    .stat-card:hover {
+      border-color: var(--border-accent);
+      box-shadow: var(--accent-glow);
+    }
+
+    .stat-card-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .stat-card-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.1;
+    }
+
+    .stat-card-value .stat-unit {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .stat-card-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stat-progress {
+      width: 100%;
+      height: 4px;
+      background: var(--bg-active);
+      border-radius: var(--r-pill);
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .stat-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: var(--r-pill);
+      transition: width var(--t-smooth);
+    }
+
+    .stat-inline {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .stat-inline .sep {
+      color: var(--text-faint);
+      margin: 0 6px;
+    }
+
+    /* ========================================
+       Tables
+       ======================================== */
+    .table-wrap {
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .table-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      text-align: left;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      transition: background var(--t-fast);
+    }
+
+    tbody tr:hover {
+      background: var(--glass-subtle);
+    }
+
+    tbody td {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 13px;
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ========================================
+       Status Indicators
+       ======================================== */
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: var(--r-pill);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .status-dot.running {
+      background: var(--success);
+      box-shadow: 0 0 6px rgba(94, 194, 105, 0.4);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    .status-dot.stopped {
+      background: var(--warning);
+    }
+
+    .status-dot.error {
+      background: var(--danger);
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* ========================================
+       Badges
+       ======================================== */
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 2px 8px;
+      border-radius: var(--r-pill);
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .badge-success { background: var(--success-dim); color: var(--success); }
+    .badge-warning { background: var(--warning-dim); color: var(--warning); }
+    .badge-danger { background: var(--danger-dim); color: var(--danger); }
+    .badge-info { background: var(--info-dim); color: var(--info); }
+    .badge-muted { background: var(--bg-active); color: var(--text-muted); }
+    .badge-accent { background: var(--accent-dim); color: var(--accent); }
+
+    /* ========================================
+       Instance Name + Subdomain
+       ======================================== */
+    .instance-name {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .instance-subdomain {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: var(--r-xs);
+      color: var(--text-faint);
+      cursor: pointer;
+      transition: color var(--t-fast), background var(--t-fast);
+    }
+
+    .copy-btn:hover {
+      color: var(--accent);
+      background: var(--accent-ghost);
+    }
+
+    .copy-btn svg { width: 12px; height: 12px; }
+
+    /* ========================================
+       Resource Bars
+       ======================================== */
+    .resource-bars {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .resource-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .resource-bar-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      width: 24px;
+    }
+
+    .resource-bar-track {
+      width: 48px;
+      height: 4px;
+      background: var(--bg-active);
+      border-radius: var(--r-pill);
+      overflow: hidden;
+    }
+
+    .resource-bar-fill {
+      height: 100%;
+      border-radius: var(--r-pill);
+      transition: width var(--t-smooth);
+    }
+
+    .resource-bar-fill.low { background: var(--success); }
+    .resource-bar-fill.medium { background: var(--warning); }
+    .resource-bar-fill.high { background: var(--danger); }
+
+    .resource-bar-value {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      width: 28px;
+      text-align: right;
+    }
+
+    /* ========================================
+       Action Buttons (table row)
+       ======================================== */
+    .row-actions {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .row-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--r-sm);
+      color: var(--text-muted);
+      transition: background var(--t-fast), color var(--t-fast);
+    }
+
+    .row-action:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .row-action.danger:hover {
+      background: var(--danger-dim);
+      color: var(--danger);
+    }
+
+    .row-action.accent:hover {
+      background: var(--accent-wash);
+      color: var(--accent);
+    }
+
+    .row-action svg { width: 14px; height: 14px; }
+
+    /* ========================================
+       Instance Detail (expanded)
+       ======================================== */
+    .instance-detail {
+      background: var(--bg-deep);
+      border: 1px solid var(--border-subtle);
+      border-top: none;
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height var(--t-smooth);
+    }
+
+    .instance-detail.open {
+      max-height: 600px;
+    }
+
+    .instance-detail-inner {
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .detail-section {
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-md);
+      padding: 16px;
+    }
+
+    .detail-section-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .detail-resource-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .detail-resource-row:last-child { margin-bottom: 0; }
+
+    .detail-resource-name {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .detail-resource-value {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    .detail-bar {
+      width: 100%;
+      height: 6px;
+      background: var(--bg-active);
+      border-radius: var(--r-pill);
+      margin-top: 4px;
+      overflow: hidden;
+    }
+
+    .detail-bar-fill {
+      height: 100%;
+      border-radius: var(--r-pill);
+    }
+
+    /* Terminal/logs */
+    .log-terminal {
+      background: var(--bg-void);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-md);
+      padding: 12px 14px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.7;
+      color: var(--text-muted);
+      max-height: 180px;
+      overflow-y: auto;
+      grid-column: 1 / -1;
+    }
+
+    .log-terminal .log-ts {
+      color: var(--text-faint);
+      margin-right: 8px;
+    }
+
+    .log-terminal .log-info { color: var(--info); }
+    .log-terminal .log-warn { color: var(--warning); }
+    .log-terminal .log-ok { color: var(--success); }
+
+    .detail-actions {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 8px;
+      padding-top: 4px;
+    }
+
+    /* Config summary */
+    .config-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .config-row:last-child { border-bottom: none; }
+
+    .config-key {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .config-val {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* ========================================
+       Activity Feed
+       ======================================== */
+    .feed-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background var(--t-fast);
+    }
+
+    .feed-item:last-child { border-bottom: none; }
+    .feed-item:hover { background: var(--glass-subtle); }
+
+    .feed-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .feed-icon svg { width: 14px; height: 14px; }
+    .feed-icon.green { background: var(--success-dim); color: var(--success); }
+    .feed-icon.yellow { background: var(--warning-dim); color: var(--warning); }
+    .feed-icon.red { background: var(--danger-dim); color: var(--danger); }
+    .feed-icon.blue { background: var(--info-dim); color: var(--info); }
+    .feed-icon.accent { background: var(--accent-dim); color: var(--accent); }
+
+    .feed-content { flex: 1; }
+
+    .feed-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .feed-text strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .feed-text .mono {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent-soft);
+    }
+
+    .feed-time {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-faint);
+      margin-top: 2px;
+    }
+
+    /* ========================================
+       User Avatar
+       ======================================== */
+    .avatar-circle {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--r-pill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .avatar-circle.teal { background: var(--accent-dim); color: var(--accent); }
+    .avatar-circle.blue { background: var(--info-dim); color: var(--info); }
+    .avatar-circle.orange { background: var(--warning-dim); color: var(--warning); }
+
+    /* ========================================
+       Modal / Overlay
+       ======================================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--t-smooth);
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: var(--bg-raised);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-lg);
+      width: 440px;
+      max-width: 95vw;
+      transform: translateY(12px);
+      transition: transform var(--t-smooth);
+    }
+
+    .modal-overlay.open .modal {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .modal-close {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: background var(--t-fast), color var(--t-fast);
+    }
+
+    .modal-close:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .modal-close svg { width: 16px; height: 16px; }
+
+    .modal-body {
+      padding: 20px 24px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    /* ========================================
+       Form Fields
+       ======================================== */
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field:last-child { margin-bottom: 0; }
+
+    .field-label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .field-input {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-md);
+      color: var(--text-primary);
+      font-size: 13px;
+      transition: border-color var(--t-fast), box-shadow var(--t-base);
+    }
+
+    .field-input:focus {
+      border-color: var(--border-accent);
+      box-shadow: 0 0 0 2px var(--accent-ghost);
+    }
+
+    .field-input::placeholder {
+      color: var(--text-faint);
+    }
+
+    select.field-input {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235e5e74' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px;
+      cursor: pointer;
+    }
+
+    select.field-input option {
+      background: var(--bg-raised);
+      color: var(--text-primary);
+    }
+
+    .field-hint {
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-top: 4px;
+    }
+
+    /* ========================================
+       Settings Page
+       ======================================== */
+    .settings-section {
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-lg);
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+
+    .settings-section-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .settings-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* Toggle switch */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .toggle-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .toggle-label-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .toggle-switch {
+      width: 36px;
+      height: 20px;
+      background: var(--bg-active);
+      border-radius: var(--r-pill);
+      position: relative;
+      cursor: pointer;
+      transition: background var(--t-base);
+      flex-shrink: 0;
+    }
+
+    .toggle-switch.on {
+      background: var(--accent-dim);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 14px;
+      height: 14px;
+      background: var(--text-muted);
+      border-radius: var(--r-pill);
+      transition: transform var(--t-base), background var(--t-base);
+    }
+
+    .toggle-switch.on::after {
+      transform: translateX(16px);
+      background: var(--accent);
+    }
+
+    /* Disabled field state */
+    .field-group-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .field-group-disabled.enabled {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* ========================================
+       Invite URL
+       ======================================== */
+    .invite-url {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ========================================
+       Clickable row
+       ======================================== */
+    .clickable-row {
+      cursor: pointer;
+    }
+
+    /* ========================================
+       Toast notification
+       ======================================== */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-light);
+      border-radius: var(--r-md);
+      padding: 10px 16px;
+      font-size: 13px;
+      color: var(--text-primary);
+      box-shadow: var(--shadow-md);
+      z-index: 200;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity var(--t-smooth), transform var(--t-smooth);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast svg { width: 14px; height: 14px; color: var(--accent); }
+
+    /* ========================================
+       Focus States
+       ======================================== */
+    button:focus-visible,
+    .sidebar-item:focus-visible,
+    .row-action:focus-visible,
+    .copy-btn:focus-visible,
+    .toggle-switch:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- ================================
+         Top Bar
+         ================================ -->
+    <header class="topbar" role="banner">
+      <div class="topbar-brand">
+        <div class="topbar-brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="6" width="20" height="12" rx="2"/>
+            <line x1="6" y1="10" x2="6" y2="14"/>
+            <line x1="10" y1="10" x2="10" y2="14"/>
+            <line x1="14" y1="10" x2="14" y2="14"/>
+          </svg>
+        </div>
+        <span class="topbar-brand-text">Hotbox</span>
+      </div>
+      <div class="topbar-divider"></div>
+      <span class="topbar-title">Provisioner</span>
+      <div class="topbar-spacer"></div>
+      <button class="topbar-avatar" title="Admin User" aria-label="User menu">CP</button>
+    </header>
+
+    <div class="body">
+      <!-- ================================
+           Sidebar
+           ================================ -->
+      <nav class="sidebar" role="navigation" aria-label="Main navigation">
+        <div class="sidebar-section-label">Manage</div>
+        <div class="sidebar-nav">
+          <button class="sidebar-item active" data-page="dashboard" aria-current="page">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            Dashboard
+          </button>
+          <button class="sidebar-item" data-page="instances">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
+            Instances
+            <span class="badge">3</span>
+          </button>
+          <button class="sidebar-item" data-page="invites">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg>
+            Invites
+            <span class="badge">4</span>
+          </button>
+          <button class="sidebar-item" data-page="users">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Users
+            <span class="badge">3</span>
+          </button>
+          <button class="sidebar-item" data-page="settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Settings
+          </button>
+        </div>
+
+        <div class="sidebar-spacer"></div>
+
+        <div class="sidebar-footer">
+          <button class="sidebar-footer-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Docs
+          </button>
+          <button class="sidebar-footer-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign Out
+          </button>
+        </div>
+      </nav>
+
+      <!-- ================================
+           Main Content
+           ================================ -->
+      <main class="main" role="main">
+
+        <!-- ========== Dashboard ========== -->
+        <section class="page active" id="page-dashboard">
+          <div class="page-header">
+            <h1>Dashboard</h1>
+          </div>
+
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="stat-card-label">Instances</div>
+              <div class="stat-card-value">3 <span class="stat-unit">/ 5</span></div>
+              <div class="stat-progress"><div class="stat-progress-fill" style="width: 60%; background: var(--accent);"></div></div>
+              <div class="stat-card-sub">2 slots remaining</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-label">Active</div>
+              <div class="stat-card-value">2</div>
+              <div class="stat-card-sub">
+                <span class="status-dot running"></span>
+                Running now
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-label">Total Users</div>
+              <div class="stat-card-value">3</div>
+              <div class="stat-card-sub">1 admin, 2 users</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-label">Resources</div>
+              <div class="stat-card-value" style="font-size: 18px;">
+                <span style="color: var(--accent);">23%</span>
+                <span class="stat-unit">CPU</span>
+              </div>
+              <div class="stat-inline">
+                4.2 / 16 GB <span class="sep">|</span> RAM
+              </div>
+              <div class="stat-progress" style="margin-top: 8px;"><div class="stat-progress-fill" style="width: 26%; background: var(--success);"></div></div>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <div class="table-header">
+              <span class="table-title">Recent Activity</span>
+            </div>
+            <div>
+              <div class="feed-item">
+                <div class="feed-icon green">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </div>
+                <div class="feed-content">
+                  <div class="feed-text"><strong>cpike</strong> started instance <span class="mono">THBR</span></div>
+                  <div class="feed-time">2 minutes ago</div>
+                </div>
+              </div>
+              <div class="feed-item">
+                <div class="feed-icon accent">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </div>
+                <div class="feed-content">
+                  <div class="feed-text"><strong>cpike</strong> created instance <span class="mono">Gaming</span></div>
+                  <div class="feed-time">1 hour ago</div>
+                </div>
+              </div>
+              <div class="feed-item">
+                <div class="feed-icon yellow">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="1"/><line x1="10" y1="4" x2="10" y2="20"/></svg>
+                </div>
+                <div class="feed-content">
+                  <div class="feed-text"><strong>jdoe</strong> stopped instance <span class="mono">DevTeam</span></div>
+                  <div class="feed-time">3 hours ago</div>
+                </div>
+              </div>
+              <div class="feed-item">
+                <div class="feed-icon blue">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                </div>
+                <div class="feed-content">
+                  <div class="feed-text"><strong>rsmith</strong> registered via invite from <strong>cpike</strong></div>
+                  <div class="feed-time">Yesterday at 4:30 PM</div>
+                </div>
+              </div>
+              <div class="feed-item">
+                <div class="feed-icon green">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                </div>
+                <div class="feed-content">
+                  <div class="feed-text"><strong>cpike</strong> restarted instance <span class="mono">THBR</span></div>
+                  <div class="feed-time">Yesterday at 2:15 PM</div>
+                </div>
+              </div>
+              <div class="feed-item">
+                <div class="feed-icon accent">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg>
+                </div>
+                <div class="feed-content">
+                  <div class="feed-text"><strong>cpike</strong> created invite <span class="mono">hbx-R7kM2p</span></div>
+                  <div class="feed-time">2 days ago</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== Instances ========== -->
+        <section class="page" id="page-instances">
+          <div class="page-header">
+            <h1>Instances</h1>
+            <div class="page-header-actions">
+              <button class="btn btn-primary" id="btn-new-instance-2">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                New Instance
+              </button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 40px;"></th>
+                  <th>Instance</th>
+                  <th>Owner</th>
+                  <th>Created</th>
+                  <th>Resources</th>
+                  <th style="width: 140px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- THBR — running, expanded -->
+                <tr class="clickable-row" data-instance="thbr">
+                  <td><span class="status-dot running" title="Running"></span></td>
+                  <td>
+                    <div class="instance-name">THBR</div>
+                    <div class="instance-subdomain">
+                      thbr.hotboxchat.ca
+                      <button class="copy-btn" title="Copy URL" data-copy="https://thbr.hotboxchat.ca" aria-label="Copy subdomain URL">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                  <td style="color: var(--text-secondary);">cpike</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Feb 14, 2026</td>
+                  <td>
+                    <div class="resource-bars">
+                      <div class="resource-bar">
+                        <span class="resource-bar-label">CPU</span>
+                        <div class="resource-bar-track"><div class="resource-bar-fill low" style="width: 34%;"></div></div>
+                        <span class="resource-bar-value">34%</span>
+                      </div>
+                      <div class="resource-bar">
+                        <span class="resource-bar-label">RAM</span>
+                        <div class="resource-bar-track"><div class="resource-bar-fill low" style="width: 45%;"></div></div>
+                        <span class="resource-bar-value">1.8G</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="row-action" title="Stop Instance" aria-label="Stop THBR">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="1"/><line x1="10" y1="4" x2="10" y2="20"/></svg>
+                      </button>
+                      <button class="row-action" title="Restart Instance" aria-label="Restart THBR">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                      </button>
+                      <button class="row-action accent" title="View Details" aria-label="View THBR details">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                      </button>
+                      <button class="row-action danger" title="Delete Instance" aria-label="Delete THBR">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- THBR expanded detail -->
+            <div class="instance-detail open" id="detail-thbr">
+              <div class="instance-detail-inner">
+                <div class="detail-section">
+                  <div class="detail-section-title">Resource Usage</div>
+                  <div class="detail-resource-row">
+                    <span class="detail-resource-name">CPU</span>
+                    <span class="detail-resource-value">34%</span>
+                  </div>
+                  <div class="detail-bar"><div class="detail-bar-fill" style="width: 34%; background: var(--success);"></div></div>
+                  <div class="detail-resource-row" style="margin-top: 12px;">
+                    <span class="detail-resource-name">Memory</span>
+                    <span class="detail-resource-value">1.8 / 4 GB</span>
+                  </div>
+                  <div class="detail-bar"><div class="detail-bar-fill" style="width: 45%; background: var(--accent);"></div></div>
+                  <div class="detail-resource-row" style="margin-top: 12px;">
+                    <span class="detail-resource-name">Disk</span>
+                    <span class="detail-resource-value">2.3 / 10 GB</span>
+                  </div>
+                  <div class="detail-bar"><div class="detail-bar-fill" style="width: 23%; background: var(--info);"></div></div>
+                </div>
+                <div class="detail-section">
+                  <div class="detail-section-title">Configuration</div>
+                  <div class="config-row">
+                    <span class="config-key">Image</span>
+                    <span class="config-val">hotbox/hotbox:latest</span>
+                  </div>
+                  <div class="config-row">
+                    <span class="config-key">Container</span>
+                    <span class="config-val">hbx-thbr-01</span>
+                  </div>
+                  <div class="config-row">
+                    <span class="config-key">Port</span>
+                    <span class="config-val">8081</span>
+                  </div>
+                  <div class="config-row">
+                    <span class="config-key">Proxy</span>
+                    <span class="config-val">Nginx</span>
+                  </div>
+                  <div class="config-row">
+                    <span class="config-key">Uptime</span>
+                    <span class="config-val">14d 6h 32m</span>
+                  </div>
+                </div>
+                <div class="log-terminal" role="log" aria-label="Container logs">
+                  <div><span class="log-ts">10:42:03</span> <span class="log-ok">info</span>: HotBox.Api.Startup[0] Application started on port 8081</div>
+                  <div><span class="log-ts">10:42:03</span> <span class="log-ok">info</span>: HotBox.Api.Hubs.ChatHub[0] ChatHub initialized</div>
+                  <div><span class="log-ts">10:42:04</span> <span class="log-ok">info</span>: HotBox.Api.Hubs.VoiceSignalingHub[0] Voice signaling ready</div>
+                  <div><span class="log-ts">10:43:18</span> <span class="log-info">info</span>: Microsoft.AspNetCore.Hosting[2] Request finished in 4.2ms 200 text/html</div>
+                  <div><span class="log-ts">10:44:01</span> <span class="log-info">info</span>: HotBox.Api.Hubs.ChatHub[0] User cpike connected to #general</div>
+                  <div><span class="log-ts">10:45:12</span> <span class="log-warn">warn</span>: Microsoft.AspNetCore.Http[0] Rate limit threshold approaching for /api/messages</div>
+                  <div><span class="log-ts">10:46:33</span> <span class="log-info">info</span>: HotBox.Api.Hubs.ChatHub[0] Message sent in #general by cpike</div>
+                  <div><span class="log-ts">10:48:55</span> <span class="log-ok">info</span>: HotBox.Infrastructure.Data[0] Database checkpoint completed (14 ms)</div>
+                </div>
+                <div class="detail-actions">
+                  <button class="btn btn-ghost btn-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    Start
+                  </button>
+                  <button class="btn btn-ghost btn-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><rect x="6" y="4" width="12" height="16" rx="1"/><line x1="10" y1="4" x2="10" y2="20"/></svg>
+                    Stop
+                  </button>
+                  <button class="btn btn-ghost btn-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    Restart
+                  </button>
+                  <button class="btn btn-danger btn-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    Force Kill
+                  </button>
+                  <button class="btn btn-primary btn-sm" style="margin-left: auto;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Pull Latest
+                  </button>
+                  <button class="btn btn-danger btn-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <table>
+              <tbody>
+                <!-- DevTeam — stopped -->
+                <tr class="clickable-row" data-instance="devteam">
+                  <td><span class="status-dot stopped" title="Stopped"></span></td>
+                  <td>
+                    <div class="instance-name">DevTeam</div>
+                    <div class="instance-subdomain">
+                      devteam.hotboxchat.ca
+                      <button class="copy-btn" title="Copy URL" data-copy="https://devteam.hotboxchat.ca" aria-label="Copy subdomain URL">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                  <td style="color: var(--text-secondary);">jdoe</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Jan 28, 2026</td>
+                  <td>
+                    <div class="resource-bars">
+                      <div class="resource-bar">
+                        <span class="resource-bar-label">CPU</span>
+                        <div class="resource-bar-track"><div class="resource-bar-fill low" style="width: 0%;"></div></div>
+                        <span class="resource-bar-value">0%</span>
+                      </div>
+                      <div class="resource-bar">
+                        <span class="resource-bar-label">RAM</span>
+                        <div class="resource-bar-track"><div class="resource-bar-fill low" style="width: 0%;"></div></div>
+                        <span class="resource-bar-value">0G</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="row-action accent" title="Start Instance" aria-label="Start DevTeam">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      </button>
+                      <button class="row-action" title="Restart Instance" aria-label="Restart DevTeam">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                      </button>
+                      <button class="row-action" title="View Details" aria-label="View DevTeam details">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                      </button>
+                      <button class="row-action danger" title="Delete Instance" aria-label="Delete DevTeam">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <!-- Gaming — running -->
+                <tr class="clickable-row" data-instance="gaming">
+                  <td><span class="status-dot running" title="Running"></span></td>
+                  <td>
+                    <div class="instance-name">Gaming</div>
+                    <div class="instance-subdomain">
+                      gaming.hotboxchat.ca
+                      <button class="copy-btn" title="Copy URL" data-copy="https://gaming.hotboxchat.ca" aria-label="Copy subdomain URL">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                  <td style="color: var(--text-secondary);">cpike</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Mar 10, 2026</td>
+                  <td>
+                    <div class="resource-bars">
+                      <div class="resource-bar">
+                        <span class="resource-bar-label">CPU</span>
+                        <div class="resource-bar-track"><div class="resource-bar-fill low" style="width: 12%;"></div></div>
+                        <span class="resource-bar-value">12%</span>
+                      </div>
+                      <div class="resource-bar">
+                        <span class="resource-bar-label">RAM</span>
+                        <div class="resource-bar-track"><div class="resource-bar-fill low" style="width: 30%;"></div></div>
+                        <span class="resource-bar-value">1.2G</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="row-action" title="Stop Instance" aria-label="Stop Gaming">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="1"/><line x1="10" y1="4" x2="10" y2="20"/></svg>
+                      </button>
+                      <button class="row-action" title="Restart Instance" aria-label="Restart Gaming">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                      </button>
+                      <button class="row-action" title="View Details" aria-label="View Gaming details">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                      </button>
+                      <button class="row-action danger" title="Delete Instance" aria-label="Delete Gaming">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ========== Invites ========== -->
+        <section class="page" id="page-invites">
+          <div class="page-header">
+            <h1>Invites</h1>
+            <div class="page-header-actions">
+              <button class="btn btn-primary" id="btn-create-invite">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Create Invite
+              </button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Invite URL</th>
+                  <th>Status</th>
+                  <th>Created By</th>
+                  <th>Used By</th>
+                  <th>Created</th>
+                  <th>Expires</th>
+                  <th style="width: 100px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="invite-url">
+                      <span>hotboxchat.ca/invite/hbx-R7kM2p</span>
+                      <button class="copy-btn" title="Copy invite URL" data-copy="https://hotboxchat.ca/invite/hbx-R7kM2p" aria-label="Copy invite URL">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td style="color: var(--text-secondary);">cpike</td>
+                  <td style="color: var(--text-faint);">--</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Mar 8, 2026</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Apr 7, 2026</td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="copy-btn" title="Copy URL" data-copy="https://hotboxchat.ca/invite/hbx-R7kM2p" aria-label="Copy invite URL" style="width: 28px; height: 28px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                      <button class="row-action danger" title="Revoke Invite" aria-label="Revoke invite">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="invite-url">
+                      <span>hotboxchat.ca/invite/hbx-Tp3nWx</span>
+                      <button class="copy-btn" title="Copy invite URL" data-copy="https://hotboxchat.ca/invite/hbx-Tp3nWx" aria-label="Copy invite URL">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                  <td><span class="badge badge-info">Used</span></td>
+                  <td style="color: var(--text-secondary);">cpike</td>
+                  <td style="color: var(--text-secondary);">rsmith</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Mar 5, 2026</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Apr 4, 2026</td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="copy-btn" title="Copy URL" data-copy="https://hotboxchat.ca/invite/hbx-Tp3nWx" aria-label="Copy invite URL" style="width: 28px; height: 28px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                      <button class="row-action" title="Revoke Invite" aria-label="Revoke invite" style="opacity: 0.3; pointer-events: none;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="invite-url">
+                      <span>hotboxchat.ca/invite/hbx-Mk8vQd</span>
+                      <button class="copy-btn" title="Copy invite URL" data-copy="https://hotboxchat.ca/invite/hbx-Mk8vQd" aria-label="Copy invite URL">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                  <td><span class="badge badge-warning">Expired</span></td>
+                  <td style="color: var(--text-secondary);">cpike</td>
+                  <td style="color: var(--text-faint);">--</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Feb 1, 2026</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Feb 8, 2026</td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="copy-btn" title="Copy URL" data-copy="https://hotboxchat.ca/invite/hbx-Mk8vQd" aria-label="Copy invite URL" style="width: 28px; height: 28px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                      <button class="row-action" title="Revoke Invite" aria-label="Revoke invite" style="opacity: 0.3; pointer-events: none;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="invite-url">
+                      <span>hotboxchat.ca/invite/hbx-Jn4fLz</span>
+                      <button class="copy-btn" title="Copy invite URL" data-copy="https://hotboxchat.ca/invite/hbx-Jn4fLz" aria-label="Copy invite URL">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                  <td><span class="badge badge-danger">Revoked</span></td>
+                  <td style="color: var(--text-secondary);">jdoe</td>
+                  <td style="color: var(--text-faint);">--</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Jan 20, 2026</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Never</td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="copy-btn" title="Copy URL" data-copy="https://hotboxchat.ca/invite/hbx-Jn4fLz" aria-label="Copy invite URL" style="width: 28px; height: 28px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                      <button class="row-action" title="Revoke Invite" aria-label="Revoke invite" style="opacity: 0.3; pointer-events: none;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ========== Users ========== -->
+        <section class="page" id="page-users">
+          <div class="page-header">
+            <h1>Users</h1>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 50px;"></th>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Instances</th>
+                  <th>Joined</th>
+                  <th style="width: 100px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><div class="avatar-circle teal">CP</div></td>
+                  <td style="font-weight: 600;">cpike</td>
+                  <td style="color: var(--text-secondary);">cpike@hotboxchat.ca</td>
+                  <td><span class="badge badge-accent">Admin</span></td>
+                  <td style="color: var(--text-secondary);">2</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Jan 15, 2026</td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="row-action" title="Edit User" aria-label="Edit cpike">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button class="row-action danger" title="Delete User" aria-label="Delete cpike" style="opacity: 0.3; pointer-events: none;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td><div class="avatar-circle blue">JD</div></td>
+                  <td style="font-weight: 600;">jdoe</td>
+                  <td style="color: var(--text-secondary);">john.doe@example.com</td>
+                  <td><span class="badge badge-muted">User</span></td>
+                  <td style="color: var(--text-secondary);">1</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Jan 28, 2026</td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="row-action" title="Edit User" aria-label="Edit jdoe">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button class="row-action danger" title="Delete User" aria-label="Delete jdoe">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td><div class="avatar-circle orange">RS</div></td>
+                  <td style="font-weight: 600;">rsmith</td>
+                  <td style="color: var(--text-secondary);">rachel.smith@example.com</td>
+                  <td><span class="badge badge-muted">User</span></td>
+                  <td style="color: var(--text-secondary);">0</td>
+                  <td style="color: var(--text-muted); font-size: 12px;">Mar 6, 2026</td>
+                  <td>
+                    <div class="row-actions">
+                      <button class="row-action" title="Edit User" aria-label="Edit rsmith">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button class="row-action danger" title="Delete User" aria-label="Delete rsmith">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ========== Settings ========== -->
+        <section class="page" id="page-settings">
+          <div class="page-header">
+            <h1>Settings</h1>
+            <div class="page-header-actions">
+              <button class="btn btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save Changes
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              Domain
+            </div>
+            <div class="settings-row">
+              <div class="field">
+                <label class="field-label" for="base-domain">Base Domain</label>
+                <input type="text" class="field-input" id="base-domain" value="hotboxchat.ca">
+              </div>
+              <div class="field">
+                <label class="field-label" for="max-instances">Max Instances Per User</label>
+                <input type="number" class="field-input" id="max-instances" value="5" min="1" max="50">
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
+              Default Quotas
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-label">Enable resource quotas</div>
+                <div class="toggle-label-sub">Limit CPU, memory, and disk per instance</div>
+              </div>
+              <div class="toggle-switch" id="toggle-quotas" tabindex="0" role="switch" aria-checked="false" aria-label="Enable resource quotas"></div>
+            </div>
+            <div class="field-group-disabled" id="quota-fields">
+              <div class="settings-row">
+                <div class="field">
+                  <label class="field-label" for="cpu-limit">CPU Limit (cores)</label>
+                  <input type="number" class="field-input" id="cpu-limit" value="2" min="0.5" max="16" step="0.5">
+                </div>
+                <div class="field">
+                  <label class="field-label" for="memory-limit">Memory Limit (GB)</label>
+                  <input type="number" class="field-input" id="memory-limit" value="4" min="0.5" max="64" step="0.5">
+                </div>
+              </div>
+              <div class="settings-row" style="margin-top: 16px;">
+                <div class="field">
+                  <label class="field-label" for="disk-limit">Disk Limit (GB)</label>
+                  <input type="number" class="field-input" id="disk-limit" value="10" min="1" max="500">
+                </div>
+                <div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              Infrastructure
+            </div>
+            <div class="settings-row">
+              <div class="field">
+                <label class="field-label" for="docker-image">HotBox Docker Image</label>
+                <input type="text" class="field-input" id="docker-image" value="hotbox/hotbox:latest" style="font-family: var(--font-mono); font-size: 12px;">
+              </div>
+              <div class="field">
+                <label class="field-label" for="proxy-type">Reverse Proxy</label>
+                <select class="field-input" id="proxy-type">
+                  <option value="nginx" selected>Nginx</option>
+                  <option value="caddy">Caddy</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ================================
+       Create Invite Modal
+       ================================ -->
+  <div class="modal-overlay" id="invite-modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="invite-modal-title">Create Invite</h2>
+        <button class="modal-close" id="invite-modal-close" aria-label="Close modal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label class="field-label" for="invite-max-uses">Max Uses</label>
+          <input type="number" class="field-input" id="invite-max-uses" value="1" min="1" max="100">
+          <div class="field-hint">Number of times this invite can be used</div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="invite-expires">Expires In</label>
+          <select class="field-input" id="invite-expires">
+            <option value="24h">24 hours</option>
+            <option value="7d" selected>7 days</option>
+            <option value="30d">30 days</option>
+            <option value="never">Never</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="invite-note">Note (optional)</label>
+          <input type="text" class="field-input" id="invite-note" placeholder="For admin reference only...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="invite-cancel">Cancel</button>
+        <button class="btn btn-primary" id="invite-create">Create Invite</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    <span id="toast-text">Copied to clipboard</span>
+  </div>
+
+  <script>
+    // ============================================================
+    // Navigation
+    // ============================================================
+    const navItems = document.querySelectorAll('.sidebar-item[data-page]');
+    const pages = document.querySelectorAll('.page');
+
+    function navigateTo(pageId) {
+      pages.forEach(p => p.classList.remove('active'));
+      navItems.forEach(n => {
+        n.classList.remove('active');
+        n.removeAttribute('aria-current');
+      });
+
+      const page = document.getElementById('page-' + pageId);
+      const nav = document.querySelector('[data-page="' + pageId + '"]');
+      if (page) page.classList.add('active');
+      if (nav) {
+        nav.classList.add('active');
+        nav.setAttribute('aria-current', 'page');
+      }
+    }
+
+    navItems.forEach(item => {
+      item.addEventListener('click', () => {
+        navigateTo(item.dataset.page);
+      });
+    });
+
+    // ============================================================
+    // Toast
+    // ============================================================
+    let toastTimer = null;
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      const toastText = document.getElementById('toast-text');
+      toastText.textContent = message;
+      toast.classList.add('show');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2000);
+    }
+
+    // ============================================================
+    // Copy to clipboard
+    // ============================================================
+    document.querySelectorAll('[data-copy]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const text = btn.dataset.copy;
+        navigator.clipboard.writeText(text).then(() => {
+          showToast('Copied to clipboard');
+        }).catch(() => {
+          showToast('Failed to copy');
+        });
+      });
+    });
+
+    // ============================================================
+    // Invite Modal
+    // ============================================================
+    const inviteModal = document.getElementById('invite-modal');
+
+    function openInviteModal() {
+      inviteModal.classList.add('open');
+      document.getElementById('invite-max-uses').focus();
+    }
+
+    function closeInviteModal() {
+      inviteModal.classList.remove('open');
+    }
+
+    document.getElementById('btn-create-invite').addEventListener('click', openInviteModal);
+    document.getElementById('invite-modal-close').addEventListener('click', closeInviteModal);
+    document.getElementById('invite-cancel').addEventListener('click', closeInviteModal);
+
+    document.getElementById('invite-create').addEventListener('click', () => {
+      closeInviteModal();
+      showToast('Invite created successfully');
+    });
+
+    inviteModal.addEventListener('click', (e) => {
+      if (e.target === inviteModal) closeInviteModal();
+    });
+
+    // Escape to close modal
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && inviteModal.classList.contains('open')) {
+        closeInviteModal();
+      }
+    });
+
+    // ============================================================
+    // New Instance button on instances page
+    // ============================================================
+    document.getElementById('btn-new-instance-2').addEventListener('click', () => {
+      showToast('New instance form coming soon');
+    });
+
+    // ============================================================
+    // Instance detail expand/collapse
+    // ============================================================
+    document.querySelectorAll('.clickable-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        // Don't toggle if clicking action buttons
+        if (e.target.closest('.row-actions') || e.target.closest('.copy-btn')) return;
+
+        const instanceId = row.dataset.instance;
+        const detail = document.getElementById('detail-' + instanceId);
+        if (detail) {
+          detail.classList.toggle('open');
+        }
+      });
+    });
+
+    // ============================================================
+    // Settings: quota toggle
+    // ============================================================
+    const toggleQuotas = document.getElementById('toggle-quotas');
+    const quotaFields = document.getElementById('quota-fields');
+
+    toggleQuotas.addEventListener('click', () => {
+      const isOn = toggleQuotas.classList.toggle('on');
+      toggleQuotas.setAttribute('aria-checked', isOn);
+      if (isOn) {
+        quotaFields.classList.add('enabled');
+      } else {
+        quotaFields.classList.remove('enabled');
+      }
+    });
+
+    toggleQuotas.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        toggleQuotas.click();
+      }
+    });
+  </script>
+</body>
+</html>
