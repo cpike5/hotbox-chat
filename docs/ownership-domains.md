@@ -3,7 +3,7 @@
 **Version**: 1.1
 **Date**: 2026-02-13
 
-This document defines the five ownership domains for HotBox development. Each domain is owned by a dedicated agent (defined in `.claude/agents/`) responsible for implementation, maintenance, bug fixes, and documentation within their area.
+This document defines the six ownership domains for HotBox development. Each domain is owned by a dedicated agent (defined in `.claude/agents/`) responsible for implementation, maintenance, bug fixes, and documentation within their area.
 
 ---
 
@@ -16,6 +16,7 @@ This document defines the five ownership domains for HotBox development. Each do
 | Messaging | `messaging` | Text channels, DMs, message persistence, ChatHub, message search |
 | Real-time & Media | `realtime-media` | Voice channels, WebRTC, VoiceSignalingHub, audio |
 | Client Experience | `client-experience` | Blazor WASM shell, layout, design system, theming, notifications UI, presence UI, search UI |
+| Marketing | `marketing` | Branding, README, release notes, public-facing content, visual assets |
 
 ---
 
@@ -309,6 +310,44 @@ tests/HotBox.Client.Tests/
 
 ---
 
+### 6. Marketing
+
+**Agent**: `.claude/agents/marketing.md`
+
+**Owns**:
+- Brand identity (logo usage, naming, tone of voice)
+- README and landing content (feature list, badges, screenshots, quickstart)
+- Release communications (changelog prose, release notes, announcement drafts)
+- User-facing documentation tone and clarity
+- Social and community content (blog drafts, social copy, update templates)
+- SEO and discoverability (repo topics, OG metadata)
+- Visual assets (screenshot guidelines, banners, OG images)
+- Competitive positioning (feature comparisons, "Why HotBox?" messaging)
+
+**Maintains docs**:
+- `README.md` — Primary public-facing document
+- `CONTRIBUTING.md` — Contributor guide tone and clarity
+- `docs/branding/` — Brand guidelines, voice & tone, logo usage
+
+**Code paths**:
+```
+README.md
+CONTRIBUTING.md
+docs/branding/                               # Brand guidelines, logo assets, tone guide
+docs/screenshots/                            # Curated screenshots
+.github/ISSUE_TEMPLATE/                      # Issue template wording
+.github/PULL_REQUEST_TEMPLATE.md             # PR template wording
+src/HotBox.Client/wwwroot/images/            # Logo, favicon, OG image assets
+src/HotBox.Client/wwwroot/index.html         # Page title, meta tags, OG tags
+```
+
+**Coordinates with**:
+- Platform (release versioning, deployment docs, Docker quickstart)
+- Client Experience (screenshots, logo/favicon assets, OG meta tags)
+- All domains (feature descriptions for README and announcements)
+
+---
+
 ## Interaction Model
 
 ```
@@ -317,11 +356,14 @@ tests/HotBox.Client.Tests/
            Auth  Msg   RT&Media
              \    |    /
           Client Experience
+                 |
+             Marketing
 ```
 
 - **Platform** provides the foundation (infrastructure, config, observability) — all domains depend on it
 - **Auth & Security**, **Messaging**, and **Real-time & Media** are vertical feature domains with clear boundaries
 - **Client Experience** stitches everything into a cohesive UI and owns the overall user-facing shell
+- **Marketing** owns the public-facing layer — README, branding, release notes, and visual assets
 
 ## Invoking Agents
 
@@ -333,6 +375,7 @@ Agents are defined as sub-agent definitions in `.claude/agents/` and can be invo
 /messaging        — Text channels, DMs, ChatHub work
 /realtime-media   — Voice, WebRTC, audio work
 /client-experience — UI, layout, theming, shared components work
+/marketing         — Branding, README, release notes, public content work
 ```
 
 Each agent has full context about its domain: what it owns, what it doesn't, who to coordinate with, and what docs to maintain.
