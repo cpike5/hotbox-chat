@@ -27,7 +27,7 @@ Key patterns:
 
 ## Domain Agents
 
-The project is organized into five ownership domains, each with a dedicated sub-agent defined in `.claude/agents/`. Each agent has full context about its domain — what it owns, what it doesn't, coordination points, and docs it maintains.
+The project is organized into six ownership domains, each with a dedicated sub-agent defined in `.claude/agents/`. Each agent has full context about its domain — what it owns, what it doesn't, coordination points, and docs it maintains.
 
 | Agent | Domain | Invoke With |
 |-------|--------|-------------|
@@ -36,6 +36,7 @@ The project is organized into five ownership domains, each with a dedicated sub-
 | `messaging` | Text channels, DMs, ChatHub, message persistence | Task tool with `.claude/agents/messaging.md` |
 | `realtime-media` | Voice channels, WebRTC, VoiceSignalingHub, audio | Task tool with `.claude/agents/realtime-media.md` |
 | `client-experience` | Blazor WASM shell, layout, design system, theming, notifications UI | Task tool with `.claude/agents/client-experience.md` |
+| `marketing` | Branding, README, release notes, public-facing content, visual assets | Task tool with `.claude/agents/marketing.md` |
 
 See `docs/ownership-domains.md` for full domain boundaries, code ownership, and coordination rules.
 
