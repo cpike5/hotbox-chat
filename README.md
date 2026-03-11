@@ -9,7 +9,6 @@
 </p>
 
 <p align="center">
-  <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg" />
   <img alt=".NET 8" src="https://img.shields.io/badge/.NET-8.0-512BD4" />
   <img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ED" />
   <img alt="PRs Welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" />
@@ -19,27 +18,35 @@
 
 ## Quick Start
 
+**Docker (recommended):**
+
 ```bash
 git clone https://github.com/cpike5/hotbox-chat.git
 cd hotbox-chat
-docker-compose up
+cp .env.example .env   # edit .env with your secrets
+docker compose up -d
 ```
 
-Open **http://localhost:8080** — the first user to register becomes the admin.
+Open **http://localhost:7200** — an admin account is created from the `ADMIN_*` values in your `.env` file.
 
-See [Docker deployment docs](docs/deployment/docker.md) for production setup, database options, TLS, and backups.
+See [Docker deployment docs](docs/deployment/docker.md) for production setup with the pre-built GHCR image, database options, TLS, and backups.
 
 ## Features
 
-- **Text Channels** — Organized chat rooms with real-time messaging
-- **Voice Channels** — Drop into always-on voice rooms with peer-to-peer audio
-- **Direct Messages** — Private 1-on-1 conversations
-- **Message Search** — Full-text search powered by native database FTS
+- **Text Channels** — Organized chat rooms with real-time messaging via SignalR
+- **Voice Channels** — Drop into always-on voice rooms with peer-to-peer WebRTC audio
+- **Direct Messages** — Private 1-on-1 conversations with conversation list and unread tracking
+- **Message Search** — Full-text search across channels and DMs, powered by native database FTS (PostgreSQL `tsvector`, MySQL `FULLTEXT`, SQLite FTS5)
 - **Authentication** — Email/password with optional OAuth (Google, Microsoft)
-- **Roles & Permissions** — Admin, moderator, and member roles with fine-grained controls
-- **Admin Panel** — Manage server settings, users, channels, and invites
-- **Presence** — See who's online, idle, or offline
-- **Notifications** — Desktop and browser notifications for mentions and messages
+- **Roles** — Admin, Moderator, and Member roles with role-based access control
+- **Admin Panel** — Manage server settings, users, channels, invites, and API keys
+- **Invites** — Generate invite codes for controlled registration (open, invite-only, or closed modes)
+- **Presence** — See who's online, idle, or offline in real time
+- **Typing Indicators** — See when someone is composing a message
+- **User Profiles** — Display name, avatar, bio, pronouns, and custom status
+- **Notifications** — Desktop and browser notifications for mentions and direct messages
+- **Agent / Bot API** — API key authentication and agent accounts for programmatic access via the MCP server
+- **Observability** — Structured logging with Serilog, Seq, OpenTelemetry, and Elasticsearch support
 
 ## Why Self-Host?
 
@@ -54,7 +61,7 @@ See [Docker deployment docs](docs/deployment/docker.md) for production setup, da
 | | HotBox | Rocket.Chat | Element (Matrix) | Revolt | Mattermost |
 |---|---|---|---|---|---|
 | Self-hosted | Yes | Yes | Yes | Yes | Yes |
-| Open source | MIT | MIT | Apache 2.0 | AGPL | AGPL / Proprietary |
+| Open source | Yes | MIT | Apache 2.0 | AGPL | AGPL / Proprietary |
 | Voice chat | Built-in (WebRTC) | Jitsi plugin | Jitsi / native | Built-in | Plugin |
 | Tech stack | .NET + Blazor WASM | Node.js + Meteor | Python / TypeScript | Rust / TypeScript | Go + React |
 | Lightweight | Yes (~100 users) | No (enterprise-scale) | Moderate | Yes | No (enterprise-scale) |
@@ -70,8 +77,8 @@ HotBox is purpose-built for small groups. If you need enterprise features, feder
 | Web Client | Blazor WASM |
 | Database | SQLite (dev) / PostgreSQL, MySQL, MariaDB (prod) |
 | ORM | Entity Framework Core (multi-provider) |
-| Auth | ASP.NET Identity + OAuth |
-| Observability | Serilog + OpenTelemetry |
+| Auth | ASP.NET Identity + JWT + OAuth |
+| Observability | Serilog + Seq + OpenTelemetry + Elasticsearch |
 | Deployment | Docker / Docker Compose |
 
 ## Architecture
@@ -89,7 +96,7 @@ Configured via `appsettings.json` or environment variables (double-underscore sy
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Server__ServerName` | `"HotBox"` | Server display name |
-| `Server__RegistrationMode` | `"Open"` | `Open`, `InviteOnly`, or `Closed` |
+| `Server__RegistrationMode` | `"InviteOnly"` | `Open`, `InviteOnly`, or `Closed` |
 | `Database__Provider` | `"sqlite"` | `sqlite`, `postgresql`, `mysql`, `mariadb` |
 | `Database__ConnectionString` | `"Data Source=hotbox.db"` | Database connection string |
 | `Jwt__Secret` | `""` | **Required for production** — JWT signing secret |
@@ -126,6 +133,10 @@ sudo ./deploy/bare-metal-deploy.sh install
 
 Installs to `/opt/hotbox` as a systemd service. See [docs/deployment/bare-metal.md](docs/deployment/bare-metal.md) for reverse proxy, TLS, and firewall setup.
 
+### Agent / Bot Integration
+
+HotBox includes an MCP (Model Context Protocol) server that lets LLMs create agent accounts, send messages, and read conversations. See [docs/mcp-server-setup.md](docs/mcp-server-setup.md) and [docs/api-key-management.md](docs/api-key-management.md) for setup.
+
 ## Contributing
 
 Contributions welcome! Open an issue first for major changes.
@@ -141,13 +152,9 @@ git commit -m "feat: add your feature"
 git push origin feature/your-feature
 ```
 
-## License
-
-MIT License — See [LICENSE](LICENSE) for details.
-
 ---
 
 <p align="center">
-  Give HotBox a try — clone it, <code>docker-compose up</code>, and you're chatting in minutes.<br />
+  Give HotBox a try — clone it, <code>docker compose up</code>, and you're chatting in minutes.<br />
   If you find it useful, star the repo to help others discover it.
 </p>
