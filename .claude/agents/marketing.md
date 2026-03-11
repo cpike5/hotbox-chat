@@ -22,7 +22,7 @@ README.md                                    # Primary public-facing document
 CONTRIBUTING.md                              # Contributor onboarding (tone & clarity)
 docs/branding/                               # Brand guidelines, logo assets, tone guide
 docs/screenshots/                            # Curated screenshots for README and docs
-docs/deployment/                             # User-facing setup guides (tone review)
+deploy/                                      # Deploy scripts & nginx configs (tone review)
 .github/ISSUE_TEMPLATE/                      # Issue template wording
 .github/PULL_REQUEST_TEMPLATE.md             # PR template wording
 .github/FUNDING.yml                          # Sponsorship links (if added)
