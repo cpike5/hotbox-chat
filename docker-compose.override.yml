@@ -1,8 +1,6 @@
 # Local development override — automatically loaded by `docker compose up`
 #
-# Uses SQLite + Seq for a zero-dependency dev experience.
-# To run production-style (PostgreSQL) instead, use:
-#   docker compose -f docker-compose.yml up
+# Uses PostgreSQL + Seq for local development.
 
 services:
   hotbox:
@@ -13,8 +11,8 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - Database__Provider=sqlite
-      - Database__ConnectionString=Data Source=/data/hotbox.db
+      - Database__Provider=postgresql
+      - Database__ConnectionString=Host=db;Port=5432;Database=hotbox;Username=hotbox;Password=${DB_PASSWORD:-changeme}
       - Jwt__Secret=${JWT_SECRET:-ThisIsADevelopmentSecretKeyThatIsLongEnoughForHMACSHA256!}
       - Observability__SeqUrl=http://seq:5341
       - Observability__OtlpEndpoint=http://host.docker.internal:8200
@@ -22,9 +20,9 @@ services:
       - Observability__ElasticsearchUrl=http://host.docker.internal:9200
       - Observability__ElasticsearchApiKey=${ELASTICSEARCH_API_KEY:-}
       - Observability__LogLevel=Debug
-    volumes:
-      - hotbox-data:/data
     depends_on:
+      db:
+        condition: service_healthy
       seq:
         condition: service_started
 
@@ -42,5 +40,4 @@ services:
       - seqdata:/data
 
 volumes:
-  hotbox-data:
   seqdata:

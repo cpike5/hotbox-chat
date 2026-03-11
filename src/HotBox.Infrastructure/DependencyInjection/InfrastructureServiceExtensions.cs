@@ -43,9 +43,6 @@ public static class InfrastructureServiceExtensions
         {
             switch (dbOptions.Provider.ToLowerInvariant())
             {
-                case "sqlite":
-                    options.UseSqlite(dbOptions.ConnectionString);
-                    break;
                 case "postgresql":
                 case "postgres":
                     options.UseNpgsql(dbOptions.ConnectionString);
@@ -56,9 +53,12 @@ public static class InfrastructureServiceExtensions
                         dbOptions.ConnectionString,
                         ServerVersion.AutoDetect(dbOptions.ConnectionString));
                     break;
+                case "sqlite":
+                    throw new InvalidOperationException(
+                        "SQLite is no longer supported. Please use PostgreSQL (recommended) or MySQL.");
                 default:
                     throw new InvalidOperationException(
-                        $"Unsupported database provider: {dbOptions.Provider}");
+                        $"Unsupported database provider: {dbOptions.Provider}. Supported: postgresql, mysql");
             }
         });
 
@@ -116,9 +116,6 @@ public static class InfrastructureServiceExtensions
             case "mysql":
             case "mariadb":
                 services.AddScoped<ISearchService, MySqlSearchService>();
-                break;
-            case "sqlite":
-                services.AddScoped<ISearchService, SqliteSearchService>();
                 break;
             default:
                 services.AddScoped<ISearchService, FallbackSearchService>();

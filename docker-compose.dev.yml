@@ -2,23 +2,15 @@
 #
 # Adds:
 #   - Seq for log aggregation (UI at http://localhost:7201)
-#   - SQLite instead of PostgreSQL
 #   - Development environment variables
-#
-# Note: The PostgreSQL container from docker-compose.yml will still start but
-# the app uses SQLite via the environment overrides below.
 
 services:
   hotbox:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - Database__Provider=sqlite
-      - Database__ConnectionString=Data Source=/data/hotbox.db
       - Jwt__Secret=${JWT_SECRET:-ThisIsADevelopmentSecretKeyThatIsLongEnoughForHMACSHA256!}
       - Observability__SeqUrl=http://seq:5341
       - Observability__LogLevel=Debug
-    volumes:
-      - hotbox-data:/data
 
   seq:
     image: datalust/seq:latest
@@ -34,5 +26,4 @@ services:
       - seqdata:/data
 
 volumes:
-  hotbox-data:
   seqdata:
