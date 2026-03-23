@@ -1,17 +1,16 @@
 using HotBox.Application.DependencyInjection;
 using HotBox.Application.Hubs;
 using HotBox.Application.Middleware;
-using HotBox.Core.Enums;
 using HotBox.Core.Interfaces;
 using HotBox.Infrastructure.Data;
-using HotBox.Infrastructure.Data.Seeding;
 using HotBox.Infrastructure.DependencyInjection;
 using HotBox.Infrastructure.Services;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
+using Scalar.AspNetCore;
 using Serilog;
 
-// Bootstrap Serilog early for startup logging
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();
@@ -20,44 +19,59 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    // Observability — Serilog replaces default logging
+    // Observability
     builder.Host.AddObservability(builder.Configuration);
     builder.Services.AddOpenTelemetryObservability(builder.Configuration);
 
-    // Add services to the container.
+    // Infrastructure (EF Core, Identity, repos, services, validators, options)
     builder.Services.AddInfrastructure(builder.Configuration);
-    builder.Services.AddApplicationServices(builder.Configuration);
-    builder.Services.AddHostedService<DatabaseSeeder>();
 
-    // Health checks (used by Docker and load balancers)
+    // Application services (auth, SignalR, controllers, health checks)
+    builder.Services.AddApplicationServices(builder.Configuration);
+
+    // HybridCache with Redis L2
+    builder.Services.AddHybridCache(options =>
+    {
+        options.DefaultEntryOptions = new HybridCacheEntryOptions
+        {
+            Expiration = TimeSpan.FromMinutes(5),
+            LocalCacheExpiration = TimeSpan.FromMinutes(1),
+        };
+    });
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = builder.Configuration.GetConnectionString("Redis");
+        options.InstanceName = "HotBox:";
+    });
+
+    // Health checks
     builder.Services.AddHealthChecks()
-        .AddDbContextCheck<HotBoxDbContext>("database");
+        .AddDbContextCheck<HotBoxDbContext>("database")
+        .AddRedis(builder.Configuration.GetConnectionString("Redis")!, name: "redis");
 
     var app = builder.Build();
 
-    // Auto-migrate database on startup
+    // Auto-migrate
+    using (var scope = app.Services.CreateScope())
     {
-        using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HotBoxDbContext>();
         db.Database.Migrate();
     }
 
-    // Initialize search indexes (FTS tables, GIN indexes, etc.)
+    // Initialize search
+    using (var scope = app.Services.CreateScope())
     {
-        using var scope = app.Services.CreateScope();
         var searchService = scope.ServiceProvider.GetRequiredService<ISearchService>();
-        searchService.InitializeIndexAsync(CancellationToken.None).GetAwaiter().GetResult();
+        await searchService.InitializeIndexAsync(CancellationToken.None);
     }
 
-    // Configure the HTTP request pipeline.
+    // Pipeline
     app.UseSerilogRequestLogging();
-
     if (app.Environment.IsDevelopment())
     {
-        app.UseSwagger();
-        app.UseSwaggerUI();
+        app.MapOpenApi();
+        app.MapScalarApiReference();
     }
-
     app.UseHttpsRedirection();
     app.UseBlazorFrameworkFiles();
     app.UseStaticFiles();
@@ -71,9 +85,7 @@ try
     app.MapHealthChecks("/health");
     app.MapFallbackToFile("index.html");
 
-    // Wire up PresenceService status change events to broadcast via SignalR.
-    // This handles deferred events like grace-period expiration and idle timeouts
-    // that fire outside of a Hub method invocation.
+    // Wire presence events to SignalR
     var presenceService = app.Services.GetRequiredService<PresenceService>();
     var hubContext = app.Services.GetRequiredService<IHubContext<ChatHub>>();
     presenceService.OnUserStatusChanged += (userId, displayName, status, isAgent) =>
@@ -91,3 +103,6 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Make the auto-generated Program class accessible to integration tests
+public partial class Program;

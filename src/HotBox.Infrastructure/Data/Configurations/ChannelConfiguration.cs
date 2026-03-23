@@ -1,5 +1,4 @@
 using HotBox.Core.Entities;
-using HotBox.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -11,39 +10,27 @@ public class ChannelConfiguration : IEntityTypeConfiguration<Channel>
     {
         builder.HasKey(c => c.Id);
 
-        builder.Property(c => c.Id)
-            .ValueGeneratedOnAdd();
-
         builder.Property(c => c.Name)
             .IsRequired()
             .HasMaxLength(100);
 
-        builder.Property(c => c.Topic)
+        builder.Property(c => c.Description)
             .HasMaxLength(500);
 
-        builder.Property(c => c.Type)
-            .IsRequired()
-            .HasConversion<string>();
-
         builder.Property(c => c.SortOrder)
-            .IsRequired();
+            .HasDefaultValue(0);
 
-        builder.Property(c => c.CreatedAtUtc)
-            .IsRequired();
-
-        builder.Property(c => c.CreatedByUserId)
-            .IsRequired();
+        builder.HasIndex(c => c.Name)
+            .IsUnique();
 
         builder.HasOne(c => c.CreatedBy)
             .WithMany()
-            .HasForeignKey(c => c.CreatedByUserId)
+            .HasForeignKey(c => c.CreatedById)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(c => c.Messages)
             .WithOne(m => m.Channel)
             .HasForeignKey(m => m.ChannelId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasIndex(c => c.CreatedByUserId);
     }
 }

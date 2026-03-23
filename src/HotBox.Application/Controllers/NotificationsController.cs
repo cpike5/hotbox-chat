@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HotBox.Application.Controllers;
 
 [ApiController]
-[Route("api/notifications")]
+[Route("api/[controller]")]
 [Authorize]
 public class NotificationsController : ControllerBase
 {
@@ -24,123 +24,82 @@ public class NotificationsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetNotifications(
-        [FromQuery] DateTime? before = null,
+    public async Task<ActionResult<IReadOnlyList<NotificationResponse>>> GetNotifications(
+        [FromQuery] DateTime? before,
         [FromQuery] int limit = 50,
         CancellationToken ct = default)
     {
-        if (limit is < 1 or > 100)
-            return BadRequest(new { error = "Limit must be between 1 and 100." });
-
         var userId = GetUserId();
-        if (userId is null) return Unauthorized();
+        var notifications = await _notificationRepository.GetByRecipientAsync(userId, before, limit, ct);
 
-        var notifications = await _notificationRepository.GetByRecipientAsync(userId.Value, before, limit, ct);
-
-        var response = notifications.Select(n => new NotificationResponse
-        {
-            Id = n.Id,
-            Type = n.Type,
-            SenderId = n.SenderId,
-            SenderDisplayName = n.Sender?.DisplayName ?? "Unknown",
-            MessagePreview = ExtractPreviewFromPayload(n.PayloadJson),
-            SourceId = n.SourceId,
-            SourceType = n.SourceType,
-            SourceName = ExtractSourceNameFromPayload(n.PayloadJson),
-            CreatedAtUtc = n.CreatedAtUtc,
-            ReadAtUtc = n.ReadAtUtc
-        }).ToList();
+        var response = notifications.Select(n => new NotificationResponse(
+            n.Id,
+            n.Type,
+            n.SenderId,
+            n.PayloadJson,
+            n.SourceId,
+            n.SourceType,
+            n.CreatedAt,
+            n.ReadAt
+        )).ToList();
 
         return Ok(response);
     }
 
-    [HttpGet("unread-count")]
-    public async Task<IActionResult> GetUnreadCount(CancellationToken ct = default)
+    [HttpGet("unread/count")]
+    public async Task<ActionResult<int>> GetUnreadCount(CancellationToken ct)
     {
         var userId = GetUserId();
-        if (userId is null) return Unauthorized();
-
-        var count = await _notificationRepository.GetUnreadCountAsync(userId.Value, ct);
+        var count = await _notificationRepository.GetUnreadCountAsync(userId, ct);
         return Ok(count);
     }
 
-    [HttpPost("mark-all-read")]
-    public async Task<IActionResult> MarkAllAsRead(CancellationToken ct = default)
+    [HttpPost("read")]
+    public async Task<IActionResult> MarkAllRead(CancellationToken ct)
     {
         var userId = GetUserId();
-        if (userId is null) return Unauthorized();
-
-        await _notificationRepository.MarkAllAsReadAsync(userId.Value, ct);
-        return NoContent();
+        await _notificationRepository.MarkAllAsReadAsync(userId, ct);
+        return Ok();
     }
 
     [HttpGet("preferences")]
-    public async Task<IActionResult> GetPreferences(CancellationToken ct = default)
+    public async Task<ActionResult<IReadOnlyList<object>>> GetPreferences(CancellationToken ct)
     {
         var userId = GetUserId();
-        if (userId is null) return Unauthorized();
+        var preferences = await _notificationRepository.GetPreferencesAsync(userId, ct);
 
-        var prefs = await _notificationRepository.GetPreferencesAsync(userId.Value, ct);
-        var response = prefs.Select(p => new
+        var response = preferences.Select(p => new
         {
+            p.Id,
             p.SourceType,
             p.SourceId,
-            p.IsMuted
+            p.IsMuted,
+            p.CreatedAt,
+            p.UpdatedAt
         }).ToList();
 
         return Ok(response);
     }
 
-    [HttpPut("preferences")]
-    public async Task<IActionResult> SetPreference(
-        [FromBody] SetPreferenceRequest request,
-        CancellationToken ct = default)
+    [HttpPut("preferences/{sourceType}/{sourceId:guid}")]
+    public async Task<IActionResult> SetMutePreference(
+        NotificationSourceType sourceType,
+        Guid sourceId,
+        [FromQuery] bool muted,
+        CancellationToken ct)
     {
         var userId = GetUserId();
-        if (userId is null) return Unauthorized();
+        await _notificationRepository.SetMutePreferenceAsync(userId, sourceType, sourceId, muted, ct);
 
-        await _notificationRepository.SetMutePreferenceAsync(
-            userId.Value, request.SourceType, request.SourceId, request.IsMuted, ct);
+        _logger.LogDebug("User {UserId} set mute={Muted} for {SourceType}:{SourceId}", userId, muted, sourceType, sourceId);
 
-        return NoContent();
+        return Ok();
     }
 
-    private Guid? GetUserId()
+    private Guid GetUserId()
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            return null;
-        return userId;
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? throw new UnauthorizedAccessException("User ID not found in claims.");
+        return Guid.Parse(userIdStr);
     }
-
-    private static string ExtractPreviewFromPayload(string payloadJson)
-    {
-        try
-        {
-            using var doc = System.Text.Json.JsonDocument.Parse(payloadJson);
-            if (doc.RootElement.TryGetProperty("messagePreview", out var prop))
-                return prop.GetString() ?? string.Empty;
-        }
-        catch { }
-        return string.Empty;
-    }
-
-    private static string ExtractSourceNameFromPayload(string payloadJson)
-    {
-        try
-        {
-            using var doc = System.Text.Json.JsonDocument.Parse(payloadJson);
-            if (doc.RootElement.TryGetProperty("sourceName", out var prop))
-                return prop.GetString() ?? string.Empty;
-        }
-        catch { }
-        return string.Empty;
-    }
-}
-
-public class SetPreferenceRequest
-{
-    public NotificationSourceType SourceType { get; set; }
-    public Guid SourceId { get; set; }
-    public bool IsMuted { get; set; }
 }

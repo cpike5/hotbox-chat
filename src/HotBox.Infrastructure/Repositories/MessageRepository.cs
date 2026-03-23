@@ -7,18 +7,18 @@ namespace HotBox.Infrastructure.Repositories;
 
 public class MessageRepository : IMessageRepository
 {
-    private readonly HotBoxDbContext _context;
+    private readonly HotBoxDbContext _dbContext;
 
-    public MessageRepository(HotBoxDbContext context)
+    public MessageRepository(HotBoxDbContext dbContext)
     {
-        _context = context;
+        _dbContext = dbContext;
     }
 
     public async Task<Message?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        return await _context.Messages
-            .AsNoTracking()
-            .Include(m => m.Author)
+        return await _dbContext.Messages
+            .Include(m => m.User)
+            .Include(m => m.Channel)
             .FirstOrDefaultAsync(m => m.Id == id, ct);
     }
 
@@ -28,23 +28,20 @@ public class MessageRepository : IMessageRepository
         int limit = 50,
         CancellationToken ct = default)
     {
-        var query = _context.Messages
-            .AsNoTracking()
-            .Include(m => m.Author)
+        var query = _dbContext.Messages
             .Where(m => m.ChannelId == channelId);
 
         if (before.HasValue)
         {
-            query = query.Where(m => m.CreatedAtUtc < before.Value);
+            query = query.Where(m => m.CreatedAt < before.Value);
         }
 
-        var messages = await query
-            .OrderByDescending(m => m.CreatedAtUtc)
+        return await query
+            .OrderByDescending(m => m.CreatedAt)
             .Take(limit)
+            .Include(m => m.User)
+            .AsNoTracking()
             .ToListAsync(ct);
-
-        messages.Reverse();
-        return messages;
     }
 
     public async Task<IReadOnlyList<Message>> GetAroundAsync(
@@ -53,44 +50,53 @@ public class MessageRepository : IMessageRepository
         int context = 25,
         CancellationToken ct = default)
     {
-        var target = await _context.Messages
+        var targetMessage = await _dbContext.Messages
             .AsNoTracking()
-            .Where(m => m.Id == messageId && m.ChannelId == channelId)
-            .Select(m => new { m.CreatedAtUtc })
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(m => m.Id == messageId && m.ChannelId == channelId, ct);
 
-        if (target is null)
-            return Array.Empty<Message>();
+        if (targetMessage is null)
+        {
+            return [];
+        }
 
-        var before = await _context.Messages
-            .AsNoTracking()
-            .Include(m => m.Author)
-            .Where(m => m.ChannelId == channelId && m.CreatedAtUtc < target.CreatedAtUtc)
-            .OrderByDescending(m => m.CreatedAtUtc)
+        var before = await _dbContext.Messages
+            .Where(m => m.ChannelId == channelId && m.CreatedAt < targetMessage.CreatedAt)
+            .OrderByDescending(m => m.CreatedAt)
             .Take(context)
-            .ToListAsync(ct);
-
-        var targetAndAfter = await _context.Messages
+            .Include(m => m.User)
             .AsNoTracking()
-            .Include(m => m.Author)
-            .Where(m => m.ChannelId == channelId && m.CreatedAtUtc >= target.CreatedAtUtc)
-            .OrderBy(m => m.CreatedAtUtc)
-            .Take(context + 1)
             .ToListAsync(ct);
 
-        before.Reverse();
-        before.AddRange(targetAndAfter);
-        return before;
+        var after = await _dbContext.Messages
+            .Where(m => m.ChannelId == channelId && m.CreatedAt > targetMessage.CreatedAt)
+            .OrderBy(m => m.CreatedAt)
+            .Take(context)
+            .Include(m => m.User)
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        // Load the user for the target message
+        var targetWithUser = await _dbContext.Messages
+            .Include(m => m.User)
+            .AsNoTracking()
+            .FirstAsync(m => m.Id == messageId, ct);
+
+        var result = new List<Message>(before.Count + 1 + after.Count);
+        result.AddRange(before.OrderBy(m => m.CreatedAt));
+        result.Add(targetWithUser);
+        result.AddRange(after);
+
+        return result;
     }
 
     public async Task<Message> CreateAsync(Message message, CancellationToken ct = default)
     {
-        _context.Messages.Add(message);
-        await _context.SaveChangesAsync(ct);
+        _dbContext.Messages.Add(message);
+        await _dbContext.SaveChangesAsync(ct);
 
-        return await _context.Messages
-            .AsNoTracking()
-            .Include(m => m.Author)
-            .FirstAsync(m => m.Id == message.Id, ct);
+        // Reload with User navigation property
+        await _dbContext.Entry(message).Reference(m => m.User).LoadAsync(ct);
+
+        return message;
     }
 }

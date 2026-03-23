@@ -8,16 +8,16 @@ namespace HotBox.Infrastructure.Services;
 
 public class DirectMessageService : IDirectMessageService
 {
-    private readonly IDirectMessageRepository _repository;
+    private readonly IDirectMessageRepository _directMessageRepository;
     private readonly UserManager<AppUser> _userManager;
     private readonly ILogger<DirectMessageService> _logger;
 
     public DirectMessageService(
-        IDirectMessageRepository repository,
+        IDirectMessageRepository directMessageRepository,
         UserManager<AppUser> userManager,
         ILogger<DirectMessageService> logger)
     {
-        _repository = repository;
+        _directMessageRepository = directMessageRepository;
         _userManager = userManager;
         _logger = logger;
     }
@@ -28,17 +28,8 @@ public class DirectMessageService : IDirectMessageService
         string content,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(content))
-            throw new ArgumentException("Message content cannot be empty.", nameof(content));
-
-        if (senderId == recipientId)
-            throw new ArgumentException("Cannot send a direct message to yourself.");
-
-        var sender = await _userManager.FindByIdAsync(senderId.ToString())
-            ?? throw new KeyNotFoundException($"Sender {senderId} not found.");
-
         var recipient = await _userManager.FindByIdAsync(recipientId.ToString())
-            ?? throw new KeyNotFoundException($"Recipient {recipientId} not found.");
+            ?? throw new InvalidOperationException($"Recipient {recipientId} not found.");
 
         var message = new DirectMessage
         {
@@ -46,13 +37,12 @@ public class DirectMessageService : IDirectMessageService
             Content = content,
             SenderId = senderId,
             RecipientId = recipientId,
-            CreatedAtUtc = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
         };
 
-        var created = await _repository.CreateAsync(message, ct);
+        var created = await _directMessageRepository.CreateAsync(message, ct);
 
-        _logger.LogInformation(
-            "Direct message {MessageId} sent from user {SenderId} to user {RecipientId}",
+        _logger.LogDebug("Direct message {MessageId} sent from {SenderId} to {RecipientId}",
             created.Id, senderId, recipientId);
 
         return created;
@@ -65,13 +55,13 @@ public class DirectMessageService : IDirectMessageService
         int limit = 50,
         CancellationToken ct = default)
     {
-        return await _repository.GetConversationAsync(userId, otherUserId, before, limit, ct);
+        return await _directMessageRepository.GetConversationAsync(userId, otherUserId, before, limit, ct);
     }
 
     public async Task<IReadOnlyList<ConversationSummary>> GetConversationsAsync(
         Guid userId,
         CancellationToken ct = default)
     {
-        return await _repository.GetConversationsAsync(userId, ct);
+        return await _directMessageRepository.GetConversationsAsync(userId, ct);
     }
 }

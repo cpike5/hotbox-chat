@@ -4,7 +4,7 @@ namespace HotBox.Core.Interfaces;
 
 public interface IMessageService
 {
-    Task<Message> SendAsync(Guid channelId, Guid authorId, string content, CancellationToken ct = default);
+    Task<Message> SendAsync(Guid channelId, Guid userId, string content, CancellationToken ct = default);
 
     Task<IReadOnlyList<Message>> GetByChannelAsync(Guid channelId, DateTime? before = null, int limit = 50, CancellationToken ct = default);
 

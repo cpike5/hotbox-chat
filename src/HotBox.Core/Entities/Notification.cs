@@ -18,11 +18,10 @@ public class Notification
 
     public NotificationSourceType SourceType { get; set; }
 
-    public DateTime CreatedAtUtc { get; set; }
+    public DateTime CreatedAt { get; set; }
 
-    public DateTime? ReadAtUtc { get; set; }
+    public DateTime? ReadAt { get; set; }
 
-    // Navigation properties
     public AppUser Recipient { get; set; } = null!;
 
     public AppUser Sender { get; set; } = null!;

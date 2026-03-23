@@ -22,30 +22,26 @@ public class MessageService : IMessageService
 
     public async Task<Message> SendAsync(
         Guid channelId,
-        Guid authorId,
+        Guid userId,
         string content,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(content))
-            throw new ArgumentException("Message content cannot be empty.", nameof(content));
-
         var channel = await _channelRepository.GetByIdAsync(channelId, ct)
-            ?? throw new KeyNotFoundException($"Channel {channelId} not found.");
+            ?? throw new InvalidOperationException($"Channel {channelId} not found.");
 
         var message = new Message
         {
             Id = Guid.NewGuid(),
             Content = content,
             ChannelId = channelId,
-            AuthorId = authorId,
-            CreatedAtUtc = DateTime.UtcNow,
+            UserId = userId,
+            CreatedAt = DateTime.UtcNow
         };
 
         var created = await _messageRepository.CreateAsync(message, ct);
 
-        _logger.LogInformation(
-            "Message {MessageId} sent to channel {ChannelId} by user {AuthorId}",
-            created.Id, channelId, authorId);
+        _logger.LogDebug("Message {MessageId} sent to channel {ChannelId} by user {UserId}",
+            created.Id, channelId, userId);
 
         return created;
     }
@@ -56,9 +52,6 @@ public class MessageService : IMessageService
         int limit = 50,
         CancellationToken ct = default)
     {
-        var channel = await _channelRepository.GetByIdAsync(channelId, ct)
-            ?? throw new KeyNotFoundException($"Channel {channelId} not found.");
-
         return await _messageRepository.GetByChannelAsync(channelId, before, limit, ct);
     }
 
@@ -73,9 +66,6 @@ public class MessageService : IMessageService
         int context = 25,
         CancellationToken ct = default)
     {
-        var channel = await _channelRepository.GetByIdAsync(channelId, ct)
-            ?? throw new KeyNotFoundException($"Channel {channelId} not found.");
-
         return await _messageRepository.GetAroundAsync(channelId, messageId, context, ct);
     }
 }

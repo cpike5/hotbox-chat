@@ -12,9 +12,7 @@ namespace HotBox.Application.Authentication;
 
 public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthenticationOptions>
 {
-    public const string SchemeName = "ApiKey";
-    public const string HeaderName = "X-Api-Key";
-
+    private const string ApiKeyHeaderName = "X-Api-Key";
     private readonly HotBoxDbContext _dbContext;
 
     public ApiKeyAuthenticationHandler(
@@ -29,49 +27,53 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Headers.TryGetValue(HeaderName, out var headerValue))
+        if (!Request.Headers.TryGetValue(ApiKeyHeaderName, out var apiKeyHeaderValues))
         {
             return AuthenticateResult.NoResult();
         }
 
-        var plaintextKey = headerValue.ToString();
-        if (string.IsNullOrWhiteSpace(plaintextKey))
+        var providedKey = apiKeyHeaderValues.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(providedKey))
         {
             return AuthenticateResult.NoResult();
         }
 
-        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(plaintextKey));
-        var keyHash = Convert.ToBase64String(hashBytes);
+        var keyHash = HashApiKey(providedKey);
 
         var apiKey = await _dbContext.ApiKeys
-            .AsNoTracking()
-            .FirstOrDefaultAsync(ak => ak.KeyValue == keyHash, Context.RequestAborted);
+            .FirstOrDefaultAsync(k => k.KeyHash == keyHash && k.RevokedAt == null);
 
         if (apiKey is null)
         {
-            Logger.LogWarning("API key authentication failed: key not found");
+            Logger.LogWarning("Invalid API key attempted with prefix {KeyPrefix}", providedKey[..Math.Min(8, providedKey.Length)]);
             return AuthenticateResult.Fail("Invalid API key.");
         }
 
-        if (apiKey.RevokedAtUtc.HasValue)
+        if (apiKey.ExpiresAt.HasValue && apiKey.ExpiresAt.Value < DateTime.UtcNow)
         {
-            Logger.LogWarning("API key authentication failed: key {ApiKeyId} is revoked", apiKey.Id);
-            return AuthenticateResult.Fail("API key has been revoked.");
+            Logger.LogWarning("Expired API key used: {ApiKeyId}", apiKey.Id);
+            return AuthenticateResult.Fail("API key has expired.");
         }
 
         var claims = new[]
         {
+            new Claim(ClaimTypes.NameIdentifier, apiKey.UserId.ToString()),
             new Claim("auth_method", "api_key"),
             new Claim("api_key_id", apiKey.Id.ToString()),
             new Claim("api_key_name", apiKey.Name),
+            new Claim("is_agent", "true"),
         };
 
-        var identity = new ClaimsIdentity(claims, SchemeName);
+        var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
-        var ticket = new AuthenticationTicket(principal, SchemeName);
-
-        Logger.LogInformation("API key {ApiKeyId} ({ApiKeyName}) authenticated successfully", apiKey.Id, apiKey.Name);
+        var ticket = new AuthenticationTicket(principal, Scheme.Name);
 
         return AuthenticateResult.Success(ticket);
+    }
+
+    private static string HashApiKey(string apiKey)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(apiKey));
+        return Convert.ToBase64String(bytes);
     }
 }

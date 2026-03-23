@@ -14,10 +14,9 @@ public class UserNotificationPreference
 
     public bool IsMuted { get; set; }
 
-    public DateTime CreatedAtUtc { get; set; }
+    public DateTime CreatedAt { get; set; }
 
-    public DateTime UpdatedAtUtc { get; set; }
+    public DateTime UpdatedAt { get; set; }
 
-    // Navigation
     public AppUser User { get; set; } = null!;
 }

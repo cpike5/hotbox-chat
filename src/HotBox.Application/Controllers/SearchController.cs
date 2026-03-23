@@ -1,146 +1,98 @@
+using System.Security.Claims;
 using HotBox.Application.Models;
 using HotBox.Core.Enums;
 using HotBox.Core.Interfaces;
 using HotBox.Core.Models;
-using HotBox.Core.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace HotBox.Application.Controllers;
 
 [ApiController]
-[Route("api/search")]
+[Route("api/[controller]")]
 [Authorize]
 public class SearchController : ControllerBase
 {
     private readonly ISearchService _searchService;
     private readonly ILogger<SearchController> _logger;
-    private readonly SearchOptions _options;
 
-    public SearchController(
-        ISearchService searchService,
-        ILogger<SearchController> logger,
-        IOptions<SearchOptions> options)
+    public SearchController(ISearchService searchService, ILogger<SearchController> logger)
     {
         _searchService = searchService;
         _logger = logger;
-        _options = options.Value;
     }
 
-    [HttpGet("messages")]
-    public async Task<IActionResult> SearchMessages(
-        [FromQuery(Name = "q")] string? query,
-        [FromQuery] Guid? channelId = null,
-        [FromQuery] string? scope = null,
-        [FromQuery] Guid? senderId = null,
-        [FromQuery] string? cursor = null,
-        [FromQuery] int? limit = null,
+    [HttpGet]
+    public async Task<ActionResult<SearchResultResponse>> Search(
+        [FromQuery] string q,
+        [FromQuery] Guid? channelId,
+        [FromQuery] Guid? senderId,
+        [FromQuery] string? cursor,
+        [FromQuery] int limit = 20,
+        [FromQuery] SearchScope scope = SearchScope.All,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(query))
+        if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
         {
-            return BadRequest(new { error = "Query parameter 'q' is required." });
+            return BadRequest("Query must be at least 2 characters.");
         }
 
-        if (query.Length < _options.MinQueryLength)
-        {
-            return BadRequest(new { error = $"Query must be at least {_options.MinQueryLength} characters." });
-        }
+        var userId = GetUserId();
 
-        var effectiveLimit = limit ?? _options.DefaultLimit;
-        if (effectiveLimit is < 1 or > 100)
+        var query = new SearchQuery
         {
-            return BadRequest(new { error = "Limit must be between 1 and 100." });
-        }
-
-        var parsedScope = SearchScope.All;
-        if (!string.IsNullOrWhiteSpace(scope))
-        {
-            Enum.TryParse<SearchScope>(scope, ignoreCase: true, out parsedScope);
-        }
-
-        var searchQuery = new SearchQuery
-        {
-            QueryText = query,
+            QueryText = q,
             ChannelId = channelId,
             SenderId = senderId,
             Cursor = cursor,
-            Limit = effectiveLimit,
-            Scope = parsedScope,
-            CallerUserId = GetUserId(),
+            Limit = Math.Min(limit, 50),
+            Scope = scope,
+            CallerUserId = userId
         };
 
-        _logger.LogInformation(
-            "Search request: Query={Query}, ChannelId={ChannelId}, Scope={Scope}, Cursor={Cursor}, Limit={Limit}",
-            query, channelId, parsedScope, cursor, effectiveLimit);
+        var result = await _searchService.SearchMessagesAsync(query, ct);
 
-        var result = await _searchService.SearchMessagesAsync(searchQuery, ct);
-
-        var response = new SearchResultResponse
-        {
-            Items = result.Items.Select(item => new SearchResultItemResponse
-            {
-                MessageId = item.MessageId,
-                Snippet = item.Snippet,
-                ChannelId = item.ChannelId,
-                ChannelName = item.ChannelName,
-                AuthorId = item.AuthorId,
-                AuthorDisplayName = item.AuthorDisplayName,
-                CreatedAtUtc = item.CreatedAtUtc,
-                RelevanceScore = item.RelevanceScore,
-                IsDirectMessage = item.IsDirectMessage,
-                OtherParticipantId = item.OtherParticipantId,
-                OtherParticipantDisplayName = item.OtherParticipantDisplayName,
-            }).ToList(),
-            Cursor = result.Cursor,
-            TotalEstimate = result.TotalEstimate,
-        };
+        var response = new SearchResultResponse(
+            result.Items.Select(i => new SearchResultItemResponse(
+                i.MessageId,
+                i.Snippet,
+                i.ChannelId,
+                i.ChannelName,
+                i.AuthorId,
+                i.AuthorDisplayName,
+                i.CreatedAt,
+                i.RelevanceScore,
+                i.IsDirectMessage,
+                i.OtherParticipantId,
+                i.OtherParticipantDisplayName
+            )).ToList(),
+            result.Cursor,
+            result.TotalEstimate);
 
         return Ok(response);
     }
 
     [HttpGet("status")]
-    public IActionResult GetStatus()
+    public ActionResult<SearchStatusResponse> GetStatus()
     {
-        var response = new SearchStatusResponse
-        {
-            IsFullTextSearchAvailable = _searchService.IsFullTextSearchAvailable,
-            ProviderName = _searchService.ProviderName,
-        };
-
-        return Ok(response);
-    }
-
-    private Guid? GetUserId()
-    {
-        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-        {
-            return null;
-        }
-        return userId;
+        return Ok(new SearchStatusResponse(
+            _searchService.IsFullTextSearchAvailable,
+            _searchService.ProviderName));
     }
 
     [HttpPost("reindex")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "Admin")]
     public async Task<IActionResult> Reindex(CancellationToken ct)
     {
-        _logger.LogInformation("Admin-initiated search reindex started using provider {ProviderName}",
-            _searchService.ProviderName);
+        _logger.LogInformation("Admin triggered search reindex");
+        await _searchService.ReindexAsync(ct);
+        return Ok();
+    }
 
-        try
-        {
-            await _searchService.ReindexAsync(ct);
-
-            _logger.LogInformation("Admin-initiated search reindex completed successfully");
-
-            return Ok(new { message = "Search index rebuild completed.", provider = _searchService.ProviderName });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Search reindex failed");
-            return StatusCode(500, new { error = "Search reindex failed. Check server logs for details." });
-        }
+    private Guid GetUserId()
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? throw new UnauthorizedAccessException("User ID not found in claims.");
+        return Guid.Parse(userIdStr);
     }
 }

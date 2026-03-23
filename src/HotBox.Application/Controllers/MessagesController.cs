@@ -1,128 +1,81 @@
 using System.Security.Claims;
-using HotBox.Application.Hubs;
 using HotBox.Application.Models;
 using HotBox.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 
 namespace HotBox.Application.Controllers;
 
 [ApiController]
-[Route("api")]
+[Route("api/[controller]")]
 [Authorize]
 public class MessagesController : ControllerBase
 {
     private readonly IMessageService _messageService;
-    private readonly IHubContext<ChatHub> _hubContext;
     private readonly ILogger<MessagesController> _logger;
 
-    public MessagesController(
-        IMessageService messageService,
-        IHubContext<ChatHub> hubContext,
-        ILogger<MessagesController> logger)
+    public MessagesController(IMessageService messageService, ILogger<MessagesController> logger)
     {
         _messageService = messageService;
-        _hubContext = hubContext;
         _logger = logger;
     }
 
-    [HttpGet("channels/{channelId:guid}/messages")]
-    public async Task<IActionResult> GetByChannel(
+    [HttpGet("channel/{channelId:guid}")]
+    public async Task<ActionResult<IReadOnlyList<MessageResponse>>> GetByChannel(
         Guid channelId,
-        [FromQuery] DateTime? before = null,
+        [FromQuery] DateTime? before,
         [FromQuery] int limit = 50,
-        [FromQuery] Guid? around = null,
         CancellationToken ct = default)
     {
-        if (limit is < 1 or > 100)
-        {
-            return BadRequest(new { error = "Limit must be between 1 and 100." });
-        }
-
-        var messages = around.HasValue
-            ? await _messageService.GetAroundAsync(channelId, around.Value, ct: ct)
-            : await _messageService.GetByChannelAsync(channelId, before, limit, ct);
-
-        var response = messages.Select(m => new MessageResponse
-        {
-            Id = m.Id,
-            Content = m.Content,
-            ChannelId = m.ChannelId,
-            AuthorId = m.AuthorId,
-            AuthorDisplayName = m.Author?.DisplayName ?? "Unknown",
-            IsAgent = m.Author?.IsAgent ?? false,
-            CreatedAtUtc = m.CreatedAtUtc,
-            EditedAtUtc = m.EditedAtUtc,
-        }).ToList();
-
+        var messages = await _messageService.GetByChannelAsync(channelId, before, limit, ct);
+        var response = messages.Select(MapToResponse).ToList();
         return Ok(response);
     }
 
-    [HttpGet("messages/{id:guid}")]
-    public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<MessageResponse>> GetById(Guid id, CancellationToken ct)
     {
         var message = await _messageService.GetByIdAsync(id, ct);
         if (message is null)
         {
-            return NotFound(new { error = $"Message {id} not found." });
+            return NotFound();
         }
 
-        var response = new MessageResponse
-        {
-            Id = message.Id,
-            Content = message.Content,
-            ChannelId = message.ChannelId,
-            AuthorId = message.AuthorId,
-            AuthorDisplayName = message.Author?.DisplayName ?? "Unknown",
-            IsAgent = message.Author?.IsAgent ?? false,
-            CreatedAtUtc = message.CreatedAtUtc,
-            EditedAtUtc = message.EditedAtUtc,
-        };
-
-        return Ok(response);
+        return Ok(MapToResponse(message));
     }
 
-    [HttpPost("channels/{channelId:guid}/messages")]
-    public async Task<IActionResult> SendMessage(
+    [HttpPost("channel/{channelId:guid}")]
+    public async Task<ActionResult<MessageResponse>> Send(
         Guid channelId,
         [FromBody] SendMessageRequest request,
         CancellationToken ct)
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-        {
-            return Unauthorized(new { error = "Unable to determine user identity." });
-        }
+        var userId = GetUserId();
+        var message = await _messageService.SendAsync(channelId, userId, request.Content, ct);
 
-        try
-        {
-            var message = await _messageService.SendAsync(channelId, userId, request.Content, ct);
+        _logger.LogDebug("User {UserId} sent message {MessageId} to channel {ChannelId}", userId, message.Id, channelId);
 
-            var response = new MessageResponse
-            {
-                Id = message.Id,
-                Content = message.Content,
-                ChannelId = message.ChannelId,
-                AuthorId = message.AuthorId,
-                AuthorDisplayName = message.Author?.DisplayName ?? "Unknown",
-                IsAgent = message.Author?.IsAgent ?? false,
-                CreatedAtUtc = message.CreatedAtUtc,
-                EditedAtUtc = message.EditedAtUtc,
-            };
+        return CreatedAtAction(nameof(GetById), new { id = message.Id }, MapToResponse(message));
+    }
 
-            await _hubContext.Clients.Group(channelId.ToString())
-                .SendAsync("ReceiveMessage", response, ct);
+    private Guid GetUserId()
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? throw new UnauthorizedAccessException("User ID not found in claims.");
+        return Guid.Parse(userIdStr);
+    }
 
-            return CreatedAtAction(nameof(GetById), new { id = message.Id }, response);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+    private static MessageResponse MapToResponse(Core.Entities.Message message)
+    {
+        return new MessageResponse(
+            message.Id,
+            message.Content,
+            message.ChannelId,
+            message.UserId,
+            message.User.DisplayName,
+            message.User.AvatarUrl,
+            message.User.IsAgent,
+            message.CreatedAt,
+            message.EditedAt);
     }
 }

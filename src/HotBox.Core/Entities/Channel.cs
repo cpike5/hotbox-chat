@@ -8,15 +8,15 @@ public class Channel
 
     public string Name { get; set; } = string.Empty;
 
-    public string? Topic { get; set; }
+    public string? Description { get; set; }
 
     public ChannelType Type { get; set; }
 
     public int SortOrder { get; set; }
 
-    public DateTime CreatedAtUtc { get; set; }
+    public DateTime CreatedAt { get; set; }
 
-    public Guid CreatedByUserId { get; set; }
+    public Guid CreatedById { get; set; }
 
     public AppUser CreatedBy { get; set; } = null!;
 

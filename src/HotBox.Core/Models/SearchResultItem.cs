@@ -14,7 +14,7 @@ public class SearchResultItem
 
     public string AuthorDisplayName { get; set; } = string.Empty;
 
-    public DateTime CreatedAtUtc { get; set; }
+    public DateTime CreatedAt { get; set; }
 
     public double RelevanceScore { get; set; }
 

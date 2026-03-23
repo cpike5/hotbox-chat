@@ -10,31 +10,16 @@ public class InviteConfiguration : IEntityTypeConfiguration<Invite>
     {
         builder.HasKey(i => i.Id);
 
-        builder.Property(i => i.Id)
-            .ValueGeneratedOnAdd();
-
         builder.Property(i => i.Code)
             .IsRequired()
-            .HasMaxLength(50);
+            .HasMaxLength(20);
 
-        builder.Property(i => i.CreatedByUserId)
-            .IsRequired();
-
-        builder.Property(i => i.CreatedAtUtc)
-            .IsRequired();
-
-        builder.Property(i => i.UseCount)
-            .IsRequired();
-
-        builder.Property(i => i.IsRevoked)
-            .IsRequired();
+        builder.HasIndex(i => i.Code)
+            .IsUnique();
 
         builder.HasOne(i => i.CreatedBy)
             .WithMany()
-            .HasForeignKey(i => i.CreatedByUserId)
+            .HasForeignKey(i => i.CreatedById)
             .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasIndex(i => i.Code).IsUnique();
-        builder.HasIndex(i => i.CreatedByUserId);
     }
 }

@@ -6,13 +6,13 @@ public class Invite
 
     public string Code { get; set; } = string.Empty;
 
-    public Guid CreatedByUserId { get; set; }
+    public Guid CreatedById { get; set; }
 
     public AppUser CreatedBy { get; set; } = null!;
 
-    public DateTime CreatedAtUtc { get; set; }
+    public DateTime CreatedAt { get; set; }
 
-    public DateTime? ExpiresAtUtc { get; set; }
+    public DateTime? ExpiresAt { get; set; }
 
     public int? MaxUses { get; set; }
 

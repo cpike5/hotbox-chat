@@ -8,93 +8,113 @@ namespace HotBox.Infrastructure.Repositories;
 
 public class NotificationRepository : INotificationRepository
 {
-    private readonly HotBoxDbContext _context;
+    private readonly HotBoxDbContext _dbContext;
 
-    public NotificationRepository(HotBoxDbContext context)
+    public NotificationRepository(HotBoxDbContext dbContext)
     {
-        _context = context;
+        _dbContext = dbContext;
     }
 
     public async Task<Notification> CreateAsync(Notification notification, CancellationToken ct = default)
     {
-        _context.Notifications.Add(notification);
-        await _context.SaveChangesAsync(ct);
+        _dbContext.Notifications.Add(notification);
+        await _dbContext.SaveChangesAsync(ct);
         return notification;
     }
 
     public async Task<List<Notification>> GetByRecipientAsync(
-        Guid recipientId, DateTime? before = null, int limit = 50, CancellationToken ct = default)
+        Guid recipientId,
+        DateTime? before = null,
+        int limit = 50,
+        CancellationToken ct = default)
     {
-        var query = _context.Notifications
-            .AsNoTracking()
-            .Include(n => n.Sender)
+        var query = _dbContext.Notifications
             .Where(n => n.RecipientId == recipientId);
 
         if (before.HasValue)
-            query = query.Where(n => n.CreatedAtUtc < before.Value);
+        {
+            query = query.Where(n => n.CreatedAt < before.Value);
+        }
 
         return await query
-            .OrderByDescending(n => n.CreatedAtUtc)
+            .OrderByDescending(n => n.CreatedAt)
             .Take(limit)
+            .Include(n => n.Sender)
+            .AsNoTracking()
             .ToListAsync(ct);
     }
 
     public async Task<int> GetUnreadCountAsync(Guid recipientId, CancellationToken ct = default)
     {
-        return await _context.Notifications
-            .AsNoTracking()
-            .CountAsync(n => n.RecipientId == recipientId && n.ReadAtUtc == null, ct);
+        return await _dbContext.Notifications
+            .CountAsync(n => n.RecipientId == recipientId && n.ReadAt == null, ct);
     }
 
     public async Task MarkAllAsReadAsync(Guid recipientId, CancellationToken ct = default)
     {
-        var now = DateTime.UtcNow;
-        await _context.Notifications
-            .Where(n => n.RecipientId == recipientId && n.ReadAtUtc == null)
-            .ExecuteUpdateAsync(s => s.SetProperty(n => n.ReadAtUtc, now), ct);
+        await _dbContext.Notifications
+            .Where(n => n.RecipientId == recipientId && n.ReadAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(n => n.ReadAt, DateTime.UtcNow), ct);
     }
 
     public async Task<bool> IsSourceMutedAsync(
-        Guid userId, NotificationSourceType sourceType, Guid sourceId, CancellationToken ct = default)
+        Guid userId,
+        NotificationSourceType sourceType,
+        Guid sourceId,
+        CancellationToken ct = default)
     {
-        return await _context.UserNotificationPreferences
-            .AsNoTracking()
-            .AnyAsync(p => p.UserId == userId && p.SourceType == sourceType && p.SourceId == sourceId && p.IsMuted, ct);
+        return await _dbContext.UserNotificationPreferences
+            .AnyAsync(p =>
+                p.UserId == userId &&
+                p.SourceType == sourceType &&
+                p.SourceId == sourceId &&
+                p.IsMuted,
+                ct);
     }
 
-    public async Task<List<UserNotificationPreference>> GetPreferencesAsync(Guid userId, CancellationToken ct = default)
+    public async Task<List<UserNotificationPreference>> GetPreferencesAsync(
+        Guid userId,
+        CancellationToken ct = default)
     {
-        return await _context.UserNotificationPreferences
-            .AsNoTracking()
+        return await _dbContext.UserNotificationPreferences
             .Where(p => p.UserId == userId)
+            .AsNoTracking()
             .ToListAsync(ct);
     }
 
     public async Task SetMutePreferenceAsync(
-        Guid userId, NotificationSourceType sourceType, Guid sourceId, bool isMuted, CancellationToken ct = default)
+        Guid userId,
+        NotificationSourceType sourceType,
+        Guid sourceId,
+        bool isMuted,
+        CancellationToken ct = default)
     {
-        var existing = await _context.UserNotificationPreferences
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.SourceType == sourceType && p.SourceId == sourceId, ct);
+        var preference = await _dbContext.UserNotificationPreferences
+            .FirstOrDefaultAsync(p =>
+                p.UserId == userId &&
+                p.SourceType == sourceType &&
+                p.SourceId == sourceId,
+                ct);
 
-        var now = DateTime.UtcNow;
-        if (existing is not null)
+        if (preference is not null)
         {
-            existing.IsMuted = isMuted;
-            existing.UpdatedAtUtc = now;
+            preference.IsMuted = isMuted;
+            preference.UpdatedAt = DateTime.UtcNow;
         }
         else
         {
-            _context.UserNotificationPreferences.Add(new UserNotificationPreference
+            _dbContext.UserNotificationPreferences.Add(new UserNotificationPreference
             {
+                Id = Guid.NewGuid(),
                 UserId = userId,
                 SourceType = sourceType,
                 SourceId = sourceId,
                 IsMuted = isMuted,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             });
         }
 
-        await _context.SaveChangesAsync(ct);
+        await _dbContext.SaveChangesAsync(ct);
     }
 }

@@ -3,82 +3,61 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
-using Serilog.Sinks.Elasticsearch;
+using Serilog.Events;
 
 namespace HotBox.Application.DependencyInjection;
 
 public static class ObservabilityExtensions
 {
-    public static IHostBuilder AddObservability(
-        this IHostBuilder hostBuilder,
-        IConfiguration configuration)
+    public static IHostBuilder AddObservability(this IHostBuilder host, IConfiguration configuration)
     {
-        hostBuilder.UseSerilog((context, services, loggerConfig) =>
-        {
-            var obsOptions = configuration
-                .GetSection(ObservabilityOptions.SectionName)
-                .Get<ObservabilityOptions>() ?? new ObservabilityOptions();
+        var obsOptions = configuration.GetSection(ObservabilityOptions.SectionName).Get<ObservabilityOptions>()
+                         ?? new ObservabilityOptions();
 
-            // Parse minimum log level from config with safe fallback
-            if (!Enum.TryParse<Serilog.Events.LogEventLevel>(obsOptions.LogLevel, ignoreCase: true, out var minLevel))
-            {
-                minLevel = Serilog.Events.LogEventLevel.Information;
-            }
+        host.UseSerilog((context, loggerConfig) =>
+        {
+            var minLevel = Enum.TryParse<LogEventLevel>(obsOptions.LogLevel, true, out var parsed)
+                ? parsed
+                : LogEventLevel.Information;
 
             loggerConfig
                 .MinimumLevel.Is(minLevel)
-                .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
-                .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+                .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
                 .Enrich.FromLogContext()
-                .Enrich.WithMachineName()
+                .Enrich.WithEnvironmentName()
                 .Enrich.WithThreadId()
+                .Enrich.WithProperty("Application", "HotBox")
                 .WriteTo.Console();
 
-            // Seq sink (if URL configured)
             if (!string.IsNullOrWhiteSpace(obsOptions.SeqUrl))
             {
                 loggerConfig.WriteTo.Seq(obsOptions.SeqUrl);
             }
 
-            // Elasticsearch sink (if URL configured)
             if (!string.IsNullOrWhiteSpace(obsOptions.ElasticsearchUrl))
             {
-                var esSinkOptions = new ElasticsearchSinkOptions(new Uri(obsOptions.ElasticsearchUrl))
-                {
-                    AutoRegisterTemplate = true,
-                    IndexFormat = "hotbox-logs-{0:yyyy.MM.dd}"
-                };
-
-                if (!string.IsNullOrWhiteSpace(obsOptions.ElasticsearchApiKey))
-                {
-                    esSinkOptions.ModifyConnectionSettings = conn =>
-                        conn.ApiKeyAuthentication(new Elasticsearch.Net.ApiKeyAuthenticationCredentials(obsOptions.ElasticsearchApiKey));
-                }
-
-                loggerConfig.WriteTo.Elasticsearch(esSinkOptions);
+                loggerConfig.WriteTo.Elasticsearch(obsOptions.ElasticsearchUrl,
+                    indexFormat: $"hotbox-{obsOptions.Environment}-{{0:yyyy.MM.dd}}");
             }
         });
 
-        return hostBuilder;
+        return host;
     }
 
     public static IServiceCollection AddOpenTelemetryObservability(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var obsOptions = configuration
-            .GetSection(ObservabilityOptions.SectionName)
-            .Get<ObservabilityOptions>() ?? new ObservabilityOptions();
-
-        var environment = obsOptions.Environment;
+        var obsOptions = configuration.GetSection(ObservabilityOptions.SectionName).Get<ObservabilityOptions>()
+                         ?? new ObservabilityOptions();
 
         services.AddOpenTelemetry()
             .ConfigureResource(resource => resource
-                .AddService("hotbox")
-                .AddAttributes(new Dictionary<string, object>
-                {
-                    ["deployment.environment"] = environment
-                }))
+                .AddService(
+                    serviceName: "HotBox",
+                    serviceVersion: typeof(ObservabilityExtensions).Assembly.GetName().Version?.ToString() ?? "0.0.0"))
             .WithTracing(tracing =>
             {
                 tracing
@@ -92,7 +71,9 @@ public static class ObservabilityExtensions
                     {
                         opts.Endpoint = new Uri(obsOptions.OtlpEndpoint);
                         if (!string.IsNullOrWhiteSpace(obsOptions.OtlpApiKey))
-                            opts.Headers = $"Authorization=ApiKey {obsOptions.OtlpApiKey}";
+                        {
+                            opts.Headers = $"api-key={obsOptions.OtlpApiKey}";
+                        }
                     });
                 }
             })
@@ -108,7 +89,9 @@ public static class ObservabilityExtensions
                     {
                         opts.Endpoint = new Uri(obsOptions.OtlpEndpoint);
                         if (!string.IsNullOrWhiteSpace(obsOptions.OtlpApiKey))
-                            opts.Headers = $"Authorization=ApiKey {obsOptions.OtlpApiKey}";
+                        {
+                            opts.Headers = $"api-key={obsOptions.OtlpApiKey}";
+                        }
                     });
                 }
             });

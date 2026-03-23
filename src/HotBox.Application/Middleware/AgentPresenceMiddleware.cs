@@ -1,66 +1,35 @@
 using System.Security.Claims;
-using HotBox.Core.Interfaces;
-using HotBox.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
+using HotBox.Infrastructure.Services;
 
 namespace HotBox.Application.Middleware;
 
-public sealed class AgentPresenceMiddleware
+public class AgentPresenceMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly PresenceService _presenceService;
 
-    public AgentPresenceMiddleware(RequestDelegate next)
+    public AgentPresenceMiddleware(RequestDelegate next, PresenceService presenceService)
     {
         _next = next;
+        _presenceService = presenceService;
     }
 
-    public async Task InvokeAsync(
-        HttpContext context,
-        IPresenceService presenceService,
-        HotBoxDbContext dbContext)
+    public async Task InvokeAsync(HttpContext context)
     {
-        if (context.Request.Path.StartsWithSegments("/api")
-            && context.User?.Identity?.IsAuthenticated == true)
+        if (context.User.Identity?.IsAuthenticated == true)
         {
-            await TouchAgentPresenceAsync(context, presenceService, dbContext);
+            var isAgent = context.User.FindFirstValue("is_agent");
+            if (isAgent == "true")
+            {
+                var userIdStr = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (Guid.TryParse(userIdStr, out var userId))
+                {
+                    var displayName = context.User.FindFirstValue("api_key_name") ?? "Agent";
+                    await _presenceService.TouchAgentActivityAsync(userId, displayName);
+                }
+            }
         }
 
         await _next(context);
-    }
-
-    private static async Task TouchAgentPresenceAsync(
-        HttpContext context,
-        IPresenceService presenceService,
-        HotBoxDbContext dbContext)
-    {
-        var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(userIdClaim, out var userId))
-        {
-            return;
-        }
-
-        var isAgentClaim = context.User.FindFirst("is_agent")?.Value;
-        if (bool.TryParse(isAgentClaim, out var isAgentFromClaim))
-        {
-            if (!isAgentFromClaim)
-            {
-                return;
-            }
-
-            var displayName = context.User.FindFirst("display_name")?.Value ?? "Unknown";
-            await presenceService.TouchAgentActivityAsync(userId, displayName);
-            return;
-        }
-
-        var user = await dbContext.Users
-            .AsNoTracking()
-            .Where(u => u.Id == userId)
-            .Select(u => new { u.DisplayName, u.IsAgent })
-            .FirstOrDefaultAsync(context.RequestAborted);
-
-        if (user?.IsAgent == true)
-        {
-            await presenceService.TouchAgentActivityAsync(userId, user.DisplayName);
-        }
     }
 }

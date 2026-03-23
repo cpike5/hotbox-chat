@@ -3,420 +3,297 @@ using HotBox.Application.Models;
 using HotBox.Core.Entities;
 using HotBox.Core.Enums;
 using HotBox.Core.Interfaces;
-using HotBox.Core.Options;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace HotBox.Application.Controllers;
 
 [ApiController]
-[Route("api/auth")]
+[Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly ITokenService _tokenService;
-    private readonly JwtOptions _jwtOptions;
-    private readonly OAuthOptions _oauthOptions;
     private readonly UserManager<AppUser> _userManager;
     private readonly SignInManager<AppUser> _signInManager;
+    private readonly ITokenService _tokenService;
     private readonly IInviteService _inviteService;
     private readonly IServerSettingsService _serverSettingsService;
     private readonly ILogger<AuthController> _logger;
-    private readonly IWebHostEnvironment _environment;
-
-    private const string RefreshTokenCookieName = "refreshToken";
-    private const string DefaultRole = "Member";
-
-    private static readonly HashSet<string> SupportedProviders = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Google",
-        "Microsoft",
-    };
 
     public AuthController(
-        ITokenService tokenService,
-        IOptions<JwtOptions> jwtOptions,
-        IOptions<OAuthOptions> oauthOptions,
         UserManager<AppUser> userManager,
         SignInManager<AppUser> signInManager,
+        ITokenService tokenService,
         IInviteService inviteService,
         IServerSettingsService serverSettingsService,
-        ILogger<AuthController> logger,
-        IWebHostEnvironment environment)
+        ILogger<AuthController> logger)
     {
-        _tokenService = tokenService;
-        _jwtOptions = jwtOptions.Value;
-        _oauthOptions = oauthOptions.Value;
         _userManager = userManager;
         _signInManager = signInManager;
+        _tokenService = tokenService;
         _inviteService = inviteService;
         _serverSettingsService = serverSettingsService;
         _logger = logger;
-        _environment = environment;
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken ct)
+    public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request)
     {
-        // Enforce registration mode (read from DB, falls back to appsettings)
-        var serverSettings = await _serverSettingsService.GetAsync(ct);
-        switch (serverSettings.RegistrationMode)
+        var settings = await _serverSettingsService.GetAsync();
+
+        if (settings.RegistrationMode == RegistrationMode.Closed)
         {
-            case RegistrationMode.Closed:
-                _logger.LogWarning("Registration attempt rejected: registration is closed");
-                return StatusCode(403, new { error = "Registration is currently closed." });
-
-            case RegistrationMode.InviteOnly:
-                if (string.IsNullOrWhiteSpace(request.InviteCode))
-                {
-                    _logger.LogWarning("Registration attempt rejected: invite code required but not provided");
-                    return BadRequest(new { error = "An invite code is required to register." });
-                }
-
-                var invite = await _inviteService.ValidateAndConsumeAsync(request.InviteCode, ct);
-                if (invite is null)
-                {
-                    _logger.LogWarning("Registration attempt rejected: invalid or expired invite code");
-                    return BadRequest(new { error = "The invite code is invalid or has expired." });
-                }
-                break;
-
-            case RegistrationMode.Open:
-                break;
+            return BadRequest("Registration is currently closed.");
         }
 
-        // Check if a user with this email already exists
+        if (settings.RegistrationMode == RegistrationMode.InviteOnly)
+        {
+            if (string.IsNullOrWhiteSpace(request.InviteCode))
+            {
+                return BadRequest("An invite code is required to register.");
+            }
+
+            var invite = await _inviteService.ValidateAndConsumeAsync(request.InviteCode);
+            if (invite is null)
+            {
+                return BadRequest("Invalid or expired invite code.");
+            }
+        }
+
         var existingUser = await _userManager.FindByEmailAsync(request.Email);
         if (existingUser is not null)
         {
-            _logger.LogWarning("Registration attempt for existing email {Email}", request.Email);
-            return BadRequest(new { error = "An account with this email already exists." });
+            return Conflict("A user with this email already exists.");
         }
 
         var user = new AppUser
         {
+            Id = Guid.NewGuid(),
             UserName = request.Email,
             Email = request.Email,
             DisplayName = request.DisplayName,
-            Status = UserStatus.Offline,
-            CreatedAtUtc = DateTime.UtcNow,
-            LastSeenUtc = DateTime.UtcNow,
+            EmailConfirmed = true,
+            CreatedAt = DateTime.UtcNow,
+            LastSeenAt = DateTime.UtcNow,
+            Status = UserStatus.Offline
         };
 
-        var createResult = await _userManager.CreateAsync(user, request.Password);
-        if (!createResult.Succeeded)
+        var result = await _userManager.CreateAsync(user, request.Password);
+        if (!result.Succeeded)
         {
-            var errors = string.Join("; ", createResult.Errors.Select(e => e.Description));
-            _logger.LogWarning("User creation failed for {Email}: {Errors}", request.Email, errors);
-            return BadRequest(new { error = errors });
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            return BadRequest(errors);
         }
 
-        var roleResult = await _userManager.AddToRoleAsync(user, DefaultRole);
-        if (!roleResult.Succeeded)
-        {
-            _logger.LogError("Failed to assign {Role} role to user {UserId}: {Errors}",
-                DefaultRole, user.Id, string.Join("; ", roleResult.Errors.Select(e => e.Description)));
-        }
+        await _userManager.AddToRoleAsync(user, nameof(UserRole.Member));
 
-        // Generate tokens
-        var accessToken = await _tokenService.GenerateAccessTokenAsync(user, ct);
-        var refreshToken = await _tokenService.GenerateRefreshTokenAsync(user.Id, ct);
+        _logger.LogInformation("User {UserId} registered with email {Email}", user.Id, user.Email);
 
-        SetRefreshTokenCookie(refreshToken.Token, refreshToken.ExpiresAtUtc);
+        var accessToken = await _tokenService.GenerateAccessTokenAsync(user);
+        var refreshToken = await _tokenService.GenerateRefreshTokenAsync(user.Id);
 
-        _logger.LogInformation("User registered successfully: {UserId} ({Email})", user.Id, request.Email);
+        SetRefreshTokenCookie(refreshToken.TokenHash, refreshToken.ExpiresAt);
 
-        return Ok(new AuthResponse { AccessToken = accessToken });
+        var roles = await _userManager.GetRolesAsync(user);
+        var profile = MapToProfile(user, roles);
+
+        return Ok(new AuthResponse(accessToken, DateTime.UtcNow.AddMinutes(15), profile));
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
+    public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
-            _logger.LogWarning("Login attempt for non-existent email {Email}", request.Email);
-            return Unauthorized(new { error = "Invalid email or password." });
+            return Unauthorized("Invalid email or password.");
         }
 
-        var signInResult = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
-        if (!signInResult.Succeeded)
+        if (await _userManager.IsLockedOutAsync(user))
         {
-            _logger.LogWarning("Failed login attempt for user {UserId} ({Email})", user.Id, request.Email);
-            return Unauthorized(new { error = "Invalid email or password." });
+            return Unauthorized("Account is locked. Please try again later.");
         }
 
-        var accessToken = await _tokenService.GenerateAccessTokenAsync(user, ct);
-        var refreshToken = await _tokenService.GenerateRefreshTokenAsync(user.Id, ct);
+        var passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+        if (!passwordValid)
+        {
+            await _userManager.AccessFailedAsync(user);
+            return Unauthorized("Invalid email or password.");
+        }
 
-        SetRefreshTokenCookie(refreshToken.Token, refreshToken.ExpiresAtUtc);
+        await _userManager.ResetAccessFailedCountAsync(user);
 
-        _logger.LogInformation("User logged in: {UserId} ({Email})", user.Id, request.Email);
+        user.LastSeenAt = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
 
-        return Ok(new AuthResponse { AccessToken = accessToken });
+        var accessToken = await _tokenService.GenerateAccessTokenAsync(user);
+        var refreshToken = await _tokenService.GenerateRefreshTokenAsync(user.Id);
+
+        SetRefreshTokenCookie(refreshToken.TokenHash, refreshToken.ExpiresAt);
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var profile = MapToProfile(user, roles);
+
+        _logger.LogInformation("User {UserId} logged in", user.Id);
+
+        return Ok(new AuthResponse(accessToken, DateTime.UtcNow.AddMinutes(15), profile));
     }
 
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh(CancellationToken ct)
+    public async Task<ActionResult<AuthResponse>> Refresh()
     {
-        var refreshTokenValue = Request.Cookies[RefreshTokenCookieName];
-
+        var refreshTokenValue = Request.Cookies["refreshToken"];
         if (string.IsNullOrWhiteSpace(refreshTokenValue))
         {
-            _logger.LogWarning("Refresh attempt with missing refresh token cookie");
-            return Unauthorized(new { error = "Refresh token is required." });
+            return Unauthorized("No refresh token provided.");
         }
 
-        var existingToken = await _tokenService.ValidateRefreshTokenAsync(refreshTokenValue, ct);
-
+        var existingToken = await _tokenService.ValidateRefreshTokenAsync(refreshTokenValue);
         if (existingToken is null)
         {
-            _logger.LogWarning("Refresh attempt with invalid or expired refresh token");
-            ClearRefreshTokenCookie();
-            return Unauthorized(new { error = "Invalid or expired refresh token." });
+            return Unauthorized("Invalid or expired refresh token.");
         }
 
-        // Rotate the refresh token (revokes old, creates new)
-        var newRefreshToken = await _tokenService.RotateRefreshTokenAsync(existingToken, ct);
+        var user = await _userManager.FindByIdAsync(existingToken.UserId.ToString());
+        if (user is null)
+        {
+            return Unauthorized("User not found.");
+        }
 
-        // Generate a new access token
-        var accessToken = await _tokenService.GenerateAccessTokenAsync(existingToken.User, ct);
+        var newRefreshToken = await _tokenService.RotateRefreshTokenAsync(existingToken);
+        var accessToken = await _tokenService.GenerateAccessTokenAsync(user);
 
-        // Set the new refresh token as an HttpOnly cookie
-        SetRefreshTokenCookie(newRefreshToken.Token, newRefreshToken.ExpiresAtUtc);
+        SetRefreshTokenCookie(newRefreshToken.TokenHash, newRefreshToken.ExpiresAt);
 
-        _logger.LogInformation("Token refreshed for user {UserId}", existingToken.UserId);
+        var roles = await _userManager.GetRolesAsync(user);
+        var profile = MapToProfile(user, roles);
 
-        return Ok(new { accessToken });
+        return Ok(new AuthResponse(accessToken, DateTime.UtcNow.AddMinutes(15), profile));
     }
 
-    [Authorize]
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout(CancellationToken ct)
+    [Authorize]
+    public async Task<IActionResult> Logout()
     {
-        var refreshTokenValue = Request.Cookies[RefreshTokenCookieName];
-
-        if (string.IsNullOrWhiteSpace(refreshTokenValue))
+        var refreshTokenValue = Request.Cookies["refreshToken"];
+        if (!string.IsNullOrWhiteSpace(refreshTokenValue))
         {
-            _logger.LogDebug("Logout called with no refresh token cookie present");
-            return NoContent();
+            await _tokenService.RevokeRefreshTokenAsync(refreshTokenValue);
         }
 
-        await _tokenService.RevokeRefreshTokenAsync(refreshTokenValue, ct);
+        Response.Cookies.Delete("refreshToken");
 
-        ClearRefreshTokenCookie();
-
-        _logger.LogInformation("Refresh token revoked via logout");
-
-        return NoContent();
+        return Ok();
     }
 
-    [HttpGet("providers")]
-    public IActionResult GetProviders()
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<ActionResult<UserProfileResponse>> Me()
     {
-        var providers = new List<ProviderInfo>();
-
-        if (_oauthOptions.Google.Enabled
-            && !string.IsNullOrWhiteSpace(_oauthOptions.Google.ClientId)
-            && !string.IsNullOrWhiteSpace(_oauthOptions.Google.ClientSecret))
+        var userId = GetUserId();
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
         {
-            providers.Add(new ProviderInfo { Name = "Google" });
+            return NotFound();
         }
 
-        if (_oauthOptions.Microsoft.Enabled
-            && !string.IsNullOrWhiteSpace(_oauthOptions.Microsoft.ClientId)
-            && !string.IsNullOrWhiteSpace(_oauthOptions.Microsoft.ClientSecret))
-        {
-            providers.Add(new ProviderInfo { Name = "Microsoft" });
-        }
-
-        return Ok(providers);
+        var roles = await _userManager.GetRolesAsync(user);
+        return Ok(MapToProfile(user, roles));
     }
 
-    [HttpGet("registration-mode")]
-    public async Task<IActionResult> GetRegistrationMode(CancellationToken ct)
+    [HttpPost("external/{provider}")]
+    public IActionResult ExternalLogin(string provider, [FromQuery] string? returnUrl)
     {
-        var serverSettings = await _serverSettingsService.GetAsync(ct);
-        return Ok(new { mode = serverSettings.RegistrationMode.ToString() });
-    }
-
-    [HttpGet("external/{provider}")]
-    public IActionResult ExternalLogin(string provider, [FromQuery] string? inviteCode = null)
-    {
-        if (!SupportedProviders.Contains(provider))
-        {
-            _logger.LogWarning("External login attempt with unsupported provider {Provider}", provider);
-            return BadRequest(new { error = $"Provider '{provider}' is not supported." });
-        }
-
-        var redirectUrl = Url.Action(nameof(ExternalCallback), "Auth");
-        var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
-
-        // Store invite code in authentication properties if provided
-        if (!string.IsNullOrWhiteSpace(inviteCode))
-        {
-            properties.Items["InviteCode"] = inviteCode;
-            _logger.LogDebug("Invite code stored in OAuth flow for provider {Provider}", provider);
-        }
-
+        // OAuth external login redirect - placeholder for full OAuth flow
+        var redirectUrl = Url.Action(nameof(ExternalLoginCallback), "Auth", new { returnUrl });
+        var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
         return Challenge(properties, provider);
     }
 
     [HttpGet("external/callback")]
-    public async Task<IActionResult> ExternalCallback(CancellationToken ct)
+    public async Task<IActionResult> ExternalLoginCallback([FromQuery] string? returnUrl)
     {
-        var authenticateResult = await HttpContext.AuthenticateAsync(IdentityConstants.ExternalScheme);
-
-        if (!authenticateResult.Succeeded || authenticateResult.Principal is null)
+        var info = await _signInManager.GetExternalLoginInfoAsync();
+        if (info is null)
         {
-            _logger.LogWarning("External authentication callback failed");
-            return Redirect("/login?error=External+authentication+failed");
+            return BadRequest("External login info not available.");
         }
 
-        var email = authenticateResult.Principal.FindFirstValue(ClaimTypes.Email);
-        var name = authenticateResult.Principal.FindFirstValue(ClaimTypes.Name);
-
+        var email = info.Principal.FindFirstValue(ClaimTypes.Email);
         if (string.IsNullOrWhiteSpace(email))
         {
-            _logger.LogWarning("External authentication returned no email claim");
-            return Redirect("/login?error=Email+not+provided+by+the+external+provider");
+            return BadRequest("Email not provided by external provider.");
         }
 
         var user = await _userManager.FindByEmailAsync(email);
-
         if (user is null)
         {
-            // Check registration mode for new OAuth users
-            var oauthSettings = await _serverSettingsService.GetAsync(ct);
-            string? inviteCodeForValidation = null;
-
-            switch (oauthSettings.RegistrationMode)
-            {
-                case RegistrationMode.Closed:
-                    _logger.LogWarning("OAuth registration rejected: registration is closed for {Email}", email);
-                    return Redirect("/login?error=Registration+is+currently+closed");
-
-                case RegistrationMode.InviteOnly:
-                    // Extract invite code from authentication properties
-                    authenticateResult.Properties?.Items.TryGetValue("InviteCode", out inviteCodeForValidation);
-
-                    if (string.IsNullOrWhiteSpace(inviteCodeForValidation))
-                    {
-                        _logger.LogWarning("OAuth registration rejected: invite code required but not provided for {Email}", email);
-                        return Redirect("/register?error=An+invite+code+is+required+to+register");
-                    }
-
-                    // Store code for validation after user creation
-                    _logger.LogDebug("OAuth registration for {Email} has invite code, will validate after user creation", email);
-                    break;
-
-                case RegistrationMode.Open:
-                    // No restrictions
-                    break;
-            }
-
+            // Auto-create user from external login
+            var displayName = info.Principal.FindFirstValue(ClaimTypes.Name) ?? email.Split('@')[0];
             user = new AppUser
             {
+                Id = Guid.NewGuid(),
                 UserName = email,
                 Email = email,
-                DisplayName = name ?? email,
+                DisplayName = displayName,
                 EmailConfirmed = true,
-                Status = UserStatus.Offline,
-                CreatedAtUtc = DateTime.UtcNow,
-                LastSeenUtc = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                LastSeenAt = DateTime.UtcNow,
+                Status = UserStatus.Offline
             };
 
             var createResult = await _userManager.CreateAsync(user);
             if (!createResult.Succeeded)
             {
-                var errors = string.Join("; ", createResult.Errors.Select(e => e.Description));
-                _logger.LogError("Failed to create user via OAuth for {Email}: {Errors}", email, errors);
-                return Redirect($"/register?error={Uri.EscapeDataString(errors)}");
+                return BadRequest("Failed to create user from external login.");
             }
 
-            // User created successfully - now validate and consume invite code if in InviteOnly mode
-            if (oauthSettings.RegistrationMode == RegistrationMode.InviteOnly && !string.IsNullOrWhiteSpace(inviteCodeForValidation))
-            {
-                var invite = await _inviteService.ValidateAndConsumeAsync(inviteCodeForValidation, ct);
-                if (invite is null)
-                {
-                    // This shouldn't happen if the code was valid moments ago, but handle it
-                    _logger.LogError("OAuth registration: invite code {InviteCode} became invalid after user creation for {Email}", inviteCodeForValidation, email);
-                    // User is already created, so we can't reject - just log the error
-                }
-                else
-                {
-                    _logger.LogInformation("OAuth registration: consumed invite code for {Email}", email);
-                }
-            }
-
-            var roleResult = await _userManager.AddToRoleAsync(user, DefaultRole);
-            if (!roleResult.Succeeded)
-            {
-                _logger.LogError("Failed to assign {Role} role to OAuth user {UserId}: {Errors}",
-                    DefaultRole, user.Id, string.Join("; ", roleResult.Errors.Select(e => e.Description)));
-            }
-
-            _logger.LogInformation("New user created via OAuth: {UserId} ({Email})", user.Id, email);
+            await _userManager.AddToRoleAsync(user, nameof(UserRole.Member));
+            await _userManager.AddLoginAsync(user, info);
         }
 
-        // Link external login if not already linked
-        var loginInfo = await _signInManager.GetExternalLoginInfoAsync();
-        if (loginInfo is not null)
-        {
-            var existingLogins = await _userManager.GetLoginsAsync(user);
-            var alreadyLinked = existingLogins.Any(l =>
-                l.LoginProvider == loginInfo.LoginProvider && l.ProviderKey == loginInfo.ProviderKey);
+        var accessToken = await _tokenService.GenerateAccessTokenAsync(user);
+        var refreshToken = await _tokenService.GenerateRefreshTokenAsync(user.Id);
+        SetRefreshTokenCookie(refreshToken.TokenHash, refreshToken.ExpiresAt);
 
-            if (!alreadyLinked)
-            {
-                var addLoginResult = await _userManager.AddLoginAsync(user, loginInfo);
-                if (!addLoginResult.Succeeded)
-                {
-                    _logger.LogWarning("Failed to link external login for user {UserId}: {Errors}",
-                        user.Id, string.Join("; ", addLoginResult.Errors.Select(e => e.Description)));
-                }
-            }
-        }
-
-        // Sign out of the external cookie scheme
-        await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-
-        // Generate tokens
-        var accessToken = await _tokenService.GenerateAccessTokenAsync(user, ct);
-        var refreshToken = await _tokenService.GenerateRefreshTokenAsync(user.Id, ct);
-
-        SetRefreshTokenCookie(refreshToken.Token, refreshToken.ExpiresAtUtc);
-
-        _logger.LogInformation("User authenticated via OAuth: {UserId} ({Email})", user.Id, email);
-
-        // Redirect to the Blazor client with the token in the URL fragment.
-        // Fragments are never sent to the server, keeping the token out of logs.
-        return Redirect($"/auth/callback#access_token={Uri.EscapeDataString(accessToken)}");
+        // Redirect back to the app with the token
+        var redirect = string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl;
+        return Redirect($"{redirect}?token={accessToken}");
     }
 
-    private void SetRefreshTokenCookie(string token, DateTime expiresAtUtc)
+    private void SetRefreshTokenCookie(string tokenHash, DateTime expires)
     {
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
-            Secure = !_environment.IsDevelopment(),
+            Secure = true,
             SameSite = SameSiteMode.Strict,
-            Expires = expiresAtUtc,
+            Expires = expires
         };
-
-        Response.Cookies.Append(RefreshTokenCookieName, token, cookieOptions);
+        Response.Cookies.Append("refreshToken", tokenHash, cookieOptions);
     }
 
-    private void ClearRefreshTokenCookie()
+    private Guid GetUserId()
     {
-        Response.Cookies.Delete(RefreshTokenCookieName, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = !_environment.IsDevelopment(),
-            SameSite = SameSiteMode.Strict,
-        });
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? throw new UnauthorizedAccessException("User ID not found in claims.");
+        return Guid.Parse(userIdStr);
+    }
+
+    private static UserProfileResponse MapToProfile(AppUser user, IList<string> roles)
+    {
+        return new UserProfileResponse(
+            user.Id,
+            user.DisplayName,
+            user.Email!,
+            user.AvatarUrl,
+            user.Bio,
+            user.Pronouns,
+            user.CustomStatus,
+            user.Status,
+            user.IsAgent,
+            roles,
+            user.CreatedAt,
+            user.LastSeenAt);
     }
 }

@@ -43,7 +43,7 @@ public interface IReadStateService
 
     /// <summary>
     /// Marks all unread DMs from a specific sender as read for this user.
-    /// Updates DirectMessage.ReadAtUtc for all unread messages in the conversation.
+    /// Updates DirectMessage.ReadAt for all unread messages in the conversation.
     /// </summary>
     Task MarkDmAsReadAsync(Guid userId, Guid otherUserId, CancellationToken ct = default);
 }

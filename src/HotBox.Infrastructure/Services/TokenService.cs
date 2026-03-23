@@ -16,18 +16,18 @@ namespace HotBox.Infrastructure.Services;
 
 public class TokenService : ITokenService
 {
-    private readonly HotBoxDbContext _context;
+    private readonly HotBoxDbContext _dbContext;
     private readonly UserManager<AppUser> _userManager;
     private readonly JwtOptions _jwtOptions;
     private readonly ILogger<TokenService> _logger;
 
     public TokenService(
-        HotBoxDbContext context,
+        HotBoxDbContext dbContext,
         UserManager<AppUser> userManager,
         IOptions<JwtOptions> jwtOptions,
         ILogger<TokenService> logger)
     {
-        _context = context;
+        _dbContext = dbContext;
         _userManager = userManager;
         _jwtOptions = jwtOptions.Value;
         _logger = logger;
@@ -39,11 +39,10 @@ public class TokenService : ITokenService
 
         var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Email, user.Email ?? string.Empty),
             new("display_name", user.DisplayName),
-            new("is_agent", user.IsAgent.ToString().ToLowerInvariant()),
+            new("is_agent", user.IsAgent.ToString().ToLowerInvariant())
         };
 
         foreach (var role in roles)
@@ -61,48 +60,52 @@ public class TokenService : ITokenService
             expires: DateTime.UtcNow.Add(_jwtOptions.AccessTokenExpiration),
             signingCredentials: credentials);
 
-        var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-
-        _logger.LogDebug("Generated access token for user {UserId}", user.Id);
-
-        return tokenString;
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     public async Task<RefreshToken> GenerateRefreshTokenAsync(Guid userId, CancellationToken ct = default)
     {
-        var tokenValue = GenerateSecureToken();
+        var tokenBytes = RandomNumberGenerator.GetBytes(64);
+        var tokenString = Convert.ToBase64String(tokenBytes);
 
         var refreshToken = new RefreshToken
         {
-            Token = tokenValue,
+            Id = Guid.NewGuid(),
+            TokenHash = HashToken(tokenString),
             UserId = userId,
-            CreatedAtUtc = DateTime.UtcNow,
-            ExpiresAtUtc = DateTime.UtcNow.Add(_jwtOptions.RefreshTokenExpiration),
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.Add(_jwtOptions.RefreshTokenExpiration)
         };
 
-        _context.RefreshTokens.Add(refreshToken);
-        await _context.SaveChangesAsync(ct);
+        _dbContext.RefreshTokens.Add(refreshToken);
+        await _dbContext.SaveChangesAsync(ct);
 
-        _logger.LogDebug("Generated refresh token for user {UserId}", userId);
+        // Store the raw token temporarily for the caller to return to the client
+        // We use ReplacedByToken field as a transient carrier (not persisted as the hash)
+        refreshToken.ReplacedByToken = tokenString;
+
+        _logger.LogDebug("Refresh token generated for user {UserId}", userId);
 
         return refreshToken;
     }
 
     public async Task<RefreshToken?> ValidateRefreshTokenAsync(string token, CancellationToken ct = default)
     {
-        var refreshToken = await _context.RefreshTokens
+        var tokenHash = HashToken(token);
+
+        var refreshToken = await _dbContext.RefreshTokens
             .Include(rt => rt.User)
-            .FirstOrDefaultAsync(rt => rt.Token == token, ct);
+            .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, ct);
 
         if (refreshToken is null)
         {
-            _logger.LogWarning("Refresh token not found during validation");
+            _logger.LogWarning("Refresh token not found");
             return null;
         }
 
         if (!refreshToken.IsActive)
         {
-            _logger.LogWarning("Inactive refresh token used for user {UserId}", refreshToken.UserId);
+            _logger.LogWarning("Refresh token is not active for user {UserId}", refreshToken.UserId);
             return null;
         }
 
@@ -111,98 +114,50 @@ public class TokenService : ITokenService
 
     public async Task<RefreshToken> RotateRefreshTokenAsync(RefreshToken existingToken, CancellationToken ct = default)
     {
-        await using var transaction = await _context.Database
-            .BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, ct);
+        // Revoke the existing token
+        existingToken.RevokedAt = DateTime.UtcNow;
 
-        try
-        {
-            // Re-fetch the token within the transaction to prevent race conditions
-            var tokenToRevoke = await _context.RefreshTokens
-                .FirstOrDefaultAsync(rt => rt.Id == existingToken.Id && rt.RevokedAtUtc == null, ct);
+        // Generate a new token
+        var newToken = await GenerateRefreshTokenAsync(existingToken.UserId, ct);
 
-            if (tokenToRevoke is null)
-            {
-                throw new InvalidOperationException("Refresh token has already been revoked.");
-            }
+        // Link old token to new one
+        existingToken.ReplacedByToken = newToken.TokenHash;
 
-            var newTokenValue = GenerateSecureToken();
+        await _dbContext.SaveChangesAsync(ct);
 
-            // Revoke the existing token
-            tokenToRevoke.RevokedAtUtc = DateTime.UtcNow;
-            tokenToRevoke.ReplacedByToken = newTokenValue;
+        _logger.LogDebug("Refresh token rotated for user {UserId}", existingToken.UserId);
 
-            // Create the replacement token
-            var newToken = new RefreshToken
-            {
-                Token = newTokenValue,
-                UserId = tokenToRevoke.UserId,
-                CreatedAtUtc = DateTime.UtcNow,
-                ExpiresAtUtc = DateTime.UtcNow.Add(_jwtOptions.RefreshTokenExpiration),
-            };
-
-            _context.RefreshTokens.Add(newToken);
-            await _context.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
-
-            _logger.LogDebug("Rotated refresh token for user {UserId}", tokenToRevoke.UserId);
-
-            return newToken;
-        }
-        catch (Exception) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Token rotation failed due to concurrent access for user {UserId}", existingToken.UserId);
-            throw new InvalidOperationException("Refresh token has already been revoked.");
-        }
+        return newToken;
     }
 
     public async Task RevokeRefreshTokenAsync(string token, CancellationToken ct = default)
     {
-        var refreshToken = await _context.RefreshTokens
-            .FirstOrDefaultAsync(rt => rt.Token == token, ct);
+        var tokenHash = HashToken(token);
 
-        if (refreshToken is null)
+        var refreshToken = await _dbContext.RefreshTokens
+            .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, ct);
+
+        if (refreshToken is not null)
         {
-            _logger.LogWarning("Attempted to revoke a non-existent refresh token");
-            return;
+            refreshToken.RevokedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync(ct);
+
+            _logger.LogDebug("Refresh token revoked for user {UserId}", refreshToken.UserId);
         }
-
-        if (refreshToken.IsRevoked)
-        {
-            _logger.LogDebug("Refresh token already revoked for user {UserId}", refreshToken.UserId);
-            return;
-        }
-
-        refreshToken.RevokedAtUtc = DateTime.UtcNow;
-        await _context.SaveChangesAsync(ct);
-
-        _logger.LogInformation("Revoked refresh token for user {UserId}", refreshToken.UserId);
     }
 
     public async Task RevokeAllUserRefreshTokensAsync(Guid userId, CancellationToken ct = default)
     {
-        var revokedCount = await _context.RefreshTokens
-            .Where(rt => rt.UserId == userId && rt.RevokedAtUtc == null)
-            .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.RevokedAtUtc, DateTime.UtcNow), ct);
+        await _dbContext.RefreshTokens
+            .Where(rt => rt.UserId == userId && rt.RevokedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(rt => rt.RevokedAt, DateTime.UtcNow), ct);
 
-        _logger.LogInformation(
-            "Revoked {TokenCount} refresh tokens for user {UserId}",
-            revokedCount,
-            userId);
+        _logger.LogInformation("All refresh tokens revoked for user {UserId}", userId);
     }
 
-    private static string GenerateSecureToken()
+    private static string HashToken(string token)
     {
-        var randomBytes = new byte[64];
-        using var rng = RandomNumberGenerator.Create();
-        rng.GetBytes(randomBytes);
-        return Convert.ToBase64String(randomBytes);
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToBase64String(bytes);
     }
 }

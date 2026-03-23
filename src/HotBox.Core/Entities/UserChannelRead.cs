@@ -8,7 +8,7 @@ public class UserChannelRead
 
     public Guid? LastReadMessageId { get; set; }
 
-    public DateTime LastReadAtUtc { get; set; }
+    public DateTime LastReadAt { get; set; }
 
     public AppUser User { get; set; } = null!;
 

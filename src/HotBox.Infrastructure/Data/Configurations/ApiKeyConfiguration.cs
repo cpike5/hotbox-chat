@@ -8,37 +8,22 @@ public class ApiKeyConfiguration : IEntityTypeConfiguration<ApiKey>
 {
     public void Configure(EntityTypeBuilder<ApiKey> builder)
     {
-        builder.HasKey(ak => ak.Id);
+        builder.HasKey(k => k.Id);
 
-        builder.Property(ak => ak.Id)
-            .ValueGeneratedOnAdd();
+        builder.Property(k => k.KeyHash)
+            .IsRequired();
 
-        builder.Property(ak => ak.KeyValue)
+        builder.Property(k => k.KeyPrefix)
             .IsRequired()
-            .HasMaxLength(256);
+            .HasMaxLength(10);
 
-        builder.Property(ak => ak.KeyPrefix)
-            .IsRequired()
-            .HasMaxLength(8);
-
-        builder.Property(ak => ak.Name)
+        builder.Property(k => k.Name)
             .IsRequired()
             .HasMaxLength(100);
 
-        builder.Property(ak => ak.CreatedAtUtc)
-            .IsRequired();
+        builder.HasIndex(k => k.KeyPrefix);
 
-        builder.Property(ak => ak.RevokedReason)
-            .HasMaxLength(500);
-
-        builder.Ignore(ak => ak.IsRevoked);
-        builder.Ignore(ak => ak.IsActive);
-
-        builder.HasMany(ak => ak.CreatedAgents)
-            .WithOne(u => u.CreatedByApiKey)
-            .HasForeignKey(u => u.CreatedByApiKeyId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasIndex(ak => ak.KeyValue).IsUnique();
+        builder.Ignore(k => k.IsRevoked);
+        builder.Ignore(k => k.IsActive);
     }
 }
