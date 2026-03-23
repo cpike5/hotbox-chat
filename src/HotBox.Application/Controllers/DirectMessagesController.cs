@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HotBox.Application.Controllers;
 
 [ApiController]
-[Route("api/dm")]
+[Route("api/[controller]")]
 [Authorize]
 public class DirectMessagesController : ControllerBase
 {
@@ -25,154 +25,85 @@ public class DirectMessagesController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetConversations(CancellationToken ct)
+    [HttpGet("conversations")]
+    public async Task<ActionResult<IReadOnlyList<ConversationSummaryResponse>>> GetConversations(CancellationToken ct)
     {
         var userId = GetUserId();
-        if (userId is null)
-        {
-            return Unauthorized();
-        }
+        var conversations = await _directMessageService.GetConversationsAsync(userId, ct);
+        var unreadCounts = await _readStateService.GetDmUnreadCountsAsync(userId, ct);
 
-        _logger.LogDebug("Listing DM conversations for user {UserId}", userId.Value);
-
-        var conversations = await _directMessageService.GetConversationsAsync(userId.Value, ct);
-        var unreadCounts = await _readStateService.GetDmUnreadCountsAsync(userId.Value, ct);
-
-        var response = conversations.Select(c => new ConversationSummaryResponse
-        {
-            UserId = c.UserId,
-            DisplayName = c.DisplayName,
-            LastMessageContent = c.LastMessageContent,
-            LastMessageAtUtc = c.LastMessageAtUtc,
-            UnreadCount = unreadCounts.GetValueOrDefault(c.UserId, 0),
-        }).ToList();
+        var response = conversations.Select(c => new ConversationSummaryResponse(
+            c.UserId,
+            c.DisplayName,
+            c.LastMessageAt,
+            c.LastMessageContent,
+            unreadCounts.GetValueOrDefault(c.UserId, 0)
+        )).ToList();
 
         return Ok(response);
     }
 
-    [HttpGet("{userId:guid}")]
-    public async Task<IActionResult> GetConversation(
-        Guid userId,
-        [FromQuery] DateTime? before = null,
+    [HttpGet("{otherUserId:guid}")]
+    public async Task<ActionResult<IReadOnlyList<DirectMessageResponse>>> GetConversation(
+        Guid otherUserId,
+        [FromQuery] DateTime? before,
         [FromQuery] int limit = 50,
         CancellationToken ct = default)
     {
-        if (limit is < 1 or > 100)
-        {
-            return BadRequest(new { error = "Limit must be between 1 and 100." });
-        }
-
-        var currentUserId = GetUserId();
-        if (currentUserId is null)
-        {
-            return Unauthorized();
-        }
-
-        _logger.LogDebug(
-            "Fetching DM conversation between {CurrentUserId} and {OtherUserId}",
-            currentUserId.Value,
-            userId);
-
-        var messages = await _directMessageService.GetConversationAsync(
-            currentUserId.Value, userId, before, limit, ct);
-
-        var response = messages.Select(m => new DirectMessageResponse
-        {
-            Id = m.Id,
-            Content = m.Content,
-            SenderId = m.SenderId,
-            SenderDisplayName = m.Sender?.DisplayName ?? "Unknown",
-            RecipientId = m.RecipientId,
-            CreatedAtUtc = m.CreatedAtUtc,
-            ReadAtUtc = m.ReadAtUtc,
-        }).ToList();
-
+        var userId = GetUserId();
+        var messages = await _directMessageService.GetConversationAsync(userId, otherUserId, before, limit, ct);
+        var response = messages.Select(MapToResponse).ToList();
         return Ok(response);
     }
 
-    [HttpPost("{userId:guid}")]
-    public async Task<IActionResult> SendMessage(
-        Guid userId,
+    [HttpPost]
+    public async Task<ActionResult<DirectMessageResponse>> Send(
         [FromBody] SendDirectMessageRequest request,
         CancellationToken ct)
     {
-        var currentUserId = GetUserId();
-        if (currentUserId is null)
-        {
-            return Unauthorized();
-        }
+        var userId = GetUserId();
+        var dm = await _directMessageService.SendAsync(userId, request.RecipientId, request.Content, ct);
 
-        _logger.LogDebug(
-            "User {SenderId} sending DM to {RecipientId}",
-            currentUserId.Value,
-            userId);
+        _logger.LogDebug("User {UserId} sent DM {MessageId} to {RecipientId}", userId, dm.Id, request.RecipientId);
 
-        try
-        {
-            var message = await _directMessageService.SendAsync(
-                currentUserId.Value, userId, request.Content, ct);
-
-            var response = new DirectMessageResponse
-            {
-                Id = message.Id,
-                Content = message.Content,
-                SenderId = message.SenderId,
-                SenderDisplayName = message.Sender?.DisplayName ?? "Unknown",
-                RecipientId = message.RecipientId,
-                CreatedAtUtc = message.CreatedAtUtc,
-                ReadAtUtc = message.ReadAtUtc,
-            };
-
-            return CreatedAtAction(
-                nameof(GetConversation),
-                new { userId },
-                response);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        return CreatedAtAction(nameof(GetConversation), new { otherUserId = request.RecipientId }, MapToResponse(dm));
     }
 
-    [HttpPost("{userId:guid}/read")]
-    public async Task<IActionResult> MarkAsRead(Guid userId, CancellationToken ct)
+    [HttpPost("{otherUserId:guid}/read")]
+    public async Task<IActionResult> MarkRead(Guid otherUserId, CancellationToken ct)
     {
-        var currentUserId = GetUserId();
-        if (currentUserId is null)
-        {
-            return Unauthorized();
-        }
-
-        await _readStateService.MarkDmAsReadAsync(currentUserId.Value, userId, ct);
-        return NoContent();
+        var userId = GetUserId();
+        await _readStateService.MarkDmAsReadAsync(userId, otherUserId, ct);
+        return Ok();
     }
 
     [HttpGet("unread")]
-    public async Task<IActionResult> GetUnreadCounts(CancellationToken ct)
+    public async Task<ActionResult<Dictionary<Guid, int>>> GetUnreadCounts(CancellationToken ct)
     {
-        var currentUserId = GetUserId();
-        if (currentUserId is null)
-        {
-            return Unauthorized();
-        }
-
-        var unreadCounts = await _readStateService.GetDmUnreadCountsAsync(currentUserId.Value, ct);
-        return Ok(unreadCounts);
+        var userId = GetUserId();
+        var counts = await _readStateService.GetDmUnreadCountsAsync(userId, ct);
+        return Ok(counts);
     }
 
-    private Guid? GetUserId()
+    private Guid GetUserId()
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-        {
-            return null;
-        }
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? throw new UnauthorizedAccessException("User ID not found in claims.");
+        return Guid.Parse(userIdStr);
+    }
 
-        return userId;
+    private static DirectMessageResponse MapToResponse(Core.Entities.DirectMessage dm)
+    {
+        return new DirectMessageResponse(
+            dm.Id,
+            dm.Content,
+            dm.SenderId,
+            dm.Sender.DisplayName,
+            dm.Sender.AvatarUrl,
+            dm.RecipientId,
+            dm.Recipient.DisplayName,
+            dm.CreatedAt,
+            dm.EditedAt,
+            dm.ReadAt);
     }
 }

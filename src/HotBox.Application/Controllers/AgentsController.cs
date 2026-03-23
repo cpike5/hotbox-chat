@@ -1,143 +1,104 @@
-using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using HotBox.Application.Models;
 using HotBox.Core.Entities;
 using HotBox.Core.Enums;
-using HotBox.Core.Interfaces;
 using HotBox.Infrastructure.Data;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HotBox.Application.Authentication;
 
 namespace HotBox.Application.Controllers;
 
 [ApiController]
-[Route("api/admin/agents")]
-[Authorize(AuthenticationSchemes = "ApiKey")]
+[Route("api/[controller]")]
+[Authorize(AuthenticationSchemes = ApiKeyAuthenticationOptions.SchemeName)]
 public class AgentsController : ControllerBase
 {
     private readonly UserManager<AppUser> _userManager;
-    private readonly ITokenService _tokenService;
     private readonly HotBoxDbContext _dbContext;
     private readonly ILogger<AgentsController> _logger;
 
     public AgentsController(
         UserManager<AppUser> userManager,
-        ITokenService tokenService,
         HotBoxDbContext dbContext,
         ILogger<AgentsController> logger)
     {
         _userManager = userManager;
-        _tokenService = tokenService;
         _dbContext = dbContext;
         _logger = logger;
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateAgent(
-        [FromBody] CreateAgentRequest request,
-        CancellationToken ct)
+    public async Task<ActionResult<AgentResponse>> CreateAgent([FromBody] CreateAgentRequest request)
     {
-        var apiKeyIdClaim = User.FindFirst("api_key_id")?.Value;
-        if (string.IsNullOrWhiteSpace(apiKeyIdClaim) || !Guid.TryParse(apiKeyIdClaim, out var apiKeyId))
+        var apiKeyIdStr = User.FindFirstValue("api_key_id");
+        if (!Guid.TryParse(apiKeyIdStr, out var apiKeyId))
         {
-            return Unauthorized(new { error = "Unable to determine API key identity." });
+            return Unauthorized("Invalid API key.");
         }
 
-        var user = new AppUser
+        var agent = new AppUser
         {
             Id = Guid.NewGuid(),
-            UserName = request.Email,
-            Email = request.Email,
+            UserName = $"agent-{Guid.NewGuid():N}@hotbox.local",
+            Email = $"agent-{Guid.NewGuid():N}@hotbox.local",
             DisplayName = request.DisplayName,
+            Bio = request.Bio,
             IsAgent = true,
             CreatedByApiKeyId = apiKeyId,
-            CreatedAtUtc = DateTime.UtcNow,
-            Status = UserStatus.Offline,
+            EmailConfirmed = true,
+            CreatedAt = DateTime.UtcNow,
+            LastSeenAt = DateTime.UtcNow,
+            Status = UserStatus.Offline
         };
 
-        var result = await _userManager.CreateAsync(user);
+        // Generate a random password for the agent (they'll authenticate via API key)
+        var randomPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) + "Aa1!";
+        var result = await _userManager.CreateAsync(agent, randomPassword);
+
         if (!result.Succeeded)
         {
-            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
-            _logger.LogWarning(
-                "Agent account creation failed for email {Email}: {Errors}",
-                request.Email, errors);
-            return BadRequest(new { error = errors });
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            _logger.LogError("Failed to create agent: {Errors}", errors);
+            return BadRequest(errors);
         }
 
-        await _userManager.AddToRoleAsync(user, "Member");
+        await _userManager.AddToRoleAsync(agent, nameof(UserRole.Member));
 
-        var accessToken = await _tokenService.GenerateAccessTokenAsync(user, ct);
+        _logger.LogInformation("Agent {AgentId} ({DisplayName}) created by API key {ApiKeyId}",
+            agent.Id, agent.DisplayName, apiKeyId);
 
-        _logger.LogInformation(
-            "Agent account {UserId} ({Email}) created by API key {ApiKeyId}",
-            user.Id, request.Email, apiKeyId);
-
-        return CreatedAtAction(nameof(ListAgents), null, new CreateAgentResponse
-        {
-            UserId = user.Id,
-            DisplayName = user.DisplayName,
-            Email = user.Email ?? string.Empty,
-            AccessToken = accessToken,
-        });
+        return CreatedAtAction(nameof(ListAgents), new AgentResponse(
+            agent.Id,
+            agent.DisplayName,
+            agent.Bio,
+            agent.IsAgent,
+            agent.CreatedAt));
     }
 
     [HttpGet]
-    public async Task<IActionResult> ListAgents(CancellationToken ct)
+    public async Task<ActionResult<IReadOnlyList<AgentResponse>>> ListAgents()
     {
-        var apiKeyIdClaim = User.FindFirst("api_key_id")?.Value;
-        if (string.IsNullOrWhiteSpace(apiKeyIdClaim) || !Guid.TryParse(apiKeyIdClaim, out var apiKeyId))
+        var apiKeyIdStr = User.FindFirstValue("api_key_id");
+        if (!Guid.TryParse(apiKeyIdStr, out var apiKeyId))
         {
-            return Unauthorized(new { error = "Unable to determine API key identity." });
+            return Unauthorized("Invalid API key.");
         }
 
         var agents = await _dbContext.Users
-            .AsNoTracking()
             .Where(u => u.IsAgent && u.CreatedByApiKeyId == apiKeyId)
-            .OrderBy(u => u.DisplayName)
-            .Select(u => new AgentResponse
-            {
-                Id = u.Id,
-                DisplayName = u.DisplayName,
-                Email = u.Email ?? string.Empty,
-                CreatedAtUtc = u.CreatedAtUtc,
-            })
-            .ToListAsync(ct);
+            .Select(u => new AgentResponse(
+                u.Id,
+                u.DisplayName,
+                u.Bio,
+                u.IsAgent,
+                u.CreatedAt))
+            .ToListAsync();
 
         return Ok(agents);
     }
-}
-
-// --- Agent Models ---
-
-public class CreateAgentRequest
-{
-    [Required]
-    [EmailAddress]
-    public string Email { get; set; } = string.Empty;
-
-    [Required]
-    public string DisplayName { get; set; } = string.Empty;
-}
-
-public class CreateAgentResponse
-{
-    public Guid UserId { get; set; }
-
-    public string DisplayName { get; set; } = string.Empty;
-
-    public string Email { get; set; } = string.Empty;
-
-    public string AccessToken { get; set; } = string.Empty;
-}
-
-public class AgentResponse
-{
-    public Guid Id { get; set; }
-
-    public string DisplayName { get; set; } = string.Empty;
-
-    public string Email { get; set; } = string.Empty;
-
-    public DateTime CreatedAtUtc { get; set; }
 }

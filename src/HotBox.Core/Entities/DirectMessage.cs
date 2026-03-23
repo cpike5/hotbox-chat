@@ -10,9 +10,11 @@ public class DirectMessage
 
     public Guid RecipientId { get; set; }
 
-    public DateTime CreatedAtUtc { get; set; }
+    public DateTime CreatedAt { get; set; }
 
-    public DateTime? ReadAtUtc { get; set; }
+    public DateTime? EditedAt { get; set; }
+
+    public DateTime? ReadAt { get; set; }
 
     public AppUser Sender { get; set; } = null!;
 

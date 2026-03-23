@@ -1,5 +1,4 @@
 using HotBox.Core.Entities;
-using HotBox.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -17,43 +16,19 @@ public class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
             .HasMaxLength(500);
 
         builder.Property(u => u.Bio)
-            .HasMaxLength(256);
+            .HasMaxLength(500);
 
         builder.Property(u => u.Pronouns)
             .HasMaxLength(50);
 
         builder.Property(u => u.CustomStatus)
-            .HasMaxLength(128);
+            .HasMaxLength(100);
 
-        builder.Property(u => u.Status)
-            .IsRequired()
-            .HasConversion<string>();
+        builder.HasIndex(u => u.IsAgent);
 
-        builder.Property(u => u.LastSeenUtc)
-            .IsRequired();
-
-        builder.Property(u => u.CreatedAtUtc)
-            .IsRequired();
-
-        builder.HasMany(u => u.Messages)
-            .WithOne(m => m.Author)
-            .HasForeignKey(m => m.AuthorId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasMany(u => u.SentDirectMessages)
-            .WithOne(dm => dm.Sender)
-            .HasForeignKey(dm => dm.SenderId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasMany(u => u.ReceivedDirectMessages)
-            .WithOne(dm => dm.Recipient)
-            .HasForeignKey(dm => dm.RecipientId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.Property(u => u.IsAgent)
-            .IsRequired()
-            .HasDefaultValue(false);
-
-        builder.Property(u => u.CreatedByApiKeyId);
+        builder.HasOne(u => u.CreatedByApiKey)
+            .WithMany(k => k.CreatedAgents)
+            .HasForeignKey(u => u.CreatedByApiKeyId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

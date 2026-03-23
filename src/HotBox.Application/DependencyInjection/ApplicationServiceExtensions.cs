@@ -1,13 +1,9 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using HotBox.Application.Authentication;
-using HotBox.Application.Services;
-using HotBox.Core.Interfaces;
 using HotBox.Core.Options;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
 namespace HotBox.Application.DependencyInjection;
@@ -18,144 +14,87 @@ public static class ApplicationServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Bind options that Application owns
-        services.Configure<ServerOptions>(configuration.GetSection(ServerOptions.SectionName));
-        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
-        services.Configure<OAuthOptions>(configuration.GetSection(OAuthOptions.SectionName));
-        services.Configure<IceServerOptions>(configuration.GetSection(IceServerOptions.SectionName));
-        services.Configure<AdminSeedOptions>(configuration.GetSection(AdminSeedOptions.SectionName));
+        var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+                         ?? new JwtOptions();
 
-        // JWT Bearer Authentication
-        var jwtOptions = configuration
-            .GetSection(JwtOptions.SectionName)
-            .Get<JwtOptions>()
-            ?? new JwtOptions();
-
-        if (string.IsNullOrWhiteSpace(jwtOptions.Secret) || jwtOptions.Secret.Length < 32)
-        {
-            throw new InvalidOperationException(
-                "Jwt:Secret must be configured and at least 32 characters for HMAC-SHA256");
-        }
-
-        var authBuilder = services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = "JwtOrApiKey";
-            options.DefaultChallengeScheme = "JwtOrApiKey";
-        })
-        .AddPolicyScheme("JwtOrApiKey", "JWT or API Key", options =>
-        {
-            options.ForwardDefaultSelector = context =>
+        // Authentication
+        services.AddAuthentication(options =>
             {
-                if (context.Request.Headers.ContainsKey(ApiKeyAuthenticationHandler.HeaderName))
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    return ApiKeyAuthenticationHandler.SchemeName;
-                }
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwtOptions.Issuer,
+                    ValidAudience = jwtOptions.Audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Secret)),
+                    ClockSkew = TimeSpan.FromSeconds(30)
+                };
 
-                return JwtBearerDefaults.AuthenticationScheme;
-            };
-        })
-        .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
-            ApiKeyAuthenticationHandler.SchemeName, null)
-        .AddJwtBearer(options =>
-        {
-            options.MapInboundClaims = true;
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = jwtOptions.Issuer,
-                ValidateAudience = true,
-                ValidAudience = jwtOptions.Audience,
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(jwtOptions.Secret)),
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.FromSeconds(30),
-            };
-
-            // SignalR sends the JWT as a query-string parameter because
-            // WebSockets cannot set custom HTTP headers. Extract it here
-            // so the bearer middleware can validate it normally.
-            options.Events = new JwtBearerEvents
-            {
-                OnMessageReceived = context =>
+                // Allow SignalR to receive the JWT via query string
+                options.Events = new JwtBearerEvents
                 {
-                    var accessToken = context.Request.Query["access_token"];
-                    var path = context.HttpContext.Request.Path;
-
-                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                    OnMessageReceived = context =>
                     {
-                        context.Token = accessToken;
+                        var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            (path.StartsWithSegments("/hubs/chat") || path.StartsWithSegments("/hubs/voice")))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
                     }
+                };
+            })
+            .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+                ApiKeyAuthenticationOptions.SchemeName, _ => { });
 
-                    return Task.CompletedTask;
-                }
-            };
-        });
+        // Authorization policies
+        services.AddAuthorizationBuilder()
+            .AddPolicy("Admin", policy => policy.RequireRole("Admin"))
+            .AddPolicy("Moderator", policy => policy.RequireRole("Admin", "Moderator"));
 
-        // Conditionally add OAuth providers
-        var oauthOptions = configuration
-            .GetSection(OAuthOptions.SectionName)
-            .Get<OAuthOptions>()
-            ?? new OAuthOptions();
-
-        if (oauthOptions.Google.Enabled
-            && !string.IsNullOrWhiteSpace(oauthOptions.Google.ClientId)
-            && !string.IsNullOrWhiteSpace(oauthOptions.Google.ClientSecret))
-        {
-            authBuilder.AddGoogle(options =>
-            {
-                options.ClientId = oauthOptions.Google.ClientId;
-                options.ClientSecret = oauthOptions.Google.ClientSecret;
-            });
-        }
-
-        if (oauthOptions.Microsoft.Enabled
-            && !string.IsNullOrWhiteSpace(oauthOptions.Microsoft.ClientId)
-            && !string.IsNullOrWhiteSpace(oauthOptions.Microsoft.ClientSecret))
-        {
-            authBuilder.AddMicrosoftAccount(options =>
-            {
-                options.ClientId = oauthOptions.Microsoft.ClientId;
-                options.ClientSecret = oauthOptions.Microsoft.ClientSecret;
-            });
-        }
-
-        services.AddAuthorization();
-
-        // API controllers
+        // Controllers
         services.AddControllers()
             .AddJsonOptions(options =>
             {
-                options.JsonSerializerOptions.Converters.Add(
-                    new System.Text.Json.Serialization.JsonStringEnumConverter());
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             });
 
-        // SignalR for real-time hubs
+        // SignalR with Redis backplane
+        var redisConnection = configuration.GetConnectionString("Redis");
         services.AddSignalR()
             .AddJsonProtocol(options =>
             {
-                options.PayloadSerializerOptions.Converters.Add(
-                    new System.Text.Json.Serialization.JsonStringEnumConverter());
+                options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            })
+            .AddStackExchangeRedis(redisConnection!, options =>
+            {
+                options.Configuration.ChannelPrefix = StackExchange.Redis.RedisChannel.Literal("HotBox:");
             });
 
-        // CORS — permissive for development, tighten for production
+        // CORS
         services.AddCors(options =>
         {
             options.AddDefaultPolicy(policy =>
             {
                 policy.AllowAnyOrigin()
-                      .AllowAnyMethod()
-                      .AllowAnyHeader();
+                    .AllowAnyMethod()
+                    .AllowAnyHeader();
             });
         });
 
-        // OpenAPI / Swagger
-        services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen();
-
-        // Application-layer services (depend on IHubContext, so cannot live in Infrastructure)
-        services.AddScoped<INotificationService, NotificationService>();
-        services.AddScoped<IReadStateService, ReadStateService>();
+        // OpenAPI
+        services.AddOpenApi();
 
         return services;
     }

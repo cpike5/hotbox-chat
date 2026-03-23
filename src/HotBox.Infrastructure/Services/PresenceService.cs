@@ -7,103 +7,43 @@ using Microsoft.Extensions.Options;
 
 namespace HotBox.Infrastructure.Services;
 
-public class PresenceService : IPresenceService, IDisposable
+public class PresenceService : IPresenceService
 {
+    private readonly ConcurrentDictionary<Guid, UserPresenceState> _users = new();
+    private readonly PresenceOptions _options;
     private readonly ILogger<PresenceService> _logger;
 
     /// <summary>
-    /// Tracks all connection IDs for a given user.
-    /// All access must be guarded by <see cref="_connectionLock"/>.
-    /// </summary>
-    private readonly Dictionary<Guid, HashSet<string>> _userConnections = new();
-
-    /// <summary>
-    /// Tracks the current status of each user (only for users who are not Offline).
-    /// </summary>
-    private readonly ConcurrentDictionary<Guid, UserStatus> _userStatuses = new();
-
-    /// <summary>
-    /// Tracks display names for online users.
-    /// </summary>
-    private readonly ConcurrentDictionary<Guid, string> _userDisplayNames = new();
-
-    /// <summary>
-    /// Tracks whether each user is an agent (bot).
-    /// </summary>
-    private readonly ConcurrentDictionary<Guid, bool> _userIsAgent = new();
-
-    /// <summary>
-    /// Tracks the last heartbeat time for each user (for idle detection).
-    /// </summary>
-    private readonly ConcurrentDictionary<Guid, DateTime> _lastHeartbeat = new();
-
-    /// <summary>
-    /// Tracks grace period timers for users who have disconnected all connections.
-    /// </summary>
-    private readonly ConcurrentDictionary<Guid, Timer> _graceTimers = new();
-
-    /// <summary>
-    /// Tracks idle timeout timers per user.
-    /// </summary>
-    private readonly ConcurrentDictionary<Guid, Timer> _idleTimers = new();
-
-    /// <summary>
-    /// Tracks inactivity timeout timers for agent API activity presence.
-    /// </summary>
-    private readonly ConcurrentDictionary<Guid, Timer> _agentInactivityTimers = new();
-
-    /// <summary>
-    /// Lock object for connection set modifications (HashSet is not thread-safe).
-    /// </summary>
-    private readonly object _connectionLock = new();
-
-    private readonly TimeSpan _gracePeriod;
-    private readonly TimeSpan _idleTimeout;
-    private readonly TimeSpan _agentInactivityTimeout;
-
-    /// <summary>
-    /// Event raised when a user's status changes. The ChatHub subscribes to this
-    /// to broadcast status updates.
+    /// Fired when a user's status changes. Parameters: userId, displayName, newStatus, isAgent.
     /// </summary>
     public event Action<Guid, string, UserStatus, bool>? OnUserStatusChanged;
 
-    private bool _disposed;
-
-    public PresenceService(ILogger<PresenceService> logger, IOptions<PresenceOptions>? presenceOptions = null)
+    public PresenceService(IOptions<PresenceOptions> options, ILogger<PresenceService> logger)
     {
+        _options = options.Value;
         _logger = logger;
-
-        var options = presenceOptions?.Value ?? new PresenceOptions();
-        _gracePeriod = options.GracePeriod;
-        _idleTimeout = options.IdleTimeout;
-        _agentInactivityTimeout = options.AgentInactivityTimeout;
     }
 
     public Task SetOnlineAsync(Guid userId, string connectionId, string displayName, bool isAgent = false)
     {
-        // Cancel any pending grace timer for this user
-        CancelGraceTimer(userId);
-        CancelAgentInactivityTimer(userId);
-
-        lock (_connectionLock)
+        var state = _users.GetOrAdd(userId, _ => new UserPresenceState
         {
-            if (!_userConnections.TryGetValue(userId, out var connections))
-            {
-                connections = new HashSet<string>();
-                _userConnections[userId] = connections;
-            }
+            DisplayName = displayName,
+            IsAgent = isAgent
+        });
 
-            connections.Add(connectionId);
-        }
+        state.DisplayName = displayName;
+        state.IsAgent = isAgent;
+        state.Connections.Add(connectionId);
+        state.LastHeartbeat = DateTime.UtcNow;
 
-        _userDisplayNames[userId] = displayName;
-        _userIsAgent[userId] = isAgent;
-        _lastHeartbeat[userId] = DateTime.UtcNow;
+        // Cancel any pending grace period timer
+        state.GracePeriodCts?.Cancel();
+        state.GracePeriodCts?.Dispose();
+        state.GracePeriodCts = null;
 
-        var previousStatus = GetStatus(userId);
-        _userStatuses[userId] = UserStatus.Online;
-
-        ResetIdleTimer(userId);
+        var previousStatus = state.Status;
+        state.Status = UserStatus.Online;
 
         if (previousStatus != UserStatus.Online)
         {
@@ -116,98 +56,75 @@ public class PresenceService : IPresenceService, IDisposable
 
     public Task SetIdleAsync(Guid userId)
     {
-        if (!_userStatuses.ContainsKey(userId))
-            return Task.CompletedTask;
-
-        var currentStatus = GetStatus(userId);
-        if (currentStatus == UserStatus.DoNotDisturb || currentStatus == UserStatus.Offline)
-            return Task.CompletedTask;
-
-        _userStatuses[userId] = UserStatus.Idle;
-        var displayName = GetDisplayName(userId);
-        var isAgent = GetIsAgent(userId);
-
-        _logger.LogInformation("User {UserId} ({DisplayName}) is now idle", userId, displayName);
-        OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Idle, isAgent);
+        if (_users.TryGetValue(userId, out var state) && state.Status == UserStatus.Online)
+        {
+            state.Status = UserStatus.Idle;
+            _logger.LogDebug("User {UserId} ({DisplayName}) is now idle", userId, state.DisplayName);
+            OnUserStatusChanged?.Invoke(userId, state.DisplayName, UserStatus.Idle, state.IsAgent);
+        }
 
         return Task.CompletedTask;
     }
 
     public Task SetOfflineAsync(Guid userId)
     {
-        CancelGraceTimer(userId);
-        CancelIdleTimer(userId);
-        CancelAgentInactivityTimer(userId);
-
-        lock (_connectionLock)
+        if (_users.TryRemove(userId, out var state))
         {
-            _userConnections.Remove(userId);
+            state.GracePeriodCts?.Cancel();
+            state.GracePeriodCts?.Dispose();
+            state.Connections.Clear();
+
+            _logger.LogInformation("User {UserId} ({DisplayName}) is now offline", userId, state.DisplayName);
+            OnUserStatusChanged?.Invoke(userId, state.DisplayName, UserStatus.Offline, state.IsAgent);
         }
-
-        var displayName = GetDisplayName(userId);
-        var isAgent = GetIsAgent(userId);
-
-        _userStatuses.TryRemove(userId, out _);
-        _userDisplayNames.TryRemove(userId, out _);
-        _userIsAgent.TryRemove(userId, out _);
-        _lastHeartbeat.TryRemove(userId, out _);
-
-        _logger.LogInformation("User {UserId} ({DisplayName}) is now offline", userId, displayName);
-        OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Offline, isAgent);
 
         return Task.CompletedTask;
     }
 
     public Task SetDoNotDisturbAsync(Guid userId)
     {
-        if (!_userStatuses.ContainsKey(userId))
-            return Task.CompletedTask;
-
-        _userStatuses[userId] = UserStatus.DoNotDisturb;
-        CancelIdleTimer(userId);
-
-        var displayName = GetDisplayName(userId);
-        var isAgent = GetIsAgent(userId);
-
-        _logger.LogInformation("User {UserId} ({DisplayName}) set status to DoNotDisturb", userId, displayName);
-        OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.DoNotDisturb, isAgent);
+        if (_users.TryGetValue(userId, out var state))
+        {
+            state.Status = UserStatus.DoNotDisturb;
+            _logger.LogDebug("User {UserId} ({DisplayName}) is now do-not-disturb", userId, state.DisplayName);
+            OnUserStatusChanged?.Invoke(userId, state.DisplayName, UserStatus.DoNotDisturb, state.IsAgent);
+        }
 
         return Task.CompletedTask;
     }
 
     public UserStatus GetStatus(Guid userId)
     {
-        return _userStatuses.TryGetValue(userId, out var status) ? status : UserStatus.Offline;
+        return _users.TryGetValue(userId, out var state) ? state.Status : UserStatus.Offline;
     }
 
     public IReadOnlyList<(Guid UserId, string DisplayName, UserStatus Status, bool IsAgent)> GetAllOnlineUsers()
     {
-        return _userStatuses
-            .Select(kvp => (
-                UserId: kvp.Key,
-                DisplayName: GetDisplayName(kvp.Key),
-                Status: kvp.Value,
-                IsAgent: GetIsAgent(kvp.Key)))
-            .ToList()
-            .AsReadOnly();
+        return _users
+            .Where(kvp => kvp.Value.Status != UserStatus.Offline)
+            .Select(kvp => (kvp.Key, kvp.Value.DisplayName, kvp.Value.Status, kvp.Value.IsAgent))
+            .ToList();
     }
 
     public bool RemoveConnection(Guid userId, string connectionId)
     {
-        bool hasNoConnections;
-
-        lock (_connectionLock)
+        if (!_users.TryGetValue(userId, out var state))
         {
-            if (!_userConnections.TryGetValue(userId, out var connections))
-                return true;
-
-            connections.Remove(connectionId);
-            hasNoConnections = connections.Count == 0;
+            return false;
         }
 
-        if (hasNoConnections)
+        state.Connections.Remove(connectionId);
+
+        if (state.Connections.Count == 0)
         {
-            StartGraceTimer(userId);
+            // Start grace period
+            state.GracePeriodCts?.Cancel();
+            state.GracePeriodCts?.Dispose();
+            state.GracePeriodCts = new CancellationTokenSource();
+            var cts = state.GracePeriodCts;
+
+            _ = StartGracePeriodAsync(userId, cts.Token);
+
             return true;
         }
 
@@ -216,37 +133,39 @@ public class PresenceService : IPresenceService, IDisposable
 
     public void RecordHeartbeat(Guid userId)
     {
-        if (!_userStatuses.ContainsKey(userId))
-            return;
-
-        _lastHeartbeat[userId] = DateTime.UtcNow;
-
-        // If user was idle, bring them back online
-        if (_userStatuses.TryGetValue(userId, out var status) && status == UserStatus.Idle)
+        if (_users.TryGetValue(userId, out var state))
         {
-            _userStatuses[userId] = UserStatus.Online;
-            var displayName = GetDisplayName(userId);
-            var isAgent = GetIsAgent(userId);
-            OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Online, isAgent);
-        }
+            state.LastHeartbeat = DateTime.UtcNow;
 
-        ResetIdleTimer(userId);
+            // If user was idle, set them back to online
+            if (state.Status == UserStatus.Idle)
+            {
+                state.Status = UserStatus.Online;
+                OnUserStatusChanged?.Invoke(userId, state.DisplayName, UserStatus.Online, state.IsAgent);
+            }
+        }
     }
 
     public Task TouchAgentActivityAsync(Guid userId, string displayName)
     {
-        CancelGraceTimer(userId);
+        var state = _users.GetOrAdd(userId, _ => new UserPresenceState
+        {
+            DisplayName = displayName,
+            IsAgent = true
+        });
 
-        _userDisplayNames[userId] = displayName;
-        _userIsAgent[userId] = true;
-        _lastHeartbeat[userId] = DateTime.UtcNow;
+        state.DisplayName = displayName;
+        state.IsAgent = true;
+        state.LastHeartbeat = DateTime.UtcNow;
 
-        var previousStatus = GetStatus(userId);
-        _userStatuses[userId] = UserStatus.Online;
+        // Cancel any pending grace period or agent inactivity timer
+        state.GracePeriodCts?.Cancel();
+        state.GracePeriodCts?.Dispose();
+        state.AgentInactivityCts?.Cancel();
+        state.AgentInactivityCts?.Dispose();
 
-        // Agents using API activity should not transition to Idle.
-        CancelIdleTimer(userId);
-        ResetAgentInactivityTimer(userId);
+        var previousStatus = state.Status;
+        state.Status = UserStatus.Online;
 
         if (previousStatus != UserStatus.Online)
         {
@@ -254,202 +173,48 @@ public class PresenceService : IPresenceService, IDisposable
             OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Online, true);
         }
 
-        return Task.CompletedTask;
-    }
-
-    private string GetDisplayName(Guid userId)
-    {
-        return _userDisplayNames.TryGetValue(userId, out var name) ? name : "Unknown";
-    }
-
-    private bool GetIsAgent(Guid userId)
-    {
-        return _userIsAgent.TryGetValue(userId, out var isAgent) && isAgent;
-    }
-
-    private void StartGraceTimer(Guid userId)
-    {
-        CancelGraceTimer(userId);
-
-        var timer = new Timer(
-            _ => Task.Run(async () =>
-            {
-                try { await OnGracePeriodExpiredAsync(userId); }
-                catch (Exception ex) { _logger.LogError(ex, "Grace period callback failed for {UserId}", userId); }
-            }),
-            null,
-            _gracePeriod,
-            Timeout.InfiniteTimeSpan);
-
-        _graceTimers[userId] = timer;
-
-        _logger.LogDebug(
-            "Started grace period ({GracePeriodSeconds}s) for user {UserId}",
-            _gracePeriod.TotalSeconds,
-            userId);
-    }
-
-    private Task OnGracePeriodExpiredAsync(Guid userId)
-    {
-        // Verify user still has no connections and remove atomically within the lock
-        // to prevent a race where a user reconnects between the check and SetOfflineAsync.
-        bool stillDisconnected;
-        lock (_connectionLock)
-        {
-            stillDisconnected = !_userConnections.TryGetValue(userId, out var connections)
-                                || connections.Count == 0;
-
-            if (stillDisconnected)
-            {
-                _userConnections.Remove(userId);
-            }
-        }
-
-        if (stillDisconnected)
-        {
-            // Connection removal already handled above under the lock;
-            // SetOfflineAsync will clean up remaining state and raise the event.
-            CancelIdleTimer(userId);
-
-            var displayName = GetDisplayName(userId);
-            var isAgent = GetIsAgent(userId);
-
-            _userStatuses.TryRemove(userId, out _);
-            _userDisplayNames.TryRemove(userId, out _);
-            _userIsAgent.TryRemove(userId, out _);
-            _lastHeartbeat.TryRemove(userId, out _);
-
-            _logger.LogInformation("User {UserId} ({DisplayName}) is now offline", userId, displayName);
-            OnUserStatusChanged?.Invoke(userId, displayName, UserStatus.Offline, isAgent);
-        }
+        // Start agent inactivity timer
+        state.AgentInactivityCts = new CancellationTokenSource();
+        var cts = state.AgentInactivityCts;
+        _ = StartAgentInactivityTimerAsync(userId, cts.Token);
 
         return Task.CompletedTask;
     }
 
-    private void CancelGraceTimer(Guid userId)
+    private async Task StartGracePeriodAsync(Guid userId, CancellationToken ct)
     {
-        if (_graceTimers.TryRemove(userId, out var timer))
+        try
         {
-            timer.Dispose();
+            await Task.Delay(_options.GracePeriod, ct);
+            await SetOfflineAsync(userId);
+        }
+        catch (TaskCanceledException)
+        {
+            // Grace period was cancelled (user reconnected)
         }
     }
 
-    private void ResetIdleTimer(Guid userId)
+    private async Task StartAgentInactivityTimerAsync(Guid userId, CancellationToken ct)
     {
-        CancelIdleTimer(userId);
-
-        // Don't set idle timer for DoNotDisturb users
-        if (_userStatuses.TryGetValue(userId, out var status) && status == UserStatus.DoNotDisturb)
-            return;
-
-        var timer = new Timer(
-            _ => Task.Run(async () =>
-            {
-                try { await OnIdleTimeoutExpiredAsync(userId); }
-                catch (Exception ex) { _logger.LogError(ex, "Idle timeout callback failed for {UserId}", userId); }
-            }),
-            null,
-            _idleTimeout,
-            Timeout.InfiniteTimeSpan);
-
-        _idleTimers[userId] = timer;
-    }
-
-    private Task OnIdleTimeoutExpiredAsync(Guid userId)
-    {
-        var lastBeat = _lastHeartbeat.TryGetValue(userId, out var ts) ? ts : DateTime.MinValue;
-        var elapsed = DateTime.UtcNow - lastBeat;
-
-        if (elapsed >= _idleTimeout)
+        try
         {
-            if (GetIsAgent(userId))
-            {
-                return SetOfflineAsync(userId);
-            }
-
-            return SetIdleAsync(userId);
+            await Task.Delay(_options.AgentInactivityTimeout, ct);
+            await SetOfflineAsync(userId);
         }
-
-        // Heartbeat came in after timer was set; reschedule
-        ResetIdleTimer(userId);
-        return Task.CompletedTask;
-    }
-
-    private void CancelIdleTimer(Guid userId)
-    {
-        if (_idleTimers.TryRemove(userId, out var timer))
+        catch (TaskCanceledException)
         {
-            timer.Dispose();
+            // Timer was cancelled (agent had new activity)
         }
     }
 
-    private void ResetAgentInactivityTimer(Guid userId)
+    private sealed class UserPresenceState
     {
-        CancelAgentInactivityTimer(userId);
-
-        var timer = new Timer(
-            _ => Task.Run(async () =>
-            {
-                try { await OnAgentInactivityTimeoutExpiredAsync(userId); }
-                catch (Exception ex) { _logger.LogError(ex, "Agent inactivity callback failed for {UserId}", userId); }
-            }),
-            null,
-            _agentInactivityTimeout,
-            Timeout.InfiniteTimeSpan);
-
-        _agentInactivityTimers[userId] = timer;
-    }
-
-    private Task OnAgentInactivityTimeoutExpiredAsync(Guid userId)
-    {
-        if (!GetIsAgent(userId))
-        {
-            return Task.CompletedTask;
-        }
-
-        var lastBeat = _lastHeartbeat.TryGetValue(userId, out var ts) ? ts : DateTime.MinValue;
-        var elapsed = DateTime.UtcNow - lastBeat;
-
-        if (elapsed >= _agentInactivityTimeout)
-        {
-            return SetOfflineAsync(userId);
-        }
-
-        ResetAgentInactivityTimer(userId);
-        return Task.CompletedTask;
-    }
-
-    private void CancelAgentInactivityTimer(Guid userId)
-    {
-        if (_agentInactivityTimers.TryRemove(userId, out var timer))
-        {
-            timer.Dispose();
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-
-        foreach (var timer in _graceTimers.Values)
-        {
-            timer.Dispose();
-        }
-        _graceTimers.Clear();
-
-        foreach (var timer in _idleTimers.Values)
-        {
-            timer.Dispose();
-        }
-        _idleTimers.Clear();
-
-        foreach (var timer in _agentInactivityTimers.Values)
-        {
-            timer.Dispose();
-        }
-        _agentInactivityTimers.Clear();
+        public string DisplayName { get; set; } = string.Empty;
+        public UserStatus Status { get; set; } = UserStatus.Online;
+        public bool IsAgent { get; set; }
+        public HashSet<string> Connections { get; } = [];
+        public DateTime LastHeartbeat { get; set; }
+        public CancellationTokenSource? GracePeriodCts { get; set; }
+        public CancellationTokenSource? AgentInactivityCts { get; set; }
     }
 }

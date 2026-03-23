@@ -10,21 +10,11 @@ public class DirectMessageConfiguration : IEntityTypeConfiguration<DirectMessage
     {
         builder.HasKey(dm => dm.Id);
 
-        builder.Property(dm => dm.Id)
-            .ValueGeneratedOnAdd();
-
         builder.Property(dm => dm.Content)
             .IsRequired()
             .HasMaxLength(4000);
 
-        builder.Property(dm => dm.SenderId)
-            .IsRequired();
-
-        builder.Property(dm => dm.RecipientId)
-            .IsRequired();
-
-        builder.Property(dm => dm.CreatedAtUtc)
-            .IsRequired();
+        builder.HasIndex(dm => new { dm.SenderId, dm.RecipientId, dm.CreatedAt });
 
         builder.HasOne(dm => dm.Sender)
             .WithMany(u => u.SentDirectMessages)
@@ -35,8 +25,5 @@ public class DirectMessageConfiguration : IEntityTypeConfiguration<DirectMessage
             .WithMany(u => u.ReceivedDirectMessages)
             .HasForeignKey(dm => dm.RecipientId)
             .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasIndex(dm => new { dm.SenderId, dm.CreatedAtUtc });
-        builder.HasIndex(dm => new { dm.RecipientId, dm.CreatedAtUtc });
     }
 }

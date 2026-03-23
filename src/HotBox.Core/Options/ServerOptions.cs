@@ -8,7 +8,5 @@ public class ServerOptions
 
     public string ServerName { get; set; } = "HotBox";
 
-    public int Port { get; set; } = 5000;
-
     public RegistrationMode RegistrationMode { get; set; } = RegistrationMode.InviteOnly;
 }

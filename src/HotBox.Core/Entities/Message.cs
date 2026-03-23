@@ -8,13 +8,13 @@ public class Message
 
     public Guid ChannelId { get; set; }
 
-    public Guid AuthorId { get; set; }
+    public Guid UserId { get; set; }
 
-    public DateTime CreatedAtUtc { get; set; }
+    public DateTime CreatedAt { get; set; }
 
-    public DateTime? EditedAtUtc { get; set; }
+    public DateTime? EditedAt { get; set; }
 
     public Channel Channel { get; set; } = null!;
 
-    public AppUser Author { get; set; } = null!;
+    public AppUser User { get; set; } = null!;
 }

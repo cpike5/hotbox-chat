@@ -4,7 +4,7 @@ namespace HotBox.Core.Interfaces;
 
 public interface IInviteService
 {
-    Task<Invite> GenerateAsync(Guid createdByUserId, DateTime? expiresAtUtc = null, int? maxUses = null, CancellationToken ct = default);
+    Task<Invite> GenerateAsync(Guid createdByUserId, DateTime? expiresAt = null, int? maxUses = null, CancellationToken ct = default);
 
     Task<Invite?> ValidateAndConsumeAsync(string code, CancellationToken ct = default);
 

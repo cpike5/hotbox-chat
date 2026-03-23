@@ -6,7 +6,6 @@ using HotBox.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
 
 namespace HotBox.Application.Hubs;
 
@@ -15,26 +14,26 @@ public class ChatHub : Hub
 {
     private readonly IMessageService _messageService;
     private readonly IDirectMessageService _directMessageService;
-    private readonly IChannelService _channelService;
-    private readonly INotificationService _notificationService;
     private readonly IPresenceService _presenceService;
+    private readonly IReadStateService _readStateService;
+    private readonly IChannelService _channelService;
     private readonly UserManager<AppUser> _userManager;
     private readonly ILogger<ChatHub> _logger;
 
     public ChatHub(
         IMessageService messageService,
         IDirectMessageService directMessageService,
-        IChannelService channelService,
-        INotificationService notificationService,
         IPresenceService presenceService,
+        IReadStateService readStateService,
+        IChannelService channelService,
         UserManager<AppUser> userManager,
         ILogger<ChatHub> logger)
     {
         _messageService = messageService;
         _directMessageService = directMessageService;
-        _channelService = channelService;
-        _notificationService = notificationService;
         _presenceService = presenceService;
+        _readStateService = readStateService;
+        _channelService = channelService;
         _userManager = userManager;
         _logger = logger;
     }
@@ -43,28 +42,35 @@ public class ChatHub : Hub
     {
         var userId = GetUserId();
         var user = await _userManager.FindByIdAsync(userId.ToString());
-        var displayName = user?.DisplayName ?? "Unknown";
-        var isAgent = user?.IsAgent ?? false;
+        if (user is null)
+        {
+            _logger.LogWarning("Connected user {UserId} not found in database", userId);
+            return;
+        }
 
-        // Register connection and mark user online
-        await _presenceService.SetOnlineAsync(userId, Context.ConnectionId, displayName, isAgent);
+        await _presenceService.SetOnlineAsync(userId, Context.ConnectionId, user.DisplayName, user.IsAgent);
 
-        // Broadcast status change to all other clients
-        await Clients.Others.SendAsync(
-            "UserStatusChanged", userId, displayName, UserStatus.Online, isAgent);
-
-        // Send the full list of online users to the connecting client
+        // Send online users list to the newly connected client
         var onlineUsers = _presenceService.GetAllOnlineUsers()
-            .Select(u => new OnlineUserInfo
-            {
-                UserId = u.UserId,
-                DisplayName = u.DisplayName,
-                Status = u.Status,
-                IsAgent = u.IsAgent,
-            })
+            .Select(u => new OnlineUserInfo(u.UserId, u.DisplayName, u.Status, u.IsAgent))
             .ToList();
-
         await Clients.Caller.SendAsync("OnlineUsers", onlineUsers);
+
+        // Auto-join all text channel groups
+        var channels = await _channelService.GetByTypeAsync(ChannelType.Text);
+        foreach (var channel in channels)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, channel.Id.ToString());
+        }
+
+        // Also join voice channel groups so users receive voice events
+        var voiceChannels = await _channelService.GetByTypeAsync(ChannelType.Voice);
+        foreach (var channel in voiceChannels)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, channel.Id.ToString());
+        }
+
+        _logger.LogInformation("User {UserId} ({DisplayName}) connected", userId, user.DisplayName);
 
         await base.OnConnectedAsync();
     }
@@ -72,230 +78,140 @@ public class ChatHub : Hub
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         var userId = GetUserId();
-
-        // Remove this specific connection
         var noConnectionsLeft = _presenceService.RemoveConnection(userId, Context.ConnectionId);
 
         if (noConnectionsLeft)
         {
-            // Grace period timer is started internally by PresenceService.
-            // When it fires (30s later), if no reconnect occurred,
-            // PresenceService raises OnUserStatusChanged which we subscribe to below.
-            // However, since the Hub is short-lived, we handle the broadcast
-            // via the event on PresenceService that we wire up at startup.
-            // For immediate feedback, we do nothing here — the grace timer handles it.
-            _logger.LogDebug(
-                "User {UserId} disconnected, grace period started (connection {ConnectionId})",
-                userId, Context.ConnectionId);
+            _logger.LogDebug("User {UserId} last connection removed, grace period started", userId);
+        }
+
+        if (exception is not null)
+        {
+            _logger.LogWarning(exception, "User {UserId} disconnected with error", userId);
         }
 
         await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task JoinChannel(Guid channelId)
+    public async Task SendMessage(Guid channelId, string content)
     {
         var userId = GetUserId();
-        var displayName = await GetDisplayNameAsync(userId);
+        var message = await _messageService.SendAsync(channelId, userId, content);
 
+        var response = new MessageResponse(
+            message.Id,
+            message.Content,
+            message.ChannelId,
+            message.UserId,
+            message.User.DisplayName,
+            message.User.AvatarUrl,
+            message.User.IsAgent,
+            message.CreatedAt,
+            message.EditedAt);
+
+        await Clients.Group(channelId.ToString()).SendAsync("ReceiveMessage", response);
+    }
+
+    public Task EditMessage(Guid messageId, string newContent)
+    {
+        // Not yet implemented
+        _logger.LogDebug("EditMessage called for {MessageId} but not yet implemented", messageId);
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteMessage(Guid messageId)
+    {
+        // Not yet implemented
+        _logger.LogDebug("DeleteMessage called for {MessageId} but not yet implemented", messageId);
+        return Task.CompletedTask;
+    }
+
+    public async Task JoinChannel(Guid channelId)
+    {
         await Groups.AddToGroupAsync(Context.ConnectionId, channelId.ToString());
-
-        _logger.LogInformation(
-            "User {UserId} joined channel {ChannelId}",
-            userId, channelId);
-
-        await Clients.Group(channelId.ToString())
-            .SendAsync("UserJoinedChannel", channelId, userId, displayName);
+        _logger.LogDebug("User {UserId} joined channel group {ChannelId}", GetUserId(), channelId);
     }
 
     public async Task LeaveChannel(Guid channelId)
     {
-        var userId = GetUserId();
-
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, channelId.ToString());
-
-        _logger.LogInformation(
-            "User {UserId} left channel {ChannelId}",
-            userId, channelId);
-
-        await Clients.Group(channelId.ToString())
-            .SendAsync("UserLeftChannel", channelId, userId);
-    }
-
-    public async Task SendMessage(Guid channelId, string content)
-    {
-        if (string.IsNullOrWhiteSpace(content))
-            throw new HubException("Message content cannot be empty.");
-
-        var userId = GetUserId();
-
-        var message = await _messageService.SendAsync(channelId, userId, content);
-
-        var authorDisplayName = message.Author?.DisplayName ?? "Unknown";
-
-        var response = new MessageResponse
-        {
-            Id = message.Id,
-            Content = message.Content,
-            ChannelId = message.ChannelId,
-            AuthorId = message.AuthorId,
-            AuthorDisplayName = authorDisplayName,
-            IsAgent = message.Author?.IsAgent ?? false,
-            CreatedAtUtc = message.CreatedAtUtc,
-        };
-
-        await Clients.Group(channelId.ToString())
-            .SendAsync("ReceiveMessage", response);
-
-        // Process @mention notifications
-        var channel = await _channelService.GetByIdAsync(channelId);
-        var channelName = channel?.Name ?? "Unknown";
-
-        await _notificationService.ProcessMentionNotificationsAsync(
-            userId,
-            authorDisplayName,
-            channelId,
-            channelName,
-            content);
-
-        // Notify all other connected clients that this channel has a new message.
-        // The client increments its local unread count — avoids N+1 per-user DB queries.
-        await Clients.Others.SendAsync("UnreadCountUpdated", channelId);
+        _logger.LogDebug("User {UserId} left channel group {ChannelId}", GetUserId(), channelId);
     }
 
     public async Task StartTyping(Guid channelId)
     {
         var userId = GetUserId();
-        var displayName = await GetDisplayNameAsync(userId);
-
+        var user = await _userManager.FindByIdAsync(userId.ToString());
         await Clients.OthersInGroup(channelId.ToString())
-            .SendAsync("UserTyping", channelId, userId, displayName);
+            .SendAsync("UserTyping", channelId, userId, user?.DisplayName ?? "Unknown");
     }
 
     public async Task StopTyping(Guid channelId)
     {
         var userId = GetUserId();
-
         await Clients.OthersInGroup(channelId.ToString())
             .SendAsync("UserStoppedTyping", channelId, userId);
     }
 
-    public async Task SendDirectMessage(Guid recipientId, string content)
-    {
-        if (string.IsNullOrWhiteSpace(content))
-            throw new HubException("Message content cannot be empty.");
-
-        var senderId = GetUserId();
-
-        var message = await _directMessageService.SendAsync(senderId, recipientId, content);
-
-        var senderDisplayName = await GetDisplayNameAsync(senderId);
-
-        var response = new DirectMessageResponse
-        {
-            Id = message.Id,
-            Content = message.Content,
-            SenderId = message.SenderId,
-            SenderDisplayName = senderDisplayName,
-            RecipientId = message.RecipientId,
-            CreatedAtUtc = message.CreatedAtUtc,
-            ReadAtUtc = message.ReadAtUtc,
-        };
-
-        await Clients.User(recipientId.ToString())
-            .SendAsync("ReceiveDirectMessage", response);
-
-        await Clients.User(senderId.ToString())
-            .SendAsync("ReceiveDirectMessage", response);
-
-        // Notify the recipient that they have a new unread DM from this sender.
-        // The client increments its local count — avoids unnecessary DB query.
-        await Clients.User(recipientId.ToString())
-            .SendAsync("DmUnreadCountUpdated", senderId);
-
-        // Create DM notification for the recipient
-        await _notificationService.CreateAsync(
-            NotificationType.DirectMessage,
-            senderId,
-            recipientId,
-            senderDisplayName,
-            content.Length > 100 ? content[..100] : content,
-            senderId,
-            NotificationSourceType.DirectMessage,
-            senderDisplayName,
-            default);
-    }
-
-    public async Task DirectMessageTyping(Guid recipientId)
-    {
-        var senderId = GetUserId();
-        var displayName = await GetDisplayNameAsync(senderId);
-
-        await Clients.User(recipientId.ToString())
-            .SendAsync("DirectMessageTyping", senderId, displayName);
-    }
-
-    public async Task DirectMessageStoppedTyping(Guid recipientId)
-    {
-        var senderId = GetUserId();
-
-        await Clients.User(recipientId.ToString())
-            .SendAsync("DirectMessageStoppedTyping", senderId);
-    }
-
-    /// <summary>
-    /// Client calls this periodically to signal activity, resetting the 5-minute idle timer.
-    /// </summary>
-    public Task Heartbeat()
+    public async Task UpdateStatus(UserStatus status)
     {
         var userId = GetUserId();
-        _presenceService.RecordHeartbeat(userId);
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Client calls this to manually set their status to DoNotDisturb.
-    /// </summary>
-    public async Task SetStatus(UserStatus status)
-    {
-        var userId = GetUserId();
-
-        var user = await _userManager.FindByIdAsync(userId.ToString());
-        var displayName = user?.DisplayName ?? "Unknown";
-        var isAgent = user?.IsAgent ?? false;
-
         switch (status)
         {
             case UserStatus.Online:
-                await _presenceService.SetOnlineAsync(userId, Context.ConnectionId, displayName, isAgent);
-                await Clients.Others.SendAsync("UserStatusChanged", userId, displayName, UserStatus.Online, isAgent);
-                break;
-            case UserStatus.DoNotDisturb:
-                await _presenceService.SetDoNotDisturbAsync(userId);
-                await Clients.Others.SendAsync("UserStatusChanged", userId, displayName, UserStatus.DoNotDisturb, isAgent);
+                var user = await _userManager.FindByIdAsync(userId.ToString());
+                await _presenceService.SetOnlineAsync(userId, Context.ConnectionId, user?.DisplayName ?? "Unknown");
                 break;
             case UserStatus.Idle:
                 await _presenceService.SetIdleAsync(userId);
-                await Clients.Others.SendAsync("UserStatusChanged", userId, displayName, UserStatus.Idle, isAgent);
                 break;
-            default:
-                throw new HubException("Cannot manually set status to Offline. Disconnect instead.");
+            case UserStatus.DoNotDisturb:
+                await _presenceService.SetDoNotDisturbAsync(userId);
+                break;
+            case UserStatus.Offline:
+                await _presenceService.SetOfflineAsync(userId);
+                break;
         }
+    }
+
+    public async Task SendDirectMessage(Guid recipientId, string content)
+    {
+        var userId = GetUserId();
+        var dm = await _directMessageService.SendAsync(userId, recipientId, content);
+
+        var response = new DirectMessageResponse(
+            dm.Id,
+            dm.Content,
+            dm.SenderId,
+            dm.Sender.DisplayName,
+            dm.Sender.AvatarUrl,
+            dm.RecipientId,
+            dm.Recipient.DisplayName,
+            dm.CreatedAt,
+            dm.EditedAt,
+            dm.ReadAt);
+
+        // Send to both sender and recipient
+        await Clients.User(userId.ToString()).SendAsync("ReceiveDirectMessage", response);
+        await Clients.User(recipientId.ToString()).SendAsync("ReceiveDirectMessage", response);
+    }
+
+    public async Task MarkChannelRead(Guid channelId)
+    {
+        var userId = GetUserId();
+        await _readStateService.MarkAsReadAsync(userId, channelId);
+    }
+
+    public void Heartbeat()
+    {
+        var userId = GetUserId();
+        _presenceService.RecordHeartbeat(userId);
     }
 
     private Guid GetUserId()
     {
-        var userIdClaim = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-        {
-            throw new HubException("Unable to determine user identity.");
-        }
-
-        return userId;
-    }
-
-    private async Task<string> GetDisplayNameAsync(Guid userId)
-    {
-        var user = await _userManager.FindByIdAsync(userId.ToString());
-        return user?.DisplayName ?? "Unknown";
+        var userIdStr = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? throw new HubException("User ID not found in claims.");
+        return Guid.Parse(userIdStr);
     }
 }

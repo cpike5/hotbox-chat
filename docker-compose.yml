@@ -1,30 +1,29 @@
+name: hotbox
+
 services:
-  hotbox:
+  api:
     build: .
-    container_name: hotbox
-    networks:
-      - elastic-network
-      - db-network
+    container_name: hotbox-api
     restart: unless-stopped
     ports:
-      - "7200:8080"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "${HOTBOX_PORT:-7200}:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - Database__Provider=postgresql
-      - Database__ConnectionString=Host=db;Port=5432;Database=hotbox;Username=hotbox;Password=${DB_PASSWORD:-changeme}
-      - Jwt__Secret=${JWT_SECRET:-super-secret-key-change-in-production-minimum-32-chars}
-      - Observability__SeqUrl=http://seq:5341
-      - Observability__OtlpEndpoint=${APM_OTLP_ENDPOINT:-}
-      - Observability__OtlpApiKey=${APM_API_KEY:-}
-      - Observability__ElasticsearchUrl=${ELASTICSEARCH_URL:-}
-      - Observability__ElasticsearchApiKey=${ELASTICSEARCH_API_KEY:-}
-      - AdminSeed__Email=${ADMIN_EMAIL:-admin@hotbox.local}
-      - AdminSeed__Password=${ADMIN_PASSWORD:-Admin123!}
-      - AdminSeed__DisplayName=${ADMIN_DISPLAY_NAME:-Admin}
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=hotbox;Username=hotbox;Password=${DB_PASSWORD:-changeme}"
+      ConnectionStrings__Redis: "redis:6379"
+      Jwt__Secret: "${JWT_SECRET:-super-secret-key-change-in-production-minimum-32-chars}"
+      AdminSeed__Email: "${ADMIN_EMAIL:-admin@hotbox.local}"
+      AdminSeed__Password: "${ADMIN_PASSWORD:-Admin123!}"
+      AdminSeed__DisplayName: "${ADMIN_DISPLAY_NAME:-Admin}"
+      Observability__SeqUrl: "http://seq:5341"
+      Observability__OtlpEndpoint: "${APM_OTLP_ENDPOINT:-}"
+      Observability__OtlpApiKey: "${APM_API_KEY:-}"
+      Observability__ElasticsearchUrl: "${ELASTICSEARCH_URL:-}"
+      Observability__ElasticsearchApiKey: "${ELASTICSEARCH_API_KEY:-}"
     depends_on:
-      db:
+      postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -32,46 +31,60 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    networks:
+      - internal
 
-  db:
+  postgres:
     image: postgres:16-alpine
     container_name: hotbox-db
-    networks:
-      - db-network
     restart: unless-stopped
     environment:
       POSTGRES_DB: hotbox
       POSTGRES_USER: hotbox
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hotbox"]
-      interval: 5s
-      timeout: 3s
+      test: ["CMD-SHELL", "pg_isready -U hotbox -d hotbox"]
+      interval: 10s
+      timeout: 5s
       retries: 5
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: hotbox-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
 
   seq:
     image: datalust/seq:latest
     container_name: hotbox-seq
-    networks:
-      - seq-network
     restart: unless-stopped
+    ports:
+      - "${SEQ_PORT:-7201}:80"
     environment:
       ACCEPT_EULA: "Y"
-    ports:
-      - "7201:80"
     volumes:
-      - seqdata:/data
+      - seq-data:/data
+    networks:
+      - internal
 
 volumes:
-  pgdata:
-  seqdata:
+  postgres-data:
+  redis-data:
+  seq-data:
 
 networks:
-  elastic-network:
-    external: true
-  db-network:
-    external: false
-  seq-network:
-    external: false
+  internal:
+    driver: bridge

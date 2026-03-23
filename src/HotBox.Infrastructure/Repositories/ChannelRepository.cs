@@ -8,102 +8,96 @@ namespace HotBox.Infrastructure.Repositories;
 
 public class ChannelRepository : IChannelRepository
 {
-    private readonly HotBoxDbContext _context;
+    private readonly HotBoxDbContext _dbContext;
 
-    public ChannelRepository(HotBoxDbContext context)
+    public ChannelRepository(HotBoxDbContext dbContext)
     {
-        _context = context;
+        _dbContext = dbContext;
     }
 
     public async Task<Channel?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        return await _context.Channels
-            .AsNoTracking()
+        return await _dbContext.Channels
+            .Include(c => c.CreatedBy)
             .FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 
     public async Task<IReadOnlyList<Channel>> GetAllAsync(CancellationToken ct = default)
     {
-        return await _context.Channels
-            .AsNoTracking()
+        return await _dbContext.Channels
+            .Include(c => c.CreatedBy)
             .OrderBy(c => c.SortOrder)
+            .ThenBy(c => c.Name)
+            .AsNoTracking()
             .ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<Channel>> GetByTypeAsync(ChannelType type, CancellationToken ct = default)
     {
-        return await _context.Channels
-            .AsNoTracking()
+        return await _dbContext.Channels
             .Where(c => c.Type == type)
             .OrderBy(c => c.SortOrder)
+            .ThenBy(c => c.Name)
+            .AsNoTracking()
             .ToListAsync(ct);
     }
 
     public async Task<Channel> CreateAsync(Channel channel, CancellationToken ct = default)
     {
-        _context.Channels.Add(channel);
-        await _context.SaveChangesAsync(ct);
+        _dbContext.Channels.Add(channel);
+        await _dbContext.SaveChangesAsync(ct);
         return channel;
     }
 
     public async Task UpdateAsync(Channel channel, CancellationToken ct = default)
     {
-        _context.Channels.Update(channel);
-        await _context.SaveChangesAsync(ct);
+        _dbContext.Channels.Update(channel);
+        await _dbContext.SaveChangesAsync(ct);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var channel = await _context.Channels.FindAsync([id], ct);
-        if (channel != null)
+        var channel = await _dbContext.Channels.FindAsync([id], ct);
+        if (channel is not null)
         {
-            _context.Channels.Remove(channel);
-            await _context.SaveChangesAsync(ct);
+            _dbContext.Channels.Remove(channel);
+            await _dbContext.SaveChangesAsync(ct);
         }
     }
 
     public async Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken ct = default)
     {
-        var query = _context.Channels.AsQueryable();
-
+        var query = _dbContext.Channels.Where(c => c.Name == name);
         if (excludeId.HasValue)
         {
             query = query.Where(c => c.Id != excludeId.Value);
         }
 
-        return await query.AnyAsync(c => c.Name.ToLower() == name.ToLower(), ct);
+        return await query.AnyAsync(ct);
     }
 
     public async Task<int> GetMaxSortOrderAsync(CancellationToken ct = default)
     {
-        if (!await _context.Channels.AnyAsync(ct))
+        if (!await _dbContext.Channels.AnyAsync(ct))
         {
             return -1;
         }
 
-        return await _context.Channels.MaxAsync(c => c.SortOrder, ct);
+        return await _dbContext.Channels.MaxAsync(c => c.SortOrder, ct);
     }
 
     public async Task ReorderAsync(List<Guid> channelIds, CancellationToken ct = default)
     {
-        var channels = await _context.Channels
-            .Where(c => channelIds.Contains(c.Id))
-            .ToListAsync(ct);
-
-        if (channels.Count != channelIds.Count)
-        {
-            var foundIds = channels.Select(c => c.Id).ToHashSet();
-            var missing = channelIds.Where(id => !foundIds.Contains(id)).ToList();
-            throw new KeyNotFoundException(
-                $"Channels not found: {string.Join(", ", missing)}");
-        }
-
         for (var i = 0; i < channelIds.Count; i++)
         {
-            var channel = channels.First(c => c.Id == channelIds[i]);
-            channel.SortOrder = i;
+            var channelId = channelIds[i];
+            var channel = await _dbContext.Channels.FindAsync([channelId], ct);
+            if (channel is not null)
+            {
+                channel.SortOrder = i;
+            }
         }
 
-        await _context.SaveChangesAsync(ct);
+        await _dbContext.SaveChangesAsync(ct);
     }
 }

@@ -1,3 +1,3 @@
 namespace HotBox.Core.Models;
 
-public record ConversationSummary(Guid UserId, string DisplayName, DateTime LastMessageAtUtc, string LastMessageContent);
+public record ConversationSummary(Guid UserId, string DisplayName, DateTime LastMessageAt, string LastMessageContent);
